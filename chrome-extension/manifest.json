@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Taglish Disinformation Detection System",
+  "version": "1.0.0",
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "action": {
+    "default_popup": "index.html"
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.facebook.com/*", 
+        "*://*.x.com/*", 
+        "*://*.twitter.com/*",
+        "*://*.reddit.com/*",
+        "*://*.youtube.com/*"
+      ],
+      "js": ["src/content.jsx"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*", "src/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

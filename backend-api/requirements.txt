@@ -1,0 +1,13 @@
+transformers
+torch
+scikit-learn
+datasets
+pandas
+numpy
+fastapi
+uvicorn
+joblib
+imbalanced-learn
+spacy
+spacy-transformers
+calamancy

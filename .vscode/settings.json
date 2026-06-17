@@ -1,0 +1,6 @@
+{
+  "python.analysis.extraPaths": [
+    "./taglish-detector",
+    "./taglish-detector/src"
+  ]
+}

@@ -1,12 +1,23 @@
 {
   "manifest_version": 3,
-  "name": "Taglish Disinformation Detection System",
-  "version": "1.0.0",
+  "name": "SuriPH",
+  "version": "1.1.0",
   "permissions": [
     "activeTab",
-    "scripting",
-    "storage",
-    "tabs"
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
+    "*://*.facebook.com/*",
+    "*://*.fbcdn.net/*",
+    "*://*.fbsbx.com/*",
+    "*://*.x.com/*",
+    "*://*.twimg.com/*",
+    "*://*.youtube.com/*",
+    "*://*.googlevideo.com/*",
+    "*://*.reddit.com/*",
+    "*://*.redd.it/*"
   ],
   "action": {
     "default_popup": "index.html"
@@ -18,7 +29,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/content.jsx-loader-Dk8TN-Xq.js"
+        "assets/content.js-D9nbVGSO.js"
       ],
       "matches": [
         "*://*.facebook.com/*",
@@ -32,16 +43,6 @@
   "web_accessible_resources": [
     {
       "matches": [
-        "<all_urls>"
-      ],
-      "resources": [
-        "assets/*",
-        "src/*"
-      ],
-      "use_dynamic_url": false
-    },
-    {
-      "matches": [
         "*://*.facebook.com/*",
         "*://*.reddit.com/*",
         "*://*.twitter.com/*",
@@ -49,8 +50,7 @@
         "*://*.youtube.com/*"
       ],
       "resources": [
-        "assets/shield-check-GVtDRVNL.js",
-        "assets/content.jsx-DwMK-zRx.js"
+        "assets/content.js-D9nbVGSO.js"
       ],
       "use_dynamic_url": false
     }

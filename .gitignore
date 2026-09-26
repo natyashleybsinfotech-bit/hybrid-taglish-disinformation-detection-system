@@ -1,0 +1,7 @@
+backend-api/data/runtime-models/
+backend-api/data/runtime-media/
+backend-api/data/runtime-mysql/
+backend-api/data/runtime-mysql-*/
+backend-api/.env
+__pycache__/
+*.py[cod]

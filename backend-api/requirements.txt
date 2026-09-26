@@ -11,3 +11,9 @@ imbalanced-learn
 spacy
 spacy-transformers
 calamancy
+mysql-connector-python
+python-multipart
+easyocr
+openai-whisper
+imageio-ffmpeg
+python-dotenv

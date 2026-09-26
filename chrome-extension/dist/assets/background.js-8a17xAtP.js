@@ -1,1 +1,0 @@
-chrome.runtime.onInstalled.addListener(()=>{chrome.storage.local.get(["veriphi_enabled"],e=>{e.veriphi_enabled===void 0&&chrome.storage.local.set({veriphi_enabled:!0})}),console.log("Taglish Disinformation Detection System initialized.")});

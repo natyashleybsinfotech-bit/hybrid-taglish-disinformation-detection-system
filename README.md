@@ -1,33 +1,55 @@
-# Taglish Disinformation Detection System
+# SuriPH Sprint 1 Working Prototype
 
-This repository contains the full source code for the Taglish Disinformation Detection System.
+This build implements user-triggered screening for manual or page-extracted text, uploaded images, and uploaded videos. Results come from a deterministic mock classifier and must not be presented as trained-model or fact-checking verdicts.
 
-## 📂 Project Structure
+## Components
 
-- **`/admin-dashboard`**: The administrative control panel (React + Vite). Used to monitor predictions, model performance, and logs.
-- **`/backend-api`**: The FastAPI server and AI engine. Handles text preprocessing, feature extraction, and disinformation prediction.
-- **`/chrome-extension`**: The browser-side tool (React + Vite). Injects high-visibility scan buttons directly into social media posts.
-- **`/docs`**: Project documentation, including the Software Design Document (SDD).
+- `backend-api`: FastAPI screening API, EasyOCR, packaged FFmpeg, Whisper, optional Serper retrieval, and MySQL/MariaDB persistence.
+- `chrome-extension`: popup workflow for manual text, selected text, supported post text (including accessible open shadow roots), image uploads, and video uploads.
+- `admin-dashboard`: authenticated real system status, candidate-sample records, and audit records. Retraining and model-performance pages are intentionally outside Sprint 1.
 
-## 🚀 Getting Started
+## Configuration
 
-### 1. Start the Backend (The Brain)
-Open a terminal in `/backend-api` and run:
+Set server secrets and service configuration as environment variables. Use `backend-api/.env.example` as the variable checklist; it contains placeholders only. At minimum, configure `SURI_DB_USER`, `SURI_ADMIN_USERNAME`, `SURI_ADMIN_PASSWORD`, and a long random `SURI_SESSION_SECRET`. `SERPER_API_KEY` is optional; retrieval reports `unavailable_not_configured` without it.
+
+The API applies versioned MySQL/MariaDB migrations on startup. The configured database itself must already exist. Media model weights are downloaded on first use into `backend-api/data/runtime-models` by default and are ignored by Git.
+
+## Run
+
+From the repository root:
+
 ```powershell
-.\venv\Scripts\python.exe -m uvicorn src.app:app --port 8000
+.\.venv\Scripts\python.exe -m pip install -r .\backend-api\requirements.txt
+Set-Location .\backend-api
+..\.venv\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000
 ```
 
-### 2. Start the Dashboard (The Control Panel)
-Open a terminal in `/admin-dashboard` and run:
+In a second terminal:
+
 ```powershell
+Set-Location .\admin-dashboard
 npm run dev
 ```
 
-### 3. Deploy the Extension (The Tool)
-1. Build the extension: `cd chrome-extension; npm run build`
-2. Open Chrome and go to `chrome://extensions/`
-3. Click **"Load unpacked"** and select the `/chrome-extension/dist` folder.
+Build and load the browser extension:
 
-## 🔑 Admin Credentials
-- **Username:** `admin`
-- **Password:** `admin123`
+```powershell
+Set-Location .\chrome-extension
+npm run build
+```
+
+Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`. The extension never collects or classifies page content until the user clicks an extraction or analysis control.
+
+## Verification
+
+```powershell
+Set-Location .\backend-api
+..\.venv\Scripts\python.exe -B -m unittest discover -s tests -p 'test_*.py' -v
+
+Set-Location ..\chrome-extension
+npm run build
+
+Set-Location ..\admin-dashboard
+npm run lint
+npm run build
+```

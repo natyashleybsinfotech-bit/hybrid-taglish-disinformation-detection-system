@@ -1,558 +1,480 @@
-"""
-app.py — Main FastAPI application with /predict endpoint, admin endpoints,
-database logging, CORS middleware, and static file serving for admin dashboard.
-"""
-import sys
-import os
+"""FastAPI application for the SuriPH Sprint 1 working prototype."""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import json
+import re
 import time
-import threading
-import subprocess
-import secrets
-from typing import Any, Dict, Optional
-from fastapi import FastAPI, HTTPException, Request, Depends, Response
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
-from pydantic import BaseModel
-import joblib
-import numpy as np
+from pydantic import BaseModel, Field
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.dirname(__file__))
 import config
-from preprocessing import clean_text
-from feature_extractor import extract_7_features
-from embedding_extractor import embeddings_for
-from database import (
-    init_db,
-    log_prediction,
-    get_predictions,
-    get_stats,
-    log_model,
-    get_models,
-    get_latest_model,
-    log_activity,
-    get_activity_log,
-    verify_user,
-)
+try:
+    from . import database
+    from .fact_check import search_fact_checks
+    from .media_processing import MediaProcessingError, extract_image_text, process_video, service_health
+    from .mock_classifier import classify, normalize_text
+    from .retrieval import retrieve_related_sources
+except ImportError:  # Supports the legacy test runner that adds src/ to sys.path.
+    import database
+    from fact_check import search_fact_checks
+    from media_processing import MediaProcessingError, extract_image_text, process_video, service_health
+    from mock_classifier import classify, normalize_text
+    from retrieval import retrieve_related_sources
 
 
-# ── Request / Response Models ────────────────────────────────────────────
+class ScreenRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20_000)
+    page_url: str | None = Field(default=None, max_length=4_000)
+    page_title: str | None = Field(default=None, max_length=500)
+    context: dict[str, Any] | None = None
 
-class PredictRequest(BaseModel):
-    text: str
+
+class CandidateRequest(ScreenRequest):
+    pass
+
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=1, max_length=500)
 
-# ── App Setup ────────────────────────────────────────────────────────────
 
-app = FastAPI(title="Taglish Disinformation Detector API")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    migration = database.migrate()
+    if migration["status"] == "available":
+        try:
+            created = database.ensure_bootstrap_admin()
+            if created:
+                database.log_audit("ADMIN_BOOTSTRAPPED", "Initial administrator created.")
+        except Exception:
+            pass
+    yield
 
-# CORS — allow Chrome extension and admin dashboard
+
+app = FastAPI(title="SuriPH Working Prototype API", version="1.0.0-sprint1", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(config.CORS_ORIGINS),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# Admin frontend serving moved to bottom to prevent routing collisions
 
-# ── Admin Authentication ─────────────────────────────────────────────────
+def _timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
 
-# In-memory session store: token -> {"username": str, "expires": float}
-active_sessions = {}
-SESSION_EXPIRY = 8 * 3600  # 8 hours
+def _context_explanation(text: str, context: dict[str, Any] | None) -> dict[str, Any]:
+    details = context or {}
+    cleaned_text = re.sub(r"\bSee (?:more|less)\b", " ", text, flags=re.IGNORECASE)
+    cleaned_text = re.sub(r"\bMay be an image of.*?text that says\b", " ", cleaned_text, flags=re.IGNORECASE)
+    cleaned_text = re.sub(r"\bShared post\b(?:\s+[\d.KMB]+){1,5}", " ", cleaned_text, flags=re.IGNORECASE)
+    cleaned_text = re.sub(r"^.{0,100}?\bFollow\s+(?:\d+\s*[mhdw]|Yesterday)\b[·\s]*", "", cleaned_text, flags=re.IGNORECASE)
+    cleaned_text = re.sub(r"\s+", " ", cleaned_text).strip()
+    raw_sentences = [
+        part.strip(" -|Â·")
+        for part in re.split(r"(?<=[.!?])\s+|\n+|\s+[|•]\s+", cleaned_text)
+        if len(part.strip()) >= 20
+    ]
+    sentences: list[str] = []
+    seen: set[str] = set()
+    for sentence in raw_sentences:
+        sentence = re.sub(r"\s+", " ", sentence).strip()
+        key = re.sub(r"[^a-z0-9]+", " ", sentence.casefold()).strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        sentences.append(sentence[:320])
+        if len(sentences) == 4:
+            break
 
-def get_current_admin(request: Request) -> str:
-    """Dependency to check admin auth via Bearer token or cookie."""
-    token = request.cookies.get("admin_token")
-    auth_header = request.headers.get("Authorization")
-    
-    if not token and auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        
-    if not token or token not in active_sessions:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-        
-    session = active_sessions[token]
-    if time.time() > session["expires"]:
-        del active_sessions[token]
-        raise HTTPException(status_code=401, detail="Session expired")
-        
-    return session["username"]
+    # Facebook often repeats the caption inside accessibility text and appends
+    # dates, engagement counts, page names, and "Read more" controls. Remove
+    # those fragments before deciding how many real statements the post has.
+    months = {
+        "january", "february", "march", "april", "may", "june", "july",
+        "august", "september", "october", "november", "december",
+    }
+    noise_words = {
+        "read", "more", "less", "follow", "shared", "post", "news", "update",
+        "verified", "account", "com", "www", "http", "https",
+    }
+    stop_words = {
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "of",
+        "for", "from", "with", "this", "that", "is", "are", "was", "were",
+    }
+
+    def statement_tokens(value: str) -> set[str]:
+        words = re.findall(r"[a-zA-Z]{3,}", value.casefold())
+        return {word for word in words if word not in months | noise_words | stop_words}
+
+    distinct_sentences: list[str] = []
+    distinct_tokens: list[set[str]] = []
+    for sentence in sentences:
+        sentence = re.split(r"\bRead\s+(?:more|less)\b", sentence, maxsplit=1, flags=re.IGNORECASE)[0]
+        sentence = re.sub(
+            r"^(?:\s*['\"]?\d{0,2}\s*(?:January|February|March|April|May|June|July|August|September|October|November|December)[a-z]*\s*\d{0,2}\s*,?\s*\d{4}\W*)+",
+            "",
+            sentence,
+            flags=re.IGNORECASE,
+        ).strip(" '\".,-|…")
+        tokens = statement_tokens(sentence)
+        if len(tokens) < 4:
+            continue
+        duplicate = False
+        for previous in distinct_tokens:
+            overlap = len(tokens & previous) / max(1, min(len(tokens), len(previous)))
+            if overlap >= 0.65:
+                duplicate = True
+                break
+        if duplicate:
+            continue
+        distinct_sentences.append(sentence[:280])
+        distinct_tokens.append(tokens)
+        if len(distinct_sentences) == 3:
+            break
+    sentences = distinct_sentences
+
+    overview = (sentences[0] if sentences else cleaned_text[:320].strip()) or "Not enough readable content was available to describe the topic."
+    # Do not repeat the overview in the claim list. Each remaining statement is
+    # kept separate so mixed-accuracy posts are not treated as one claim.
+    main_points = sentences[1:]
+    timing = details.get("published_text") or details.get("published_at") or "No clear posting date was found."
+    freshness = details.get("freshness") or "The recency could not be confirmed from the visible post."
+    author = details.get("author") or "The visible author could not be identified."
+    statement_count = max(1, len(sentences))
+    separate_statements = [
+        {"number": index, "statement": sentence}
+        for index, sentence in enumerate(sentences, start=1)
+    ] if len(sentences) > 1 else []
+    if timing == "No clear posting date was found.":
+        recency_explanation = "No clear posting date was visible, so SuriPH could not confirm whether this is new, old, or reposted content."
+    elif "older" in freshness.casefold():
+        recency_explanation = "This appears to be an older post. If it is being shared again now, its original date and event timeline may change how the claims should be understood."
+    else:
+        recency_explanation = "This appears recent based on the visible timestamp, but a recent upload does not prove the event itself is new. The event date and original source still need to match the claims."
+    assessment_scope = (
+        f"SuriPH identified {statement_count} separate statements and checked each one individually, because an accurate statement does not automatically make every other statement in the same post accurate."
+        if statement_count > 1
+        else "SuriPH found one main checkable statement after removing repeated captions and Facebook interface text."
+    )
+    checked_material = details.get("extraction_scope") or "The readable post text and available media content"
+    return {
+        "overview": overview,
+        "main_points": main_points,
+        "separate_statements": separate_statements,
+        "author": author,
+        "timing": timing,
+        "freshness": freshness,
+        "recency_explanation": recency_explanation,
+        "assessment_scope": assessment_scope,
+        "checked_material": checked_material,
+    }
+
+
+def _screen(
+    text: str,
+    *,
+    input_type: str,
+    extraction_status: str,
+    page_url: str | None = None,
+    page_title: str | None = None,
+    context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    analyzed_text = normalize_text(text)
+    if not analyzed_text:
+        raise HTTPException(status_code=422, detail="No usable text was provided for screening.")
+    prediction = classify(analyzed_text).to_dict()
+    excluded_domain = urlparse(page_url).netloc if page_url else None
+    explanation = _context_explanation(analyzed_text, context)
+    retrieval_query = " ".join([explanation["overview"], *explanation.get("main_points", [])])
+    retrieval = retrieve_related_sources(retrieval_query, excluded_domain=excluded_domain)
+    fact_checks = search_fact_checks(retrieval_query)
+    fact_check_signal = fact_checks.get("signal")
+    if fact_check_signal:
+        prediction["internal_label"] = fact_check_signal["internal_label"]
+        prediction["public_label"] = fact_check_signal["public_label"]
+        prediction["temporary_score"] = fact_check_signal["confidence"]
+    if retrieval["retrieval_status"] == "available":
+        explanation["related_coverage"] = f"Related reporting was found from {len(retrieval['related_sources'])} credible source(s)."
+    elif retrieval["retrieval_status"] == "disabled":
+        explanation["related_coverage"] = "Related-source lookup is currently turned off, so similar coverage was not compared for this result."
+    else:
+        explanation["related_coverage"] = "No matching credible coverage was found for comparison."
+    return {
+        **prediction,
+        "confidence": prediction["temporary_score"],
+        "analyzed_text": analyzed_text,
+        "timestamp": _timestamp(),
+        "input_type": input_type,
+        "page_url": page_url,
+        "page_title": page_title,
+        "context": context or {},
+        "context_explanation": explanation,
+        "extraction_status": extraction_status,
+        "retrieval_status": retrieval["retrieval_status"],
+        "related_sources": retrieval["related_sources"],
+        "fact_check_status": fact_checks["status"],
+        "fact_check_matches": fact_checks["matches"],
+        "decision_source": "google_fact_check" if fact_check_signal else "screening_model",
+        "decision_basis": fact_check_signal["basis"] if fact_check_signal else None,
+        "disclaimer": config.DISCLAIMER,
+    }
+
+
+async def _read_upload(file: UploadFile, expected_prefix: str) -> bytes:
+    if not file.content_type or not file.content_type.lower().startswith(expected_prefix):
+        raise HTTPException(status_code=415, detail=f"A supported {expected_prefix[:-1]} file is required.")
+    contents = await file.read(config.MAX_MEDIA_BYTES + 1)
+    await file.close()
+    if not contents:
+        raise HTTPException(status_code=422, detail="The uploaded file is empty.")
+    if len(contents) > config.MAX_MEDIA_BYTES:
+        raise HTTPException(status_code=413, detail="The uploaded file exceeds the configured limit.")
+    return contents
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
+    return {
+        "backend": "available",
+        "database": database.database_health(),
+        "services": {
+            **service_health(),
+            "serper": "configured" if config.SERPER_API_KEY else "not_configured",
+            "google_fact_check": "configured" if config.GOOGLE_FACT_CHECK_API_KEY else "not_configured",
+        },
+        "model_status": config.MODEL_STATUS,
+        "timestamp": _timestamp(),
+    }
+
+
+@app.post("/analyze")
+def analyze(request: ScreenRequest) -> dict[str, Any]:
+    return _screen(
+        request.text,
+        input_type="text",
+        extraction_status="not_required",
+        page_url=request.page_url,
+        page_title=request.page_title,
+        context=request.context,
+    )
+
+
+@app.post("/predict", deprecated=True)
+def predict_compatibility(request: ScreenRequest) -> dict[str, Any]:
+    return analyze(request)
+
+
+@app.post("/analyze/image")
+async def analyze_image(
+    file: UploadFile = File(...),
+    page_url: str | None = Form(default=None),
+    page_title: str | None = Form(default=None),
+    post_text: str | None = Form(default=None),
+    context_json: str | None = Form(default=None),
+) -> dict[str, Any]:
+    contents = await _read_upload(file, "image/")
+    try:
+        extraction = extract_image_text(contents)
+    except MediaProcessingError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    try:
+        post_context = json.loads(context_json) if context_json else {}
+    except json.JSONDecodeError:
+        post_context = {}
+    readable_post_text = normalize_text(post_text or "")
+    screening_text = "\n".join(part for part in [readable_post_text, extraction["ocr_text"]] if part)
+    result = _screen(
+        screening_text,
+        input_type="image",
+        extraction_status=extraction["extraction_status"],
+        page_url=page_url,
+        page_title=page_title,
+        context=post_context,
+    )
+    related_coverage = result["context_explanation"].get("related_coverage")
+    result["context_explanation"] = _context_explanation(readable_post_text or extraction["ocr_text"], post_context)
+    result["context_explanation"]["related_coverage"] = related_coverage
+    result["extraction"] = {"ocr_text": extraction["ocr_text"]}
+    return result
+
+
+@app.post("/analyze/video")
+async def analyze_video(
+    file: UploadFile = File(...),
+    page_url: str | None = Form(default=None),
+    page_title: str | None = Form(default=None),
+    post_text: str | None = Form(default=None),
+    context_json: str | None = Form(default=None),
+) -> dict[str, Any]:
+    contents = await _read_upload(file, "video/")
+    suffix = Path(file.filename or "video.mp4").suffix.lower() or ".mp4"
+    if suffix not in {".mp4", ".webm", ".mov", ".mkv", ".avi"}:
+        raise HTTPException(status_code=415, detail="The video file type is unsupported.")
+    try:
+        extraction = process_video(contents, suffix=suffix)
+    except MediaProcessingError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    try:
+        post_context = json.loads(context_json) if context_json else {}
+    except json.JSONDecodeError:
+        post_context = {}
+    readable_post_text = normalize_text(post_text or "")
+    screening_text = "\n".join(part for part in [readable_post_text, extraction["analyzed_text"]] if part)
+    result = _screen(
+        screening_text,
+        input_type="video",
+        extraction_status=extraction["extraction_status"],
+        page_url=page_url,
+        page_title=page_title,
+        context=post_context,
+    )
+    related_coverage = result["context_explanation"].get("related_coverage")
+    result["context_explanation"] = _context_explanation(readable_post_text or extraction["analyzed_text"], post_context)
+    result["context_explanation"]["related_coverage"] = related_coverage
+    result["extraction"] = {
+        "transcript_text": extraction["transcript_text"],
+        "frame_ocr_text": extraction["frame_ocr_text"],
+        "sampled_frames": extraction["sampled_frames"],
+    }
+    return result
+
+
+@app.post("/candidates", status_code=201)
+def submit_candidate(request: CandidateRequest) -> dict[str, Any]:
+    try:
+        candidate_id = database.create_candidate(
+            text=normalize_text(request.text),
+            page_url=request.page_url,
+            page_title=request.page_title,
+        )
+        database.log_audit(
+            "CANDIDATE_SUBMITTED", f"Candidate sample {candidate_id} submitted.", "public-user"
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=503, detail="Candidate submission is unavailable because the database is offline."
+        ) from None
+    return {
+        "candidate_sample_id": candidate_id,
+        "validation_status": "pending",
+        "training_status": "not_training_data",
+    }
+
+
+def _token_signature(payload: str) -> str:
+    if not config.SESSION_SECRET:
+        raise HTTPException(status_code=503, detail="Administrator authentication is not configured.")
+    return hmac.new(config.SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _create_token(username: str) -> str:
+    payload = json.dumps(
+        {"username": username, "expires": int(time.time()) + config.SESSION_HOURS * 3600},
+        separators=(",", ":"),
+    )
+    encoded = base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+    return f"{encoded}.{_token_signature(encoded)}"
+
+
+def _decode_token(token: str) -> str:
+    try:
+        encoded, signature = token.split(".", 1)
+        if not hmac.compare_digest(_token_signature(encoded), signature):
+            raise ValueError
+        padded = encoded + "=" * (-len(encoded) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(padded).decode())
+        if int(payload["expires"]) < int(time.time()):
+            raise ValueError
+        return str(payload["username"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        raise HTTPException(status_code=401, detail="Administrator session is invalid or expired.") from None
+
+
+def current_admin(request: Request) -> str:
+    token = request.cookies.get("suriph_admin_token")
+    authorization = request.headers.get("Authorization", "")
+    if not token and authorization.startswith("Bearer "):
+        token = authorization[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Administrator authentication is required.")
+    return _decode_token(token)
 
 
 @app.post("/admin-api/login")
-def admin_login(req: LoginRequest, request: Request, response: Response):
-    client_ip = request.client.host if request.client else "unknown"
-    
-    # Strip whitespace to prevent accidental login failures
-    username = req.username.strip()
-    password = req.password.strip()
-
-    # 1. EMERGENCY OVERRIDE: Always allow built-in admin to prevent lockout
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        user = {"username": ADMIN_USERNAME, "role": "admin"}
-        try:
-            log_activity("ADMIN_LOGIN_OVERRIDE", f"Emergency override used for {username}", performed_by=username, ip_address=client_ip)
-        except Exception:
-            print(f"[app] Emergency override login used for {username}")
-    else:
-        # 2. Try database lookup
-        user = None
-        try:
-            user = verify_user(username, password)
-        except Exception:
-            # DB errors should not permanently lock out
-            user = None
-
-    if user:
-        token = secrets.token_hex(32)
-        active_sessions[token] = {
-            "username": user["username"],
-            "role": user.get("role", "admin"),
-            "expires": time.time() + SESSION_EXPIRY
-        }
-        # Set cookie for safety
-        response.set_cookie(key="admin_token", value=token, httponly=True, max_age=SESSION_EXPIRY)
-        log_activity("ADMIN_LOGIN", f"User {user['username']} logged in", performed_by=user['username'], ip_address=client_ip)
-        return {"status": "success", "token": token, "username": user["username"]}
-
-    log_activity("ADMIN_LOGIN_FAILED", f"Invalid login attempt for username: {req.username}", performed_by="unknown", ip_address=client_ip)
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+def admin_login(credentials: LoginRequest, response: Response) -> dict[str, str]:
+    try:
+        user = database.verify_admin(credentials.username.strip(), credentials.password)
+    except Exception:
+        raise HTTPException(status_code=503, detail="Administrator login is unavailable.") from None
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
+    token = _create_token(user["username"])
+    response.set_cookie(
+        "suriph_admin_token",
+        token,
+        httponly=True,
+        secure=config.APP_ENV == "production",
+        samesite="strict",
+        max_age=config.SESSION_HOURS * 3600,
+    )
+    try:
+        database.log_audit("ADMIN_LOGIN", "Administrator signed in.", user["username"])
+    except Exception:
+        pass
+    return {"status": "authenticated", "token": token, "username": user["username"]}
 
 
 @app.post("/admin-api/logout")
-def admin_logout(request: Request, response: Response):
-    token = request.cookies.get("admin_token")
-    auth_header = request.headers.get("Authorization")
-    if not token and auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        
-    if token in active_sessions:
-        username = active_sessions[token]["username"]
-        del active_sessions[token]
-        log_activity("ADMIN_LOGOUT", "Admin logged out", performed_by=username)
-        
-    response.delete_cookie("admin_token")
-    return {"status": "logged out"}
+def admin_logout(response: Response, username: str = Depends(current_admin)) -> dict[str, str]:
+    response.delete_cookie("suriph_admin_token")
+    try:
+        database.log_audit("ADMIN_LOGOUT", "Administrator signed out.", username)
+    except Exception:
+        pass
+    return {"status": "logged_out"}
 
 
 @app.get("/admin-api/check-auth")
-def check_auth(username: str = Depends(get_current_admin)):
+def check_auth(username: str = Depends(current_admin)) -> dict[str, Any]:
     return {"authenticated": True, "username": username}
 
 
-# ── Model Loading & Startup ──────────────────────────────────────────────
-
-MODEL = None
-META = None
-
-def load_model_bundle():
-    """Load the model bundle from disk."""
-    global MODEL, META
-    hybrid_path = os.path.join(config.BASE_DIR, "models", "logistic_regression.joblib")
-    embed_path = os.path.join(config.BASE_DIR, "models", "distilbert_only_lr.joblib")
-    
-    if os.path.exists(hybrid_path):
-        MODEL = joblib.load(hybrid_path)
-        META = {"best": "hybrid"}
-        print(f"[app] Loaded hybrid model from {hybrid_path}")
-    elif os.path.exists(embed_path):
-        MODEL = joblib.load(embed_path)
-        META = {"best": "embed"}
-        print(f"[app] Loaded embed model from {embed_path}")
-    elif os.path.exists(config.MODEL_PATH):
-        bundle = joblib.load(config.MODEL_PATH)
-        if isinstance(bundle, dict):
-            MODEL = bundle.get("model")
-            META = bundle.get("meta", {})
-        else:
-            MODEL = bundle
-            META = {"best": "hybrid"}
-        print(f"[app] Loaded model from {config.MODEL_PATH}")
-    else:
-        print("[app] WARNING: No model file found!")
-
-@app.on_event("startup")
-def startup_event():
-    init_db()
-    load_model_bundle()
-    # Warm up DistilBERT — runs one dummy inference so the first real
-    # request is as fast as subsequent ones (no cold-start JIT delay).
+def _database_or_503(operation):
     try:
-        from embedding_extractor import embeddings_for
-        embeddings_for(["warmup"])
-        print("[app] DistilBERT warm-up complete.")
-    except Exception as e:
-        print(f"[app] Warm-up skipped: {e}")
-    log_activity("SYSTEM_START", "FastAPI server started successfully")
+        return operation()
+    except Exception:
+        raise HTTPException(status_code=503, detail="The database service is unavailable.") from None
 
 
-# ── Explanation Generator ─────────────────────────────────────────────────
-
-def generate_explanation(label: str, features: dict, confidence: float) -> dict:
-    """
-    Produces a plain-language explanation and per-feature flags indicating
-    which features were elevated and contributed to the classification.
-    """
-    is_dis = label == "Disinformation"
-    flags = {}
-
-    # Thresholds — tune these to match your dataset norms
-    flags["code_switching_ratio"]   = features["code_switching_ratio"]   > 0.15
-    flags["urgency_count"]          = features["urgency_count"]          >= 2
-    flags["particle_count"]         = features["particle_count"]         >= 3
-    flags["punctuation_intensity"]  = features["punctuation_intensity"]  > 0.05
-    flags["caps_ratio"]             = features["caps_ratio"]             > 0.20
-    flags["repeated_chars"]         = features["repeated_chars"]         >= 1
-    flags["emotional_count"]        = features["emotional_count"]        >= 2
-
-    triggered = [k for k, v in flags.items() if v]
-
-    feature_labels = {
-        "code_switching_ratio":  "heavy Taglish code-switching",
-        "urgency_count":         "urgency cues (e.g. 'agad!', 'PAKI-SHARE')",
-        "particle_count":        "many Filipino filler particles",
-        "punctuation_intensity": "high punctuation intensity",
-        "caps_ratio":            "excessive capitalization",
-        "repeated_chars":        "repeated/stretched characters (e.g. 'graaabe')",
-        "emotional_count":       "emotionally charged vocabulary",
-    }
-
-    if is_dis:
-        if triggered:
-            readable = [feature_labels[k] for k in triggered]
-            if len(readable) == 1:
-                joined = readable[0]
-            elif len(readable) == 2:
-                joined = f"{readable[0]} and {readable[1]}"
-            else:
-                joined = ", ".join(readable[:-1]) + f", and {readable[-1]}"
-            summary = (
-                f"This post was flagged as DISINFORMATION with "
-                f"{confidence*100:.1f}% confidence. The AI detected {joined} — "
-                f"patterns commonly found in misleading or manipulative Taglish content."
-            )
-        else:
-            summary = (
-                f"This post was flagged as DISINFORMATION with "
-                f"{confidence*100:.1f}% confidence based on the overall semantic "
-                f"context analyzed by the DistilBERT language model."
-            )
-    else:
-        if not triggered:
-            summary = (
-                f"This post was classified as NON-DISINFORMATION with "
-                f"{confidence*100:.1f}% confidence. No strong linguistic red flags "
-                f"were detected — the language appears balanced and factual."
-            )
-        else:
-            readable = [feature_labels[k] for k in triggered]
-            joined = ", ".join(readable) if len(readable) > 1 else readable[0]
-            summary = (
-                f"This post was classified as NON-DISINFORMATION with "
-                f"{confidence*100:.1f}% confidence. While {joined} "
-                f"{'were' if len(triggered) > 1 else 'was'} detected, the overall "
-                f"semantic context did not indicate disinformation."
-            )
-
-    return {"summary": summary, "feature_flags": flags, "triggered_features": triggered}
+@app.get("/admin-api/candidates")
+def admin_candidates(limit: int = 100, _username: str = Depends(current_admin)):
+    return {"candidates": _database_or_503(lambda: database.list_candidates(min(limit, 500)))}
 
 
-# ── Public Endpoints ─────────────────────────────────────────────────────
+@app.get("/admin-api/audit-logs")
+def admin_audit_logs(limit: int = 100, _username: str = Depends(current_admin)):
+    return {"audit_logs": _database_or_503(lambda: database.list_audits(min(limit, 500)))}
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "model": "hybrid-distilbert-lr" if META and META.get("best") == "hybrid" else "distilbert-only"}
-
-
-@app.post("/predict")
-def predict(req: PredictRequest, request: Request) -> Dict[str, Any]:
-    text = req.text
-    if not text or not text.strip():
-        raise HTTPException(status_code=400, detail="Empty text")
-
-    if MODEL is None:
-        raise HTTPException(status_code=500, detail="Model not loaded")
-
-    clean = clean_text(text)
-    feats = extract_7_features(clean)
-
-    # Measure inference time
-    t0 = time.perf_counter()
-    emb = embeddings_for([clean])
-
-    if META and META.get("best") == "embed":
-        vector = emb[0]
-    else:
-        vector = np.hstack([emb[0], feats])
-
-    try:
-        proba = None
-        if hasattr(MODEL, "predict_proba"):
-            proba = MODEL.predict_proba(vector.reshape(1, -1))[0]
-            confidence = float(max(proba))
-        else:
-            confidence = 1.0
-
-        pred = int(MODEL.predict(vector.reshape(1, -1))[0])
-    except Exception as ex:
-        raise HTTPException(status_code=500, detail=str(ex))
-
-    t1 = time.perf_counter()
-    inference_ms = round((t1 - t0) * 1000, 2)
-
-    # Map label
-    label = "Disinformation" if pred == 1 else "Non-Disinformation"
-
-    # Build features dict
-    features = {
-        "code_switching_ratio": round(float(feats[0]), 4),
-        "urgency_count": int(feats[6]),
-        "particle_count": int(feats[1]),
-        "punctuation_intensity": round(float(feats[2]), 4),
-        "caps_ratio": round(float(feats[3]), 4),
-        "repeated_chars": int(feats[4]),
-        "emotional_count": int(feats[5]),
-    }
-
-    # Log to database
-    try:
-        log_prediction(
-            input_text=text,
-            label=label,
-            label_code=pred,
-            confidence=round(confidence, 4),
-            inference_ms=inference_ms,
-            code_switching_ratio=features["code_switching_ratio"],
-            urgency_count=features["urgency_count"],
-            particle_count=features["particle_count"],
-            punctuation_intensity=features["punctuation_intensity"],
-            caps_ratio=features["caps_ratio"],
-            repeated_chars=features["repeated_chars"],
-            emotional_count=features["emotional_count"],
-        )
-        log_activity(
-            action="PREDICTION",
-            description=f"Label: {label}, Confidence: {confidence:.2f}",
-            performed_by="end_user",
-            ip_address=request.client.host if request.client else "unknown"
-        )
-    except Exception as e:
-        print(f"[app] DB logging failed (non-fatal): {e}")
-
-    explanation = generate_explanation(label, features, confidence)
-
-    return {
-        "label": label,
-        "label_code": pred,
-        "confidence": round(confidence, 4),
-        "inference_ms": inference_ms,
-        "features": features,
-        "explanation": explanation["summary"],
-        "feature_flags": explanation["feature_flags"],
-        "triggered_features": explanation["triggered_features"],
-    }
-
-
-# ── Protected Admin Endpoints ────────────────────────────────────────────
 
 @app.get("/admin-api/stats")
-def admin_stats(username: str = Depends(get_current_admin)):
-    _ = username  # Silence unused variable warning
-    return {"stats": get_stats()}
-
-@app.get("/admin-api/predictions")
-def admin_predictions(limit: int = 200, username: str = Depends(get_current_admin)):
-    _ = username
-    return {"predictions": get_predictions(limit=limit)}
-
-@app.get("/admin-api/models")
-def admin_models(username: str = Depends(get_current_admin)):
-    _ = username
-    return {"models": get_models()}
-
-@app.get("/admin-api/models/latest")
-def admin_latest_model(username: str = Depends(get_current_admin)):
-    _ = username
-    model = get_latest_model()
-    if not model:
-        return {"error": "No models found"}
-    return {"model": model}
-
-@app.get("/admin-api/activity-log")
-def admin_activity_log(limit: int = 100, username: str = Depends(get_current_admin)):
-    _ = username
-    return {"activity_log": get_activity_log(limit=limit)}
-
-# ── Retrain Endpoint ─────────────────────────────────────────────────────
-
-retrain_status = {"running": False, "message": "Idle"}
-
-@app.get("/admin-api/retrain/status")
-def admin_retrain_status(username: str = Depends(get_current_admin)):
-    return retrain_status
-
-@app.post("/admin-api/retrain")
-def admin_retrain(username: str = Depends(get_current_admin)):
-    global retrain_status
-    if retrain_status["running"]:
-        raise HTTPException(status_code=409, detail="Retraining already in progress")
-
-    retrain_status = {"running": True, "message": "Starting retraining..."}
-    log_activity("RETRAIN_STARTED", "Model retraining initiated", performed_by=username)
-
-    def run_training():
-        global retrain_status, MODEL, META
-        try:
-            retrain_status["message"] = "Running train_model.py..."
-            train_script = os.path.join(config.BASE_DIR, "src", "train_model.py")
-            
-            # Use same venv for the subprocess
-            python_exe = sys.executable
-            
-            result = subprocess.run(
-                [python_exe, train_script],
-                cwd=config.BASE_DIR,
-                capture_output=True,
-                text=True,
-                timeout=1800,  # 30 minute timeout
-            )
-            
-            if result.returncode == 0:
-                retrain_status["message"] = "Retraining completed successfully"
-                retrain_status["running"] = False
-                load_model_bundle()
-                log_activity("RETRAIN_COMPLETED", "Model retraining completed successfully", performed_by=username)
-            else:
-                retrain_status["message"] = f"Retraining failed: {result.stderr[:200]}"
-                retrain_status["running"] = False
-                log_activity("RETRAIN_FAILED", f"Retraining failed: {result.stderr}", performed_by=username)
-        except subprocess.TimeoutExpired:
-            retrain_status["message"] = "Retraining timeout (30 min limit)"
-            retrain_status["running"] = False
-            log_activity("RETRAIN_TIMEOUT", "Model retraining timed out", performed_by=username)
-        except Exception as e:
-            retrain_status["message"] = str(e)
-            retrain_status["running"] = False
-            log_activity("RETRAIN_ERROR", f"Retraining error: {str(e)}", performed_by=username)
-
-    thread = threading.Thread(target=run_training, daemon=True)
-    thread.start()
-    
-    return {"status": "retrain_started", "message": retrain_status["message"]}
+def admin_stats(_username: str = Depends(current_admin)):
+    return {"stats": _database_or_503(database.sprint_stats)}
 
 
-# ── Dataset Upload Endpoint ──────────────────────────────────────────────────
-
-UPLOAD_DIR = os.path.join(config.BASE_DIR, "data", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# Track the most recently uploaded dataset path
-uploaded_dataset_path: Optional[str] = None
-
-from fastapi import UploadFile, File
-
-@app.post("/admin-api/upload-dataset")
-async def upload_dataset(
-    file: UploadFile = File(...),
-    username: str = Depends(get_current_admin)
-):
-    global uploaded_dataset_path
-
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
-
-    # Save with timestamp to avoid overwriting
-    import time as _time
-    safe_name = f"uploaded_{int(_time.time())}_{file.filename}"
-    dest = os.path.join(UPLOAD_DIR, safe_name)
-
-    contents = await file.read()
-    with open(dest, "wb") as f:
-        f.write(contents)
-
-    uploaded_dataset_path = dest
-    log_activity("DATASET_UPLOADED", f"Dataset uploaded: {safe_name}", performed_by=username)
-    return {"status": "ok", "filename": safe_name, "path": dest, "size_bytes": len(contents)}
-
-
-@app.get("/admin-api/upload-dataset/status")
-def upload_status(username: str = Depends(get_current_admin)):
-    _ = username
-    if uploaded_dataset_path and os.path.exists(uploaded_dataset_path):
-        return {
-            "has_upload": True,
-            "filename": os.path.basename(uploaded_dataset_path),
-            "size_bytes": os.path.getsize(uploaded_dataset_path),
-        }
-    return {"has_upload": False, "filename": None}
-
-
-# ── Retrain with Uploaded Dataset ───────────────────────────────────────────
-
-@app.post("/admin-api/retrain-uploaded")
-def admin_retrain_uploaded(username: str = Depends(get_current_admin)):
-    global retrain_status, uploaded_dataset_path
-
-    if retrain_status["running"]:
-        raise HTTPException(status_code=409, detail="Retraining already in progress.")
-
-    if not uploaded_dataset_path or not os.path.exists(uploaded_dataset_path):
-        raise HTTPException(status_code=400, detail="No uploaded dataset found. Please upload a CSV first.")
-
-    dataset_to_use = uploaded_dataset_path
-    retrain_status = {"running": True, "message": f"Starting retrain with uploaded dataset: {os.path.basename(dataset_to_use)}"}
-    log_activity("RETRAIN_UPLOAD_STARTED", f"Retrain with uploaded dataset: {os.path.basename(dataset_to_use)}", performed_by=username)
-
-    def run_training_uploaded():
-        global retrain_status, MODEL, META
-        try:
-            retrain_status["message"] = f"Training with: {os.path.basename(dataset_to_use)}..."
-            train_script = os.path.join(config.BASE_DIR, "src", "train_model.py")
-            python_exe = sys.executable
-
-            env = os.environ.copy()
-            env["TAGLISH_DATASET_OVERRIDE"] = dataset_to_use  # train_model.py reads this
-
-            result = subprocess.run(
-                [python_exe, train_script],
-                cwd=config.BASE_DIR,
-                capture_output=True,
-                text=True,
-                timeout=1800,
-                env=env,
-            )
-
-            if result.returncode == 0:
-                retrain_status["message"] = "Retrain with uploaded dataset complete. Reloading model..."
-                load_model_bundle()
-                retrain_status["message"] = "Retraining complete. Model updated and reloaded."
-                log_activity("RETRAIN_UPLOAD_COMPLETE", "Retrain with uploaded dataset completed", performed_by="system")
-            else:
-                retrain_status["message"] = f"Training failed: {result.stderr[-500:]}"
-                log_activity("RETRAIN_UPLOAD_FAILED", f"Retrain failed: {result.stderr[-200:]}", performed_by="system")
-        except subprocess.TimeoutExpired:
-            retrain_status["message"] = "Error: Training timed out after 30 minutes."
-            log_activity("RETRAIN_UPLOAD_FAILED", "Retrain timed out", performed_by="system")
-        except Exception as e:
-            retrain_status["message"] = f"Error: {str(e)}"
-            log_activity("RETRAIN_UPLOAD_FAILED", f"Error: {str(e)}", performed_by="system")
-        finally:
-            retrain_status["running"] = False
-
-    thread = threading.Thread(target=run_training_uploaded, daemon=True)
-    thread.start()
-    return {"status": "started", "message": retrain_status["message"]}
-
-
-# ── Static Files / SPA Mounting ──────────────────────────────────────────
-# Future production builds can be served here if needed.
+@app.get("/admin-api/system-status")
+def admin_system_status(_username: str = Depends(current_admin)):
+    return health()

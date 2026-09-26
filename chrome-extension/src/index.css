@@ -7,3 +7,12 @@
     @apply bg-slate-900/50 backdrop-blur-md border border-slate-700;
   }
 }
+
+.popup-shell textarea { background: #f8fafc !important; border-color: #cbd5e1 !important; color: #0f172a !important; }
+.popup-shell section button { color: #334155; border-color: #cbd5e1; }
+.popup-shell section button:hover { background: #f8fafc; }
+.popup-shell input[type=file] { color: #64748b; }
+.popup-shell input[type=file]::file-selector-button { background: #e2e8f0; color: #334155; }
+.popup-shell .text-slate-300, .popup-shell .text-slate-400, .popup-shell .text-slate-500, .popup-shell .text-slate-600 { color: #334155 !important; }
+.popup-shell .text-sky-400 { color: #0369a1 !important; }
+.popup-shell .text-emerald-300, .popup-shell .text-teal-700 { color: #0f766e !important; }

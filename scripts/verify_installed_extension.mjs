@@ -49,15 +49,20 @@ await new Promise((resolve, reject) => { fixtureServer.once('error', reject); fi
 const fixturePort = fixtureServer.address().port;
 
 class CDP {
-  constructor(url) { this.url = url; this.id = 0; this.pending = new Map(); }
+  constructor(url) { this.url = url; this.id = 0; this.pending = new Map(); this.listeners = []; }
   async open() {
     this.socket = new WebSocket(this.url);
     await new Promise((resolve, reject) => { this.socket.onopen = resolve; this.socket.onerror = reject; });
     this.socket.onmessage = event => {
       const message = JSON.parse(event.data);
+      for (const listener of this.listeners) listener(message);
       if (!message.id || !this.pending.has(message.id)) return;
       const { resolve, reject } = this.pending.get(message.id); this.pending.delete(message.id);
       message.error ? reject(new Error(`${message.error.message}: ${JSON.stringify(message.error.data || '')}`)) : resolve(message.result || {});
+    };
+    this.socket.onclose = () => {
+      for (const { reject } of this.pending.values()) reject(new Error('The browser target closed.'));
+      this.pending.clear();
     };
     return this;
   }
@@ -98,15 +103,28 @@ async function clickText(client, label) {
   return evaluate(client, `(() => { const target=[...document.querySelectorAll('button,summary,a')].find(node=>node.textContent.trim().includes(${JSON.stringify(label)})); if(!target) throw new Error('Missing control: ${label}'); target.click(); return true; })()`);
 }
 async function bodyText(client) { return evaluate(client, 'document.body.innerText'); }
-async function reopenPopup(port, extensionId, socialClient) {
-  await socialClient.send('Page.bringToFront');
-  const workerTarget = (await targets(port)).find(item => item.type === 'service_worker' && item.url.startsWith(`chrome-extension://${extensionId}/`));
-  assert.ok(workerTarget, 'Extension service worker was not active');
-  const worker = await new CDP(workerTarget.webSocketDebuggerUrl).open();
-  try { await evaluate(worker, 'chrome.action.openPopup().then(()=>true)', true); } finally { worker.close(); }
+async function waitForPopupToClose(port, extensionId) {
+  const popupUrl = `chrome-extension://${extensionId}/index.html`;
   const deadline = Date.now() + 10000;
   while (Date.now() < deadline) {
-    const popupTarget = (await targets(port)).find(item => item.type === 'page' && item.url === `chrome-extension://${extensionId}/index.html`);
+    if (!(await targets(port)).some(item => item.type === 'page' && item.url === popupUrl)) return;
+    await wait(100);
+  }
+  throw new Error('The extension popup did not close after reloading the active page');
+}
+async function reopenPopup(port, extensionId, socialClient) {
+  await socialClient.send('Page.bringToFront');
+  const popupUrl = `chrome-extension://${extensionId}/index.html`;
+  let popupTarget = (await targets(port)).find(item => item.type === 'page' && item.url === popupUrl);
+  if (!popupTarget) {
+    const workerTarget = (await targets(port)).find(item => item.type === 'service_worker' && item.url.startsWith(`chrome-extension://${extensionId}/`));
+    assert.ok(workerTarget, 'Extension service worker was not active');
+    const worker = await new CDP(workerTarget.webSocketDebuggerUrl).open();
+    try { await evaluate(worker, 'chrome.action.openPopup().then(()=>true)', true); } finally { worker.close(); }
+  }
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    popupTarget = (await targets(port)).find(item => item.type === 'page' && item.url === popupUrl);
     if (popupTarget) { const client = await new CDP(popupTarget.webSocketDebuggerUrl).open(); await Promise.all([client.send('Page.enable'), client.send('Runtime.enable')]); await waitFor(client, 'Boolean(document.querySelector("#screen-text"))', 10000); return client; }
     await wait(100);
   }
@@ -153,6 +171,9 @@ try {
 
   await clickText(popup, 'Page tools on');
   await waitFor(social.client, '!document.querySelector("#suriph-control-host")');
+  popup.close();
+  await waitForPopupToClose(port, extensionId);
+  popup = await reopenPopup(port, extensionId, social.client); clients.push(popup);
   await clickText(popup, 'Page tools off');
   await waitFor(social.client, 'Boolean(document.querySelector("#suriph-control-host"))');
 
@@ -169,12 +190,12 @@ try {
   await setControl(popup, '#screen-text', 'Changed input must clear the previous result.');
   assert.equal(await evaluate(popup, 'document.querySelectorAll("[data-feature]").length'), 0, 'Changing input left a stale result');
 
-  const logPath = path.join(ROOT, 'tmp', 'live-api.err.log');
-  const countAnalyze = async () => ((await readFile(logPath, 'utf8')).match(/"route": "\/analyze"/g) || []).length;
-  const before = await countAnalyze();
+  let analyzeRequests = 0;
+  popup.listeners.push(message => { if (message.method === 'Network.requestWillBeSent' && message.params?.request?.url.endsWith('/analyze')) analyzeRequests++; });
+  await popup.send('Network.enable');
   await evaluate(popup, `(() => { const button=[...document.querySelectorAll('button')].find(node=>node.textContent.includes('Analyze text')); button.click(); button.click(); return button.disabled; })()`);
   await waitFor(popup, 'document.querySelectorAll("[data-feature]").length===7', 180000);
-  assert.equal((await countAnalyze()) - before, 1, 'Repeated click created multiple requests');
+  assert.equal(analyzeRequests, 1, 'Repeated click did not create exactly one request');
 
   const longText = 'Basahin natin ang buong artikulo at suriin ang source. '.repeat(100) + 'UNIQUE_TAIL_73129';
   await setControl(popup, '#screen-text', longText);
@@ -242,7 +263,7 @@ try {
     passed: true, browser: path.basename(CHROME).toLowerCase().includes('msedge') ? 'Microsoft Edge' : 'Google Chrome', isolated_profile: true, unpacked_extension_loaded: true,
     extension_id_observed: true, popup_opened_from_action: true, actual_backend: true,
     manual_text: 'passed', empty_input: 'passed', selected_text: 'passed', supported_caption_fixture: 'passed',
-    page_tools_live_toggle: 'passed', repeated_submission_single_request: 'passed', stale_result_cleared: 'passed',
+    page_tools_reload_toggle: 'passed', repeated_submission_single_request: 'passed', stale_result_cleared: 'passed',
     long_input_complete_tail: 'passed', seven_feature_values_match_backend: 'passed',
     live_evidence_links_returned: sourceLinks, consent_feedback_withdrawal: 'passed',
     admin_login_logout: 'passed', admin_session_reload_persistence: sessionPersisted ? 'passed' : 'failed',

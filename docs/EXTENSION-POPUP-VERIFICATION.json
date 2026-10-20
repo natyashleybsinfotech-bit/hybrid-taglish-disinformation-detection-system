@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "browser": "Microsoft Edge (isolated off-screen profile)",
+  "unpacked_extension_loaded": true,
+  "extension_id_observed": true,
+  "popup_opened_from_action": true,
+  "popup_opened_as_extension_window": false,
+  "actual_backend_connection": true,
+  "empty_input": "passed",
+  "manual_text_prediction": "passed",
+  "duplicate_click_single_request": "passed",
+  "stale_result_cleared": "passed",
+  "long_text_tail_preserved": "passed",
+  "seven_feature_values_match_backend": "passed",
+  "consent_feedback_withdrawal": "passed",
+  "screenshots_private": true,
+  "content_script_social_extraction": "covered by the separate installed-extension rehearsal",
+  "limitations": [
+    "No real social account or participant content was used.",
+    "Keyboard and screen-reader testing remains manual."
+  ]
+}

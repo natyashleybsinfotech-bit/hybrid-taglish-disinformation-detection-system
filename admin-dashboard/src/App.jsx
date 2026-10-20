@@ -33,7 +33,7 @@ export function Layout({ children, onLogout, user }) {
     <div className="admin-layout" style={{ display: 'flex', minHeight: '100vh' }}>
       <aside style={{ width: 240, padding: 20, borderRight: '1px solid var(--border)', background: 'var(--bg-sidebar)' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ShieldCheck color="var(--accent)" /> SuriPH</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{user.role === 'viewer' ? 'AFP evaluation Â· view only' : 'Research administration'}</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{user.role === 'viewer' ? 'AFP evaluation · view only' : 'Research administration'}</p>
         <nav style={{ display: 'grid', gap: 8, marginTop: 28 }}>
           {links.map(([to, Icon, label]) => <NavLink key={to} to={to} style={({ isActive }) => ({ padding: 12, borderRadius: 8, color: 'white', textDecoration: 'none', background: isActive ? 'var(--accent)' : 'transparent' })}><Icon size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />{label}</NavLink>)}
         </nav>
@@ -51,7 +51,7 @@ export default function App() {
     localStorage.removeItem('admin_token');
     api.get('/check-auth').then(({ data }) => setUser(data)).catch(() => localStorage.removeItem('admin_token')).finally(() => setLoading(false));
   }, []);
-  if (loading) return <p style={{ padding: 40 }}>Checking administrator sessionâ€¦</p>;
+  if (loading) return <p style={{ padding: 40 }}>Checking administrator session…</p>;
   if (!user) return <Login onLogin={(data) => setUser(data)} />;
   return (
     <ErrorBoundary><BrowserRouter><Layout user={user} onLogout={() => setUser(null)}><Routes>

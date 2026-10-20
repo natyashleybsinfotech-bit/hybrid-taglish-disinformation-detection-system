@@ -1,0 +1,83 @@
+{
+  "passed": true,
+  "measured_at_utc": "2026-10-20T21:15:31.3394031Z",
+  "scope": "Native Windows live API, Vite dashboard and portable MariaDB; isolated synthetic requests. Not a Docker/Linux capacity result.",
+  "ready": true,
+  "dashboard_status": 200,
+  "process_ids": {
+    "api": 14008,
+    "dashboard": 22996,
+    "database": 6840
+  },
+  "initial_memory": {
+    "services": [
+      {
+        "service": "api",
+        "pid": 14008,
+        "rss_mib": 690.27
+      },
+      {
+        "service": "dashboard",
+        "pid": 22996,
+        "rss_mib": 264.72
+      },
+      {
+        "service": "database",
+        "pid": 6840,
+        "rss_mib": 53.02
+      }
+    ],
+    "total_rss_mib": 1008.01
+  },
+  "peak_sampled_stack_memory": {
+    "services": [
+      {
+        "service": "api",
+        "pid": 14008,
+        "rss_mib": 714.9
+      },
+      {
+        "service": "dashboard",
+        "pid": 22996,
+        "rss_mib": 264.72
+      },
+      {
+        "service": "database",
+        "pid": 6840,
+        "rss_mib": 53.02
+      }
+    ],
+    "total_rss_mib": 1032.64
+  },
+  "short_requests": 10,
+  "short_http_ms": [
+    76.58,
+    24.09,
+    24.53,
+    25.55,
+    24.41,
+    24.31,
+    25.93,
+    24.07,
+    25.6,
+    25.9
+  ],
+  "short_median_ms": 25.04,
+  "short_p95_ms": 76.58,
+  "long_http_ms": 2781.37,
+  "long_complete_tail": true,
+  "concurrent_statuses": [
+    200,
+    200,
+    200
+  ],
+  "concurrent_elapsed_ms": 4285.87,
+  "retrieval_http_ms": 1829.43,
+  "retrieval_status": "available",
+  "retrieval_links": 2,
+  "limitations": [
+    "Single workstation run; no SLA or population-capacity claim.",
+    "Memory is listener-process RSS and excludes browser test processes.",
+    "Container build, Linux resource behavior and TLS remain unmeasured here."
+  ]
+}

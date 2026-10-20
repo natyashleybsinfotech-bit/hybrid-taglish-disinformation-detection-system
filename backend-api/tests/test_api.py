@@ -275,11 +275,9 @@ class ApiTests(unittest.TestCase):
         ), patch.object(application.database, "log_audit", return_value=1):
             login = self.client.post("/admin-api/login", json={"username": "admin", "password": "test"})
         self.assertEqual(login.status_code, 200)
+        self.assertNotIn("token", login.json())
         with patch.object(application.config, "SESSION_SECRET", "test-session-secret"):
-            status = self.client.get(
-                "/admin-api/system-status",
-                headers={"Authorization": f"Bearer {login.json()['token']}"},
-            )
+            status = self.client.get("/admin-api/system-status")
         self.assertEqual(status.status_code, 200)
 
     def test_afp_viewer_can_read_quality_status_but_not_govern_dataset(self):

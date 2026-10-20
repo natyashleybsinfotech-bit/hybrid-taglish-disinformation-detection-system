@@ -93,8 +93,14 @@ export default function Popup() {
     } catch (reason) { setError(reason.message); }
     finally { lock.current = false; setStatus('completed'); }
   }
+  async function setPageTools(next) {
+    setEnabled(next);
+    await chrome.storage.local.set({ suriphEnabled: next });
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab?.id) chrome.tabs.sendMessage(tab.id, { type: 'SURIPH_SET_ENABLED', enabled: next }, () => void chrome.runtime.lastError);
+  }
   return <main className="popup-shell">
-    <header className="brand-row"><div><h1>SuriPH</h1><p>Read carefully. Check the context.</p></div><button className="secondary" aria-pressed={enabled} disabled={busy} onClick={async () => { const next = !enabled; setEnabled(next); await chrome.storage.local.set({ suriphEnabled: next }); }}>Page tools {enabled ? 'on' : 'off'}</button></header>
+    <header className="brand-row"><div><h1>SuriPH</h1><p>Read carefully. Check the context.</p></div><button className="secondary" aria-pressed={enabled} disabled={busy} onClick={() => setPageTools(!enabled)}>Page tools {enabled ? 'on' : 'off'}</button></header>
     <section className="result-card input-card"><label htmlFor="screen-text">Text to analyze</label>
       <p>Use public, non-sensitive content. Text is processed by the study server; it is not saved by default.</p>
       <textarea id="screen-text" rows={6} value={text} disabled={busy} onChange={event => { setText(event.target.value); setPage(EMPTY_PAGE); clearResult(); }} placeholder="Paste English, Filipino or Taglish text…" />

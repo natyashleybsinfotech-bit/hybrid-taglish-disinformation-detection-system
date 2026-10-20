@@ -35,6 +35,22 @@ function collectPostText(post) {
   for (const root of rootsFrom(post)) if (root !== post && root.host?.id !== 'suriph-control-host') parts.push(root.innerText || root.textContent || '');
   return normalize([...new Set(parts.map(normalize).filter(Boolean))].join(' '));
 }
+function postForSelection() {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount) return null;
+  let node = selection.getRangeAt(0).commonAncestorContainer;
+  if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  return node?.closest?.(POST_SELECTORS.join(',')) || null;
+}
+function postNearestViewport() {
+  const activePost = document.activeElement?.closest?.(POST_SELECTORS.join(','));
+  if (activePost) return activePost;
+  const center = window.innerHeight / 2;
+  return findPosts()
+    .map(post => ({ post, rect: post.getBoundingClientRect() }))
+    .filter(({ rect }) => rect.bottom > 0 && rect.top < window.innerHeight && rect.width > 0 && rect.height > 0)
+    .sort((left, right) => Math.abs((left.rect.top + left.rect.bottom) / 2 - center) - Math.abs((right.rect.top + right.rect.bottom) / 2 - center))[0]?.post || null;
+}
 function collectPostContext(post) {
   const time = post.querySelector('time');
   const authorNode = post.querySelector('[data-ad-rendering-role="profile_name"], [role="link"] strong, h2, h3');
@@ -336,9 +352,27 @@ function scanForControls() { if (extensionEnabled) for (const post of findPosts(
 function removeControls() { document.querySelectorAll('#suriph-control-host').forEach((host) => host.remove()); document.querySelectorAll(`[${CONTROL_ATTRIBUTE}]`).forEach((post) => post.removeAttribute(CONTROL_ATTRIBUTE)); }
 chrome.storage.local.get({ suriphEnabled: true }, (settings) => { extensionEnabled = settings.suriphEnabled !== false; scanForControls(); });
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type !== 'SURIPH_SET_ENABLED') return false;
-  extensionEnabled = Boolean(message.enabled); chrome.storage.local.set({ suriphEnabled: extensionEnabled });
-  if (!extensionEnabled) removeControls(); else scanForControls();
-  sendResponse({ ok: true }); return false;
+  if (message?.type === 'SURIPH_EXTRACT') {
+    if (message.mode === 'selection') {
+      const text = normalize(window.getSelection()?.toString());
+      sendResponse(text ? { ok: true, text, mode: 'selection' } : { ok: false, error: 'Select readable text on the page first.' });
+      return false;
+    }
+    if (message.mode === 'post') {
+      const post = postForSelection() || postNearestViewport();
+      const text = post ? collectPostText(post) : '';
+      sendResponse(text ? { ok: true, text, mode: 'post' } : { ok: false, error: 'No readable supported post or caption is visible.' });
+      return false;
+    }
+    sendResponse({ ok: false, error: 'Unsupported extraction mode.' });
+    return false;
+  }
+  if (message?.type === 'SURIPH_SET_ENABLED') {
+    extensionEnabled = Boolean(message.enabled); chrome.storage.local.set({ suriphEnabled: extensionEnabled });
+    if (!extensionEnabled) removeControls(); else scanForControls();
+    sendResponse({ ok: true });
+    return false;
+  }
+  return false;
 });
 new MutationObserver(scanForControls).observe(document.documentElement, { childList: true, subtree: true });

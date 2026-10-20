@@ -3,8 +3,9 @@
 **Implemented and locally tested; deployment prepared; not publicly deployed.**
 See [the release evidence and GO/NO-GO gate](docs/RELEASE-READINESS.md) before inviting participants.
 The [documentation index](docs/README.md) maps research references, setup and deployment.
-The selected hybrid model is verified. Linux containers, production HTTPS and an
-installed-extension study-session rehearsal still need completion.
+The selected hybrid model is verified. An isolated Edge Chromium extension rehearsal
+passed; Linux containers, production HTTPS and a manual Chrome/assistive-tech study
+session still need completion.
 
 ## This prepared Windows workstation
 
@@ -101,12 +102,17 @@ From the project root (local model artifacts and test records required):
 .\.venv\Scripts\python.exe scripts/verify_media_local.py
 .\.venv\Scripts\python.exe scripts/verify_deployment.py
 node scripts/verify_ui.mjs
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_live_stack.ps1
+$env:SURI_TEST_BROWSER='C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+node scripts/verify_installed_extension.mjs
+node scripts/verify_admin_browser.mjs
 ```
 
 The MariaDB/media scripts use this workstation's portable MariaDB and Windows speech/font
 tools. Provider checks use configured keys and public synthetic queries; no secrets are
 printed. UI checks use installed headless Chrome, real React components and the live API
-test result; they do not test installed-extension permissions or real social DOM behavior.
+test result. The installed-extension script uses an isolated Edge Chromium profile and a
+synthetic supported-origin fixture; it does not test current third-party DOMs or accounts.
 All isolated test data are synthetic and ignored by Git. Do not use participant records
 as test fixtures. Run `npm run lint` and `npm run build` in the dashboard, and `npm run build`
 in the extension after UI edits.

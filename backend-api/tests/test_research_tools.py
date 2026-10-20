@@ -1,6 +1,7 @@
 import csv
 import importlib.util
 import io
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -14,6 +15,26 @@ def module(name):
     value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value);return value
 
 class ResearchToolsTests(unittest.TestCase):
+    def test_backup_retention_only_removes_expired_completed_dumps(self):
+        tool = module('database_backup')
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            old = root / 'suriph-20260101T000000000000Z.sql.gz'
+            recent = root / 'suriph-20261020T000000000000Z.sql.gz'
+            partial = root / 'suriph-20260101T000000000000Z.sql.partial'
+            unrelated = root / 'other.sql.gz'
+            for path in (old, recent, partial, unrelated):
+                path.write_bytes(b'fixture')
+            os.utime(old, (100, 100))
+            os.utime(partial, (100, 100))
+            os.utime(unrelated, (100, 100))
+
+            self.assertEqual(tool.prune_completed_backups(root, 200), 1)
+            self.assertFalse(old.exists())
+            self.assertTrue(recent.exists())
+            self.assertTrue(partial.exists())
+            self.assertTrue(unrelated.exists())
+
     def test_survey_keeps_missingness_and_neutral_distinct_and_blocks_formula_export(self):
         tool=module('validate_survey')
         with tempfile.TemporaryDirectory() as folder:

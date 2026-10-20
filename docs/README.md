@@ -11,8 +11,8 @@
 | Research paper | [Revised paper, chapters 1–3](references/REVISED-PAPER-1-3.pdf) |
 | Earlier requirements and agent instructions | [Prototype instructions](references/SuriPH_Codex_Prototype_Instructions.docx), [initial prototype](references/SuriPH_Sprint1_Working_Prototype.docx), [prototype v2](references/SuriPH_Sprint1_Working_Prototype_v2.docx), [final document](references/final.docx) |
 | Historical system design | [SDD](sdd.docx); its preserved generator is in `tools/`, with npm configuration here |
-| UI inspection | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
-| Database, providers, media and resources | [MariaDB](MARIADB-VERIFICATION.json), [providers](PROVIDER-VERIFICATION.json), [media](MEDIA-VERIFICATION.json), [resources](RESOURCE-MEASUREMENTS.json) |
+| UI and browser inspection | [UI report](UI-VERIFICATION.json), [installed extension](INSTALLED-EXTENSION-VERIFICATION.json), [administrator browser flow](ADMIN-BROWSER-VERIFICATION.json), [screenshots](verification/ui/) |
+| Database, providers, media and resources | [MariaDB](MARIADB-VERIFICATION.json), [providers](PROVIDER-VERIFICATION.json), [media](MEDIA-VERIFICATION.json), [API resources](RESOURCE-MEASUREMENTS.json), [live stack](LIVE-STACK-PERFORMANCE.json) |
 | Repository layout and preservation decisions | [Project structure](PROJECT-STRUCTURE.md), [move inventory](CLEANUP-MOVES.json) |
 
 The supplied training notebook, manifest, feature configuration, encoder, tokenizers,

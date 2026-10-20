@@ -8,5 +8,8 @@
   "docker_build_tested": false,
   "compose_stack_tested": false,
   "tls_tested": false,
-  "limitation": "YAML, paths and invariants checked locally; Docker is not installed."
+  "maintenance_timer_checked": true,
+  "backup_retention_days": 7,
+  "docker_available": false,
+  "limitation": "YAML, paths, maintenance schedule and invariants checked locally; Docker is not installed."
 }

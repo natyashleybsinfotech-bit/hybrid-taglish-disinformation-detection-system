@@ -7,27 +7,27 @@
   "processor": 12,
   "short_requests": 5,
   "short_http_ms": [
-    56.53689999996914,
-    30.095500000015818,
-    30.139099999928476,
-    30.7510000000093,
-    31.039599999985512
+    25.31289999751607,
+    44.88429999764776,
+    31.33009999874048,
+    47.3033000016585,
+    23.51549999730196
   ],
-  "short_http_median_ms": 30.7510000000093,
+  "short_http_median_ms": 31.33009999874048,
   "short_inference_ms": [
-    29.128,
-    25.645,
-    25.39,
-    25.587,
-    25.961
+    21.028,
+    19.31,
+    20.647,
+    19.997,
+    19.868
   ],
-  "long_inference_ms": 1490.771,
+  "long_inference_ms": 1132.914,
   "long_content_tokens": 1611,
-  "peak_process_tree_rss_mib": 817.3203125,
+  "peak_process_tree_rss_mib": 815.7890625,
   "three_concurrent_statuses": [
     200,
-    200,
-    503
+    503,
+    200
   ],
   "retrieval": "disabled; live provider measured separately",
   "scope": "Native Windows; production worker/thread/admission settings; SQLite test DB. Not a Linux Docker capacity guarantee."

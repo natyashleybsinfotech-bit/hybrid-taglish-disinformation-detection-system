@@ -2,6 +2,7 @@
 import ast
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import yaml
@@ -56,11 +57,19 @@ def main():
             elif isinstance(node, ast.ImportFrom):
                 names = [node.module or ""] + [alias.name for alias in node.names]
             assert not any(name.split(".")[0] in retired for name in names), path.name
+    maintenance_service = (ROOT / "deploy/suriph-maintenance.service").read_text()
+    maintenance_timer = (ROOT / "deploy/suriph-maintenance.timer").read_text()
+    assert "python -m src.manage purge-research" in maintenance_service
+    assert "database_backup.py --retention-days 7" in maintenance_service
+    assert "OnCalendar=*-*-* 02:00:00" in maintenance_timer and "Persistent=true" in maintenance_timer
+    docker_available = shutil.which("docker") is not None
     result = {"static_checks_passed": True, "artifact_sha256": digest,
               "artifact_mounts": 5, "api_workers": 1, "retired_runtime_imports": 0,
               "database_exposed": False, "docker_build_tested": False,
               "compose_stack_tested": False, "tls_tested": False,
-              "limitation": "YAML, paths and invariants checked locally; Docker is not installed."}
+              "maintenance_timer_checked": True, "backup_retention_days": 7,
+              "docker_available": docker_available,
+              "limitation": "YAML, paths, maintenance schedule and invariants checked locally; Docker is not installed." if not docker_available else "Static checks passed; run the documented Docker build and stack checks separately."}
     (ROOT / "docs/DEPLOYMENT-VERIFICATION.json").write_text(json.dumps(result, indent=2) + "\n")
     print(json.dumps(result, indent=2))
 

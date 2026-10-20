@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "browser": "Google Chrome (isolated off-screen profile)",
+  "actual_dashboard_and_api": true,
+  "admin_login": "passed",
+  "session_cookie_reload": "passed",
+  "login_json_exposes_token": false,
+  "logout_revocation_status": 401,
+  "export_download": "passed",
+  "export_excludes_withdrawal_token": true,
+  "viewer_export_status": 403,
+  "expired_session_status": 401,
+  "keyboard_first_target": "username",
+  "desktop_no_horizontal_overflow": true,
+  "narrow_no_horizontal_overflow": true,
+  "screenshots_private": true,
+  "limitations": [
+    "Automated Chrome is not a screen-reader test.",
+    "No participant data was created or changed."
+  ]
+}

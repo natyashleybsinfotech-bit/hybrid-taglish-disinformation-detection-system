@@ -11,6 +11,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def completed_backups(folder: Path):
+    """Return only regular, completed dumps created by this utility."""
+    resolved = folder.resolve()
+    for candidate in resolved.glob("suriph-*.sql.gz"):
+        if candidate.parent.resolve() == resolved and candidate.is_file() and not candidate.is_symlink():
+            yield candidate
+
+
+def prune_completed_backups(folder: Path, cutoff: float) -> int:
+    """Remove completed backups older than cutoff and report the count."""
+    removed = 0
+    for previous in completed_backups(folder):
+        if previous.stat().st_mtime < cutoff:
+            previous.unlink()
+            removed += 1
+    return removed
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", default=".env.production")
@@ -61,9 +79,8 @@ def main():
     print(f"Backup created: {output}")
     cutoff = datetime.now(timezone.utc).timestamp() - args.retention_days * 86400
     # Only this utility's completed dumps in its fixed private directory are rotated.
-    for previous in folder.glob("suriph-*.sql.gz"):
-        if previous.is_file() and not previous.is_symlink() and previous.stat().st_mtime < cutoff:
-            previous.unlink()
+    removed = prune_completed_backups(folder, cutoff)
+    print(f"Expired backups removed: {removed}")
     print("Copy it to private off-server storage; also retain approved model bundles and deployment settings.")
 
 

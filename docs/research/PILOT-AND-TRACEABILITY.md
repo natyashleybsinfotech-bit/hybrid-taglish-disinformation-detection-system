@@ -42,13 +42,13 @@ when the test requires live behavior.
 | --- | --- | --- | --- |
 | Reproduce selected Taglish hybrid | Pinned encoder/tokenizers/features/scalers/LR, threshold 0.65 | HYBRID-VERIFICATION.json: 598 labels and probabilities within tolerance | Integration parity, not independent truth validation |
 | Expose interpretable measurements | Seven original unscaled values and definitions | test_participant; UI-VERIFICATION.json data-value checks | Measurements are not model contributions |
-| User-triggered acquisition | Manual, selected text/caption, image/video modules | Live HTTP/Node transport; MEDIA-VERIFICATION.json | Installed social-page/browser capture still requires hands-on testing |
+| User-triggered acquisition | Manual, selected text/caption, image/video modules | INSTALLED-EXTENSION-VERIFICATION.json; MEDIA-VERIFICATION.json | Synthetic supported-origin Chromium capture passed; current third-party DOM and manual Chrome still require hands-on testing |
 | Independent contextual retrieval | Serper related reading; Google researcher review | PROVIDER-VERIFICATION.json; mocked failure/empty tests | Links do not prove relevance or verdict |
 | Candidate governance | Existing curator workflows and protected dataset records | Existing API/database suite | Public auto-capture retired; no participant text enters training automatically |
 | Privacy and research evaluation | Opt-in ResearchRecords, feedback, withdrawal, export | test_participant; MariaDB integration | External questionnaire consent/approvals remain institutional work |
 | Persistence and reliability | Schema v5, runtime DML account, migration service | MARIADB-VERIFICATION.json | Native test passed; Docker/Linux wrapper pending |
-| Performance efficiency | One worker, four CPU threads, two in-flight screenings | RESOURCE-MEASUREMENTS.json | Windows workload, five short requests; no capacity guarantee |
-| Security/admin access | HttpOnly cookie session, origin checks, role checks, bounded providers | Automated auth/origin/failure tests | Production HTTPS/session/browser matrix pending |
+| Performance efficiency | One worker, four CPU threads, two in-flight screenings | RESOURCE-MEASUREMENTS.json; LIVE-STACK-PERFORMANCE.json | Windows workloads; no Docker/Linux capacity guarantee |
+| Security/admin access | HttpOnly cookie session, origin checks, role checks, bounded providers | Automated auth/origin/failure tests; ADMIN-BROWSER-VERIFICATION.json | Production HTTPS and broader browser matrix pending |
 | Deployment/maintenance | Compose, read-only artifacts, retention and logical backup | Configuration review, local DB restore | Container build/start/TLS not run: Docker unavailable |
 
 ## Preserve the model comparison

@@ -568,7 +568,7 @@ def admin_login(credentials: LoginRequest, response: Response) -> dict[str, str]
         database.log_audit("ADMIN_LOGIN", "Administrator signed in.", user["username"])
     except Exception:
         pass
-    return {"status": "authenticated", "token": token, "username": user["username"], "role": role}
+    return {"status": "authenticated", "username": user["username"], "role": role}
 
 
 @app.post("/admin-api/logout")

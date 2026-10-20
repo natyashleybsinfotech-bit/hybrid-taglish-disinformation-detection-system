@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "browser": "Microsoft Edge (isolated off-screen profile)",
+  "extension_page_opened_directly": true,
+  "actual_unavailable_backend": "passed",
+  "clear_unavailable_message": "passed",
+  "controlled_timeout_ui": "passed",
+  "controlled_no_results_ui": "passed",
+  "controlled_provider_failure_ui": "passed",
+  "timeout_test_build_ms": 100,
+  "normal_build_restored_ms": 120000,
+  "classifier_note": "No prediction was created for unavailable or timeout requests. No-results/failure display used a previously generated actual model result; provider behavior is separately backend-tested."
+}

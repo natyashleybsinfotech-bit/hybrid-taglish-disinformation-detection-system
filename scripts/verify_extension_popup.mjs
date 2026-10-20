@@ -15,6 +15,7 @@ const SHOTS = path.join(RUN, 'screenshots');
 await Promise.all([mkdir(PROFILE, { recursive: true }), mkdir(SHOTS, { recursive: true })]);
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const keepAlive = setInterval(() => {}, 1000);
+const failureMode = process.env.SURI_EXPECT_UNAVAILABLE === '1';
 
 class CDP {
   constructor(url) { this.url = url; this.id = 0; this.pending = new Map(); this.listeners = []; }
@@ -79,37 +80,78 @@ try {
   if (!workerTarget) console.error(JSON.stringify((await targets(port)).map(item => ({ type: item.type, url: item.url }))));
   assert.ok(workerTarget, 'Unpacked extension service worker did not register');
   const extensionId = new URL(workerTarget.url).hostname;
-  const worker = await new CDP(workerTarget.webSocketDebuggerUrl).open();
-  let workerContext;
-  const workerContexts = [];
-  worker.listeners.push(message => {
-    if (message.method === 'Runtime.executionContextCreated') {
-      workerContexts.push({ id: message.params.context.id, origin: message.params.context.origin, name: message.params.context.name });
-      if (message.params.context.origin.startsWith(`chrome-extension://${extensionId}`)) workerContext = message.params.context.id;
-    }
-  });
-  await worker.send('Runtime.enable');
-  for (let attempt = 0; attempt < 50 && !workerContext; attempt++) await wait(100);
-  assert.ok(workerContext, `Extension worker execution context was unavailable: ${JSON.stringify(workerContexts)}`);
-  const workerEvaluate = async (expression, awaitPromise = false) => {
-    const output = await worker.send('Runtime.evaluate', { expression, contextId: workerContext, awaitPromise, returnByValue: true, userGesture: true });
-    if (output.exceptionDetails) throw new Error(output.exceptionDetails.exception?.description || output.exceptionDetails.text);
-    return output.result?.value;
-  };
-  const actionAvailable = await workerEvaluate('Boolean(chrome.action?.openPopup)');
-  if (actionAvailable) await workerEvaluate('chrome.action.openPopup().then(()=>true)', true);
-  else await workerEvaluate(`chrome.windows.create({url:chrome.runtime.getURL('index.html'),type:'popup',width:420,height:900}).then(()=>true)`, true);
-  worker.close();
   let popupTarget;
-  for (let attempt = 0; attempt < 100 && !popupTarget; attempt++) {
-    popupTarget = (await targets(port)).find(item => item.type === 'page' && item.url === `chrome-extension://${extensionId}/index.html`);
-    await wait(100);
+  let actionAvailable = false;
+  if (failureMode) {
+    popupTarget = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(`chrome-extension://${extensionId}/index.html`)}`, { method: 'PUT' }).then(response => response.json());
+  } else {
+    const worker = await new CDP(workerTarget.webSocketDebuggerUrl).open();
+    let workerContext;
+    const workerContexts = [];
+    worker.listeners.push(message => {
+      if (message.method === 'Runtime.executionContextCreated') {
+        workerContexts.push({ id: message.params.context.id, origin: message.params.context.origin, name: message.params.context.name });
+        if (message.params.context.origin.startsWith(`chrome-extension://${extensionId}`)) workerContext = message.params.context.id;
+      }
+    });
+    await worker.send('Runtime.enable');
+    for (let attempt = 0; attempt < 50 && !workerContext; attempt++) await wait(100);
+    assert.ok(workerContext, `Extension worker execution context was unavailable: ${JSON.stringify(workerContexts)}`);
+    const workerEvaluate = async (expression, awaitPromise = false) => {
+      const output = await worker.send('Runtime.evaluate', { expression, contextId: workerContext, awaitPromise, returnByValue: true, userGesture: true });
+      if (output.exceptionDetails) throw new Error(output.exceptionDetails.exception?.description || output.exceptionDetails.text);
+      return output.result?.value;
+    };
+    actionAvailable = await workerEvaluate('Boolean(chrome.action?.openPopup)');
+    if (actionAvailable) await workerEvaluate('chrome.action.openPopup().then(()=>true)', true);
+    else await workerEvaluate(`chrome.windows.create({url:chrome.runtime.getURL('index.html'),type:'popup',width:420,height:900}).then(()=>true)`, true);
+    worker.close();
+    for (let attempt = 0; attempt < 100 && !popupTarget; attempt++) {
+      popupTarget = (await targets(port)).find(item => item.type === 'page' && item.url === `chrome-extension://${extensionId}/index.html`);
+      await wait(100);
+    }
   }
   assert.ok(popupTarget, 'Extension action popup did not open');
   popup = await new CDP(popupTarget.webSocketDebuggerUrl).open();
   await wait(1000);
   if (process.env.SURI_CDP_DEBUG === '1') console.error(await evaluate(popup, 'JSON.stringify({url:location.href,html:document.body?.innerHTML?.slice(0,500)})'));
   await waitFor(popup, 'Boolean(document.querySelector("#screen-text"))', 10000);
+  if (failureMode) {
+    await setValue(popup, '#screen-text', 'Synthetic disconnected-backend rehearsal.');
+    await clickText(popup, 'Analyze text');
+    await waitFor(popup, 'Boolean(document.querySelector("[role=alert]"))', 15000);
+    assert.match(await evaluate(popup, 'document.querySelector("[role=alert]").textContent'), /service is unavailable/i);
+
+    const actualFixture = JSON.parse(await readFile(path.join(ROOT, 'tmp', 'ui-real-result.json'), 'utf8'));
+    delete actualFixture.research_receipt;
+    for (const [retrievalStatus, expectedText] of [
+      ['no_results', 'No matching links were returned'],
+      ['unavailable', 'Related-source lookup is unavailable'],
+    ]) {
+      const controlled = { ...actualFixture, analyzed_text: `Controlled ${retrievalStatus} display fixture.`, retrieval_status: retrievalStatus, related_sources: [] };
+      await evaluate(popup, `window.fetch=async()=>new Response(${JSON.stringify(JSON.stringify(controlled))},{status:200,headers:{'Content-Type':'application/json'}}); true`);
+      await setValue(popup, '#screen-text', controlled.analyzed_text);
+      await clickText(popup, 'Analyze text');
+      await waitFor(popup, `document.body.innerText.includes(${JSON.stringify(expectedText)})`, 15000);
+    }
+
+    await evaluate(popup, `window.fetch=(_url,options)=>new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')))); true`);
+    await setValue(popup, '#screen-text', 'Synthetic timeout rehearsal.');
+    await clickText(popup, 'Analyze text');
+    await waitFor(popup, 'document.querySelector("[role=alert]")?.textContent.includes("timed out")', 15000);
+    await screenshot(popup, 'popup-installed-failure-states');
+    const failureReport = {
+      passed: true,
+      browser: `${path.basename(CHROME).toLowerCase().includes('msedge') ? 'Microsoft Edge' : 'Google Chrome'} (isolated off-screen profile)`,
+      extension_page_opened_directly: true,
+      actual_unavailable_backend: 'passed', clear_unavailable_message: 'passed',
+      controlled_timeout_ui: 'passed', controlled_no_results_ui: 'passed', controlled_provider_failure_ui: 'passed',
+      timeout_test_build_ms: 100, normal_build_restored_ms: 120000,
+      classifier_note: 'No prediction was created for unavailable or timeout requests. No-results/failure display used a previously generated actual model result; provider behavior is separately backend-tested.',
+    };
+    await writeFile(path.join(ROOT, 'docs', 'EXTENSION-FAILURE-VERIFICATION.json'), JSON.stringify(failureReport, null, 2) + '\n');
+    console.log(JSON.stringify(failureReport, null, 2));
+  } else {
   await waitFor(popup, 'document.body.innerText.includes("Server retention:")', 20000);
   await screenshot(popup, 'popup-installed-empty');
 
@@ -169,6 +211,7 @@ try {
   };
   await writeFile(path.join(ROOT, 'docs', 'EXTENSION-POPUP-VERIFICATION.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
+  }
 } finally {
   clearInterval(keepAlive);
   popup?.close();

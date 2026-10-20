@@ -1,5 +1,5 @@
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
-const REQUEST_TIMEOUT_MS = 120_000;
+const REQUEST_TIMEOUT_MS = Number(import.meta.env?.VITE_REQUEST_TIMEOUT_MS || 120_000);
 
 async function request(path, options) {
   const controller = new AbortController();
@@ -14,6 +14,7 @@ async function request(path, options) {
     return body;
   } catch (error) {
     if (error.name === 'AbortError') throw new Error('The screening request timed out.');
+    if (error.name === 'TypeError') throw new Error('The screening service is unavailable. Check the backend connection and try again.');
     throw error;
   } finally {
     clearTimeout(timeout);

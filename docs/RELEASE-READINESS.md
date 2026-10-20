@@ -21,6 +21,7 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | Media | Actual EasyOCR image smoke passed in 13.4 s; video OCR + Whisper smoke passed in 21.4 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
 | UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; narrow viewport overflow checked | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
 | Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, synthetic supported-origin selection/caption, live toggle, long/stale/duplicate behavior, live evidence and consent/withdrawal passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
+| Extension failure states | A stopped backend produced a clear unavailable message and no prediction; controlled popup checks covered timeout, no-results and provider-unavailable display without changing the classifier result | [Failure-state report](EXTENSION-FAILURE-VERIFICATION.json) |
 | Administrator browser flow | Actual isolated Chrome login, HttpOnly-cookie reload, export, logout, viewer 403, expired 401, first keyboard focus and narrow layout passed | [Admin browser report](ADMIN-BROWSER-VERIFICATION.json) |
 | Frontends | Dashboard lint/build and extension build passed; release extension build intentionally rejects missing HTTPS configuration | `npm run lint`, `npm run build`, `npm run build:release` |
 | Dependencies | Runtime/model primary versions pinned; pip check passed; npm lockfiles retained | requirements files and package-lock files |
@@ -36,9 +37,9 @@ records were used only for integration checks. No model was trained or tuned.
 
 [RESOURCE-MEASUREMENTS.json](RESOURCE-MEASUREMENTS.json) records one native Windows API
 worker, CPU execution, four inference threads and two admitted simultaneous screenings.
-Five short requests had a median HTTP latency of **31.33 ms**; measured inference ranged
-from approximately **19–21 ms** after startup. A **1,611-content-token/four-chunk** input
-took **1,133 ms** for inference. Peak sampled process-tree RSS was **815.8 MiB**. Three
+Five short requests had a median HTTP latency of **79.01 ms**; measured inference ranged
+from approximately **36–91 ms** after startup. A **1,611-content-token/four-chunk** input
+took **2,898 ms** for inference. Peak sampled process-tree RSS was **815.6 MiB**. Three
 simultaneous long requests returned **200, 503, 200**: overload was rejected, not fabricated.
 
 Retrieval was disabled for the model timing and measured separately with live provider
@@ -68,7 +69,9 @@ Chromium profile and exercised a synthetic article on a manifest-supported faceb
 origin. It did not use an account or participant content. Google Chrome 156 ignored the
 command-line unpacked-extension flag on this machine, so manual Chrome installation,
 current third-party DOM behavior and screen-reader testing remain hands-on checks. The
-earlier narrow screenshot harness was repaired to use explicit device emulation.
+earlier narrow screenshot harness was repaired to use explicit device emulation. The
+timeout/no-results/provider-failure popup states used controlled transport responses;
+the corresponding backend provider branches are separately covered by automated tests.
 
 ## Research delivery
 

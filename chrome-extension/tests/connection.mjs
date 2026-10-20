@@ -18,6 +18,9 @@ assert.equal(direct.artifact_sha256, '72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8
 assert.ok(Number.isFinite(direct.model_score));
 assert.equal(direct.predicted_class, Number(direct.model_score >= .65));
 await assert.rejects(api.analyzeText({ text: '   ' }));
+const unavailableSource = apiSource.replaceAll(base, 'http://127.0.0.1:9');
+const unavailableApi = await import(`data:text/javascript;base64,${Buffer.from(unavailableSource).toString('base64')}`);
+await assert.rejects(unavailableApi.analyzeText({ text }), /screening service is unavailable/i);
 let handler;
 const calls = [];
 const background = (await readFile(new URL('../src/background.js', import.meta.url), 'utf8'))

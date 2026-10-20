@@ -7,23 +7,23 @@
   "processor": 12,
   "short_requests": 5,
   "short_http_ms": [
-    25.31289999751607,
-    44.88429999764776,
-    31.33009999874048,
-    47.3033000016585,
-    23.51549999730196
+    70.35739999992074,
+    59.41010000242386,
+    79.01449999917531,
+    81.95200000045588,
+    112.57619999378221
   ],
-  "short_http_median_ms": 31.33009999874048,
+  "short_http_median_ms": 79.01449999917531,
   "short_inference_ms": [
-    21.028,
-    19.31,
-    20.647,
-    19.997,
-    19.868
+    63.927,
+    36.101,
+    43.897,
+    73.822,
+    91.04
   ],
-  "long_inference_ms": 1132.914,
+  "long_inference_ms": 2898.313,
   "long_content_tokens": 1611,
-  "peak_process_tree_rss_mib": 815.7890625,
+  "peak_process_tree_rss_mib": 815.5546875,
   "three_concurrent_statuses": [
     200,
     503,

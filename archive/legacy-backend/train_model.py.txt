@@ -1,0 +1,277 @@
+"""Train four paper-defined experiments and export the versioned hybrid bundle."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from scipy.stats import binomtest
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_recall_fscore_support,
+    precision_score,
+    recall_score,
+)
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
+import config
+from embedding_extractor import embeddings_for
+from feature_extractor import FEATURE_NAMES, batch_extract
+from model_runtime import BUNDLE_SCHEMA_VERSION, normalize_text
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dataset", type=Path, required=True)
+    parser.add_argument("--output", type=Path, default=config.MODEL_BUNDLE_PATH)
+    parser.add_argument("--text-column", default="text")
+    parser.add_argument("--label-column", default="label")
+    parser.add_argument("--claim-group-column", default="claim_group_id")
+    parser.add_argument("--partition-column", default="partition_name")
+    parser.add_argument("--allow-ungrouped", action="store_true", help="Development only; not paper-compliant.")
+    parser.add_argument("--model-name", default="SuriPH Hybrid Classifier")
+    parser.add_argument("--model-version", default=datetime.now(timezone.utc).strftime("%Y.%m.%d.%H%M"))
+    return parser.parse_args()
+
+
+def load_dataset(args: argparse.Namespace) -> tuple[list[str], np.ndarray, np.ndarray, np.ndarray | None]:
+    if not args.dataset.is_file():
+        raise ValueError(f"Dataset does not exist: {args.dataset}")
+    frame = pd.read_csv(args.dataset)
+    if args.text_column not in frame.columns and args.text_column == "text" and "article" in frame.columns:
+        frame = frame.rename(columns={"article": "text"})
+    required = {args.text_column, args.label_column}
+    if not required.issubset(frame.columns):
+        raise ValueError(f"Dataset is missing columns: {', '.join(sorted(required - set(frame.columns)))}")
+    if args.claim_group_column not in frame.columns:
+        if not args.allow_ungrouped:
+            raise ValueError(
+                f"Paper-compliant training requires '{args.claim_group_column}' to prevent claim leakage."
+            )
+        frame[args.claim_group_column] = [f"ungrouped-{index}" for index in range(len(frame))]
+    columns = [args.text_column, args.label_column, args.claim_group_column]
+    if args.partition_column in frame.columns:
+        columns.append(args.partition_column)
+    frame = frame[columns].dropna().copy()
+    frame[args.text_column] = frame[args.text_column].map(normalize_text)
+    frame = frame[frame[args.text_column].str.len() > 0].drop_duplicates(subset=[args.text_column])
+    frame[args.label_column] = frame[args.label_column].astype(int)
+    labels = set(frame[args.label_column].unique())
+    if labels != {0, 1}:
+        raise ValueError(f"Dataset must contain both labels 0 and 1; found {sorted(labels)}")
+    if len(frame) < 40 or int(frame[args.label_column].value_counts().min()) < 10:
+        raise ValueError("Dataset needs at least 40 unique rows and 10 examples per label.")
+    predefined = frame[args.partition_column].astype(str).to_numpy() if args.partition_column in frame.columns else None
+    return (
+        frame[args.text_column].tolist(),
+        frame[args.label_column].to_numpy(),
+        frame[args.claim_group_column].astype(str).to_numpy(),
+        predefined,
+    )
+
+
+def grouped_partitions(labels: np.ndarray, groups: np.ndarray) -> dict[str, np.ndarray]:
+    indices = np.arange(len(labels))
+    first = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=config.RANDOM_SEED)
+    train_idx, temporary_idx = next(first.split(indices, labels, groups))
+    second = GroupShuffleSplit(n_splits=1, test_size=0.50, random_state=config.RANDOM_SEED + 1)
+    validation_local, test_local = next(
+        second.split(temporary_idx, labels[temporary_idx], groups[temporary_idx])
+    )
+    partitions = {
+        "train": train_idx,
+        "validation": temporary_idx[validation_local],
+        "test": temporary_idx[test_local],
+    }
+    group_sets = {name: set(groups[idx]) for name, idx in partitions.items()}
+    if (group_sets["train"] & group_sets["validation"] or group_sets["train"] & group_sets["test"]
+            or group_sets["validation"] & group_sets["test"]):
+        raise RuntimeError("Claim groups leaked across dataset partitions.")
+    for name, idx in partitions.items():
+        if set(labels[idx]) != {0, 1}:
+            raise ValueError(f"The {name} partition does not contain both labels; review claim groups.")
+    return partitions
+
+
+def validated_partitions(labels: np.ndarray, groups: np.ndarray, names: np.ndarray) -> dict[str, np.ndarray]:
+    expected = {"train", "validation", "test"}
+    if set(names) != expected:
+        raise ValueError(f"Partition column must contain exactly {sorted(expected)}.")
+    partitions = {name: np.where(names == name)[0] for name in expected}
+    group_sets = {name: set(groups[index]) for name, index in partitions.items()}
+    if (group_sets["train"] & group_sets["validation"] or group_sets["train"] & group_sets["test"]
+            or group_sets["validation"] & group_sets["test"]):
+        raise ValueError("A claim_group_id appears in more than one approved partition.")
+    for name, indices in partitions.items():
+        if set(labels[indices]) != {0, 1}:
+            raise ValueError(f"The {name} partition does not contain both labels.")
+    return partitions
+
+
+def choose_threshold(labels: np.ndarray, probabilities: np.ndarray) -> float:
+    thresholds = np.linspace(0.20, 0.80, 121)
+    scores = [f1_score(labels, probabilities >= value, average="macro") for value in thresholds]
+    return round(float(thresholds[int(np.argmax(scores))]), 4)
+
+
+def metric_report(
+    labels: np.ndarray,
+    probabilities: np.ndarray,
+    threshold: float,
+    inference_ms_per_sample: float,
+) -> dict[str, object]:
+    predictions = (probabilities >= threshold).astype(int)
+    precision, recall, f1, support = precision_recall_fscore_support(
+        labels, predictions, labels=[0, 1], zero_division=0
+    )
+    return {
+        "accuracy": round(float(accuracy_score(labels, predictions)), 6),
+        "precision_macro": round(float(precision_score(labels, predictions, average="macro", zero_division=0)), 6),
+        "recall_macro": round(float(recall_score(labels, predictions, average="macro", zero_division=0)), 6),
+        "f1_macro": round(float(f1_score(labels, predictions, average="macro", zero_division=0)), 6),
+        "false_positive_rate": round(float(((predictions == 1) & (labels == 0)).sum() / max(1, (labels == 0).sum())), 6),
+        "inference_ms_per_sample": round(float(inference_ms_per_sample), 6),
+        "confusion_matrix": confusion_matrix(labels, predictions, labels=[0, 1]).astype(int).tolist(),
+        "class_metrics": {
+            "Non-Misleading": {"precision": round(float(precision[0]), 6), "recall": round(float(recall[0]), 6), "f1": round(float(f1[0]), 6), "support": int(support[0])},
+            "Misleading": {"precision": round(float(precision[1]), 6), "recall": round(float(recall[1]), 6), "f1": round(float(f1[1]), 6), "support": int(support[1])},
+        },
+    }
+
+
+def mcnemar_report(labels: np.ndarray, first: np.ndarray, second: np.ndarray) -> dict[str, object]:
+    """Exact paired McNemar test with the continuity-corrected statistic for reporting."""
+    first_correct = first == labels
+    second_correct = second == labels
+    b = int(np.sum(first_correct & ~second_correct))
+    c = int(np.sum(~first_correct & second_correct))
+    discordant = b + c
+    statistic = ((abs(b - c) - 1) ** 2 / discordant) if discordant else 0.0
+    p_value = float(binomtest(min(b, c), discordant, 0.5, alternative="two-sided").pvalue) if discordant else 1.0
+    return {"b": b, "c": c, "continuity_corrected_chi_square": round(statistic, 6), "exact_p_value": round(p_value, 6), "alpha": 0.05, "significant": p_value < 0.05}
+
+
+def positive_probabilities(estimator, features) -> np.ndarray:
+    classes = list(estimator.classes_)
+    return estimator.predict_proba(features)[:, classes.index(1)]
+
+
+def fit_dense(train_features: np.ndarray, train_labels: np.ndarray):
+    estimator = Pipeline([
+        ("scaler", StandardScaler()),
+        ("classifier", LogisticRegression(max_iter=2000, class_weight="balanced", random_state=config.RANDOM_SEED)),
+    ])
+    estimator.fit(train_features, train_labels)
+    return estimator
+
+
+def main() -> None:
+    args = parse_args()
+    texts, labels, groups, predefined = load_dataset(args)
+    split = validated_partitions(labels, groups, predefined) if predefined is not None else grouped_partitions(labels, groups)
+    embeddings = embeddings_for(texts)
+    linguistic = batch_extract(texts)
+    hybrid = np.hstack([embeddings, linguistic])
+    matrices = {"distilbert": embeddings, "linguistic": linguistic, "hybrid_distilbert": hybrid}
+    estimators = {}
+    comparison = {}
+    test_predictions = {}
+
+    for name, matrix in matrices.items():
+        estimator = fit_dense(matrix[split["train"]], labels[split["train"]])
+        validation_probs = positive_probabilities(estimator, matrix[split["validation"]])
+        threshold = choose_threshold(labels[split["validation"]], validation_probs)
+        started = time.perf_counter()
+        test_probs = positive_probabilities(estimator, matrix[split["test"]])
+        elapsed_ms = (time.perf_counter() - started) * 1000 / len(split["test"])
+        estimators[name] = estimator
+        test_predictions[name] = (test_probs >= threshold).astype(int)
+        comparison[name] = {
+            "decision_threshold": threshold,
+            "validation": metric_report(labels[split["validation"]], validation_probs, threshold, 0.0),
+            "test": metric_report(labels[split["test"]], test_probs, threshold, elapsed_ms),
+        }
+
+    tfidf = Pipeline([
+        ("vectorizer", TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_features=100_000)),
+        ("classifier", LogisticRegression(max_iter=2000, class_weight="balanced", random_state=config.RANDOM_SEED)),
+    ])
+    train_texts = [texts[index] for index in split["train"]]
+    validation_texts = [texts[index] for index in split["validation"]]
+    test_texts = [texts[index] for index in split["test"]]
+    tfidf.fit(train_texts, labels[split["train"]])
+    validation_probs = positive_probabilities(tfidf, validation_texts)
+    threshold = choose_threshold(labels[split["validation"]], validation_probs)
+    started = time.perf_counter()
+    test_probs = positive_probabilities(tfidf, test_texts)
+    elapsed_ms = (time.perf_counter() - started) * 1000 / len(test_texts)
+    test_predictions["tfidf"] = (test_probs >= threshold).astype(int)
+    comparison["tfidf"] = {
+        "decision_threshold": threshold,
+        "validation": metric_report(labels[split["validation"]], validation_probs, threshold, 0.0),
+        "test": metric_report(labels[split["test"]], test_probs, threshold, elapsed_ms),
+    }
+
+    hybrid_predictions = test_predictions["hybrid_distilbert"]
+    for name in comparison:
+        if name != "hybrid_distilbert":
+            comparison[name]["mcnemar_vs_hybrid"] = mcnemar_report(
+                labels[split["test"]], test_predictions[name], hybrid_predictions
+            )
+
+    hybrid_result = comparison["hybrid_distilbert"]
+    bundle = {
+        "schema_version": BUNDLE_SCHEMA_VERSION,
+        "model": estimators["hybrid_distilbert"],
+        "feature_mode": "hybrid_distilbert",
+        "model_name": args.model_name,
+        "model_version": args.model_version,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "embedding_model": config.DISTILBERT_MODEL_NAME,
+        "max_seq_length": config.MAX_SEQ_LENGTH,
+        "label_map": {0: "Non-Misleading", 1: "Misleading"},
+        "decision_threshold": hybrid_result["decision_threshold"],
+        "feature_names": list(FEATURE_NAMES),
+        "metrics": hybrid_result["test"],
+        "comparison_metrics": comparison,
+        "training": {
+            "dataset": args.dataset.name,
+            "samples": len(texts),
+            "claim_groups": int(len(set(groups))),
+            "random_seed": config.RANDOM_SEED,
+            "partitions": {name: int(len(indices)) for name, indices in split.items()},
+            "partition_method": "approved_dataset_partitions" if predefined is not None else "group_shuffle_70_15_15",
+        },
+    }
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(bundle, args.output)
+    digest = hashlib.sha256(args.output.read_bytes()).hexdigest()
+    manifest = {key: value for key, value in bundle.items() if key != "model"} | {
+        "artifact": args.output.name,
+        "sha256": digest,
+    }
+    args.output.with_suffix(args.output.suffix + ".json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
+    print(json.dumps(manifest, indent=2))
+
+
+if __name__ == "__main__":
+    raise RuntimeError("This historical trainer is disabled in the pinned model_4 deployment. No training or model replacement is permitted.")

@@ -1,0 +1,11 @@
+[Unit]
+Description=SuriPH retention and consistent logical backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/suriph
+UMask=0077
+ExecStart=/usr/bin/docker compose --env-file .env.production exec -T api python -m src.manage purge-research
+ExecStart=/usr/bin/python3 scripts/database_backup.py --retention-days 7

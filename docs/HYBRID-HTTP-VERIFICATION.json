@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "live_http": true,
+  "device": "cpu",
+  "empty_input_status": 422,
+  "long_text_chunks": 4,
+  "long_text_content_tokens": 1611,
+  "novel_input_and_persistence": "passed",
+  "extension_transport": "passed",
+  "browser_ui_tested": false
+}

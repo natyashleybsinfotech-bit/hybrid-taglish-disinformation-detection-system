@@ -1,0 +1,61 @@
+"""Lazy, cached transformer embeddings shared by training and inference."""
+
+from __future__ import annotations
+
+import os
+import sys
+from threading import Lock
+from typing import List
+
+import numpy as np
+import torch
+from transformers import AutoModel, AutoTokenizer
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import config
+
+_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+_tokenizer = None
+_model = None
+_loaded_model_name: str | None = None
+_load_lock = Lock()
+
+
+def _ensure_model(model_name: str):
+    global _tokenizer, _model, _loaded_model_name
+    if _model is not None and _loaded_model_name == model_name:
+        return _tokenizer, _model
+    with _load_lock:
+        if _model is not None and _loaded_model_name == model_name:
+            return _tokenizer, _model
+        print(f"[embedding_extractor] Loading {model_name} on {_DEVICE}...")
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModel.from_pretrained(model_name)
+        model.eval()
+        model.to(_DEVICE)
+        _tokenizer, _model, _loaded_model_name = tokenizer, model, model_name
+        return _tokenizer, _model
+
+
+def embeddings_for(
+    texts: List[str], *, model_name: str | None = None, max_length: int | None = None
+) -> np.ndarray:
+    """Return CLS embeddings with shape ``(len(texts), hidden_size)``."""
+    if not texts:
+        return np.empty((0, 0), dtype=np.float32)
+    tokenizer, model = _ensure_model(model_name or config.DISTILBERT_MODEL_NAME)
+    all_embeds = []
+    with torch.inference_mode():
+        for index in range(0, len(texts), config.BATCH_SIZE):
+            batch = texts[index : index + config.BATCH_SIZE]
+            encoded = tokenizer(
+                batch,
+                padding=True,
+                truncation=True,
+                max_length=max_length or config.MAX_SEQ_LENGTH,
+                return_tensors="pt",
+            )
+            encoded = {key: value.to(_DEVICE) for key, value in encoded.items()}
+            output = model(**encoded)
+            all_embeds.append(output.last_hidden_state[:, 0, :].cpu().numpy())
+    return np.vstack(all_embeds)

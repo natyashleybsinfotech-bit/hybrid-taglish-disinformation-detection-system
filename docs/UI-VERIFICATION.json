@@ -1,0 +1,92 @@
+{
+  "actual_component_rendering": true,
+  "actual_api_feature_values_matched": true,
+  "installed_extension_e2e": false,
+  "browser": "headless Chrome",
+  "views": [
+    {
+      "view": "popup-empty",
+      "width": 390,
+      "height": 900,
+      "layout": {
+        "width": 390,
+        "clientWidth": 390,
+        "scrollWidth": 390
+      },
+      "screenshot": "verification/ui/popup-empty.png",
+      "rendered": true
+    },
+    {
+      "view": "popup-result",
+      "width": 390,
+      "height": 1450,
+      "layout": {
+        "width": 390,
+        "clientWidth": 375,
+        "scrollWidth": 375
+      },
+      "screenshot": "verification/ui/popup-result.png",
+      "rendered": true
+    },
+    {
+      "view": "popup-narrow",
+      "width": 320,
+      "height": 900,
+      "layout": {
+        "width": 320,
+        "clientWidth": 320,
+        "scrollWidth": 320
+      },
+      "screenshot": "verification/ui/popup-narrow.png",
+      "rendered": true
+    },
+    {
+      "view": "admin-login",
+      "width": 1280,
+      "height": 900,
+      "layout": {
+        "width": 1280,
+        "clientWidth": 1280,
+        "scrollWidth": 1280
+      },
+      "screenshot": "verification/ui/admin-login.png",
+      "rendered": true
+    },
+    {
+      "view": "admin-login-narrow",
+      "width": 390,
+      "height": 900,
+      "layout": {
+        "width": 390,
+        "clientWidth": 390,
+        "scrollWidth": 390
+      },
+      "screenshot": "verification/ui/admin-login-narrow.png",
+      "rendered": true
+    },
+    {
+      "view": "admin-research",
+      "width": 1280,
+      "height": 1000,
+      "layout": {
+        "width": 1280,
+        "clientWidth": 1280,
+        "scrollWidth": 1280
+      },
+      "screenshot": "verification/ui/admin-research.png",
+      "rendered": true
+    },
+    {
+      "view": "admin-research-narrow",
+      "width": 390,
+      "height": 1450,
+      "layout": {
+        "width": 390,
+        "clientWidth": 384,
+        "scrollWidth": 384
+      },
+      "screenshot": "verification/ui/admin-research-narrow.png",
+      "rendered": true
+    }
+  ]
+}

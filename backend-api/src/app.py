@@ -1,43 +1,70 @@
-"""FastAPI application for the SuriPH Sprint 1 working prototype."""
+"""FastAPI application for the SuriPH content screening service."""
 
 from __future__ import annotations
 
 import base64
+import csv
 import hashlib
 import hmac
+import io
 import json
+import logging
 import re
 import time
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 import config
+request_logger = logging.getLogger("suriph.requests")
+if not request_logger.handlers:
+    request_logger.addHandler(logging.StreamHandler())
+request_logger.setLevel(logging.INFO)
+request_logger.propagate = False
 try:
-    from . import database
+    from . import database, research_store
+    from .feature_display import describe
     from .fact_check import search_fact_checks
     from .media_processing import MediaProcessingError, extract_image_text, process_video, service_health
-    from .mock_classifier import classify, normalize_text
+    from .model_runtime import (
+        ModelUnavailableError, classify, initialize_model, model_health, normalize_text,
+    )
     from .retrieval import retrieve_related_sources
+    from .topic_classifier import suggest_topic
+    from .traffic_limits import TrafficLimits
 except ImportError:  # Supports the legacy test runner that adds src/ to sys.path.
     import database
+    import research_store
+    from feature_display import describe
     from fact_check import search_fact_checks
     from media_processing import MediaProcessingError, extract_image_text, process_video, service_health
-    from mock_classifier import classify, normalize_text
+    from model_runtime import (
+        ModelUnavailableError, classify, initialize_model, model_health, normalize_text,
+    )
     from retrieval import retrieve_related_sources
+    from topic_classifier import suggest_topic
+    from traffic_limits import TrafficLimits
 
 
 class ScreenRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=20_000)
+    text: str = Field(min_length=1, max_length=config.MAX_TEXT_CHARACTERS)
     page_url: str | None = Field(default=None, max_length=4_000)
     page_title: str | None = Field(default=None, max_length=500)
     context: dict[str, Any] | None = None
+    research_consent: bool = False
+    retain_text: bool = False
+    retrieve_sources: bool = False
 
 
 class CandidateRequest(ScreenRequest):
@@ -49,20 +76,86 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=500)
 
 
+class CandidateReviewRequest(BaseModel):
+    decision: Literal["approve", "revise", "exclude"]
+    proposed_label: Literal["Misleading", "Non-Misleading"] | None = None
+    notes: str | None = Field(default=None, max_length=4_000)
+    language: Literal["Taglish", "Filipino", "English"] | None = None
+    topic: str | None = Field(default=None, max_length=120)
+    claim_group_id: str | None = Field(default=None, max_length=120)
+
+
+class EvidenceRequest(BaseModel):
+    source_url: str = Field(min_length=8, max_length=4_000)
+    publisher: str | None = Field(default=None, max_length=200)
+    rating: str | None = Field(default=None, max_length=120)
+    claim_match_status: Literal["unreviewed", "matched", "not_matched"] = "unreviewed"
+    notes: str | None = Field(default=None, max_length=4_000)
+
+
+class IndependentAnnotationRequest(BaseModel):
+    proposed_label: Literal["Misleading", "Non-Misleading"]
+    annotation_round: str = Field(default="pilot", min_length=1, max_length=40)
+    evidence_sufficient: bool
+    notes: str | None = Field(default=None, max_length=4_000)
+
+
+class DatasetVersionRequest(BaseModel):
+    version_name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=4_000)
+
+
+class DatasetItemRequest(BaseModel):
+    candidate_sample_id: int
+    final_label: Literal["Misleading", "Non-Misleading"]
+    partition_name: Literal["train", "validation", "test"]
+    claim_group_id: str = Field(min_length=1, max_length=120)
+
+
+class ModelVersionRequest(BaseModel):
+    dataset_version_id: int
+    model_name: str = Field(min_length=1, max_length=160)
+    version_name: str = Field(min_length=1, max_length=120)
+    feature_mode: Literal["hybrid_distilbert", "distilbert", "linguistic", "tfidf"]
+    metrics: dict[str, Any]
+    artifact_path: str = Field(min_length=1, max_length=2_000)
+
+
+class ModelReviewRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
+
+
+class RetrainingRequest(BaseModel):
+    dataset_version_id: int
+    requested_version_name: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    migration = database.migrate()
+    config.validate_runtime_config()
+    migration = database.migrate() if config.AUTO_MIGRATE else database.database_health()
+    if migration["status"] != "available" and config.APP_ENV == "production":
+        raise RuntimeError("Database migration failed; refusing production startup.")
     if migration["status"] == "available":
         try:
             created = database.ensure_bootstrap_admin()
             if created:
                 database.log_audit("ADMIN_BOOTSTRAPPED", "Initial administrator created.")
+            viewer_created = database.ensure_bootstrap_viewer()
+            if viewer_created:
+                database.log_audit("VIEWER_BOOTSTRAPPED", "Initial AFP view-only account created.")
         except Exception:
-            pass
+            if config.APP_ENV == "production":
+                raise
+            logging.exception("Database/bootstrap initialization failed")
+    state = await run_in_threadpool(initialize_model)
+    if not state["ready"]:
+        logging.error("%s", state["error"])
+    # Keep health/readiness reachable after a model failure. Prediction fails 503.
     yield
 
 
-app = FastAPI(title="SuriPH Working Prototype API", version="1.0.0-sprint1", lifespan=lifespan)
+app = FastAPI(title="SuriPH API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(config.CORS_ORIGINS),
@@ -70,117 +163,51 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(config.TRUSTED_HOSTS))
+app.add_middleware(TrafficLimits, enabled=config.TRAFFIC_LIMITS_ENABLED or config.APP_ENV == "production")
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    started = time.perf_counter()
+    if request.method == "POST" and request.url.path.startswith("/admin-api/"):
+        origin = request.headers.get("origin")
+        if origin and origin not in config.CORS_ORIGINS:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Origin is not allowed."}, status_code=403)
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Cache-Control"] = "no-store"
+    request_logger.info(json.dumps({"event": "request", "request_id": uuid.uuid4().hex, "method": request.method,
+                            "route": request.scope.get("route").path if request.scope.get("route") else "unmatched",
+                            "status": response.status_code, "duration_ms": round((time.perf_counter() - started) * 1000, 2)}))
+    return response
 
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+@app.get("/privacy")
+def privacy_policy():
+    return {"consent_version": research_store.CONSENT_VERSION, "retention_days": config.RESEARCH_RETENTION_DAYS,
+            "default_storage": "none", "default_external_lookup": False}
+
+
 def _context_explanation(text: str, context: dict[str, Any] | None) -> dict[str, Any]:
-    details = context or {}
-    cleaned_text = re.sub(r"\bSee (?:more|less)\b", " ", text, flags=re.IGNORECASE)
-    cleaned_text = re.sub(r"\bMay be an image of.*?text that says\b", " ", cleaned_text, flags=re.IGNORECASE)
-    cleaned_text = re.sub(r"\bShared post\b(?:\s+[\d.KMB]+){1,5}", " ", cleaned_text, flags=re.IGNORECASE)
-    cleaned_text = re.sub(r"^.{0,100}?\bFollow\s+(?:\d+\s*[mhdw]|Yesterday)\b[·\s]*", "", cleaned_text, flags=re.IGNORECASE)
-    cleaned_text = re.sub(r"\s+", " ", cleaned_text).strip()
-    raw_sentences = [
-        part.strip(" -|Â·")
-        for part in re.split(r"(?<=[.!?])\s+|\n+|\s+[|•]\s+", cleaned_text)
-        if len(part.strip()) >= 20
-    ]
-    sentences: list[str] = []
-    seen: set[str] = set()
-    for sentence in raw_sentences:
-        sentence = re.sub(r"\s+", " ", sentence).strip()
-        key = re.sub(r"[^a-z0-9]+", " ", sentence.casefold()).strip()
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        sentences.append(sentence[:320])
-        if len(sentences) == 4:
-            break
-
-    # Facebook often repeats the caption inside accessibility text and appends
-    # dates, engagement counts, page names, and "Read more" controls. Remove
-    # those fragments before deciding how many real statements the post has.
-    months = {
-        "january", "february", "march", "april", "may", "june", "july",
-        "august", "september", "october", "november", "december",
-    }
-    noise_words = {
-        "read", "more", "less", "follow", "shared", "post", "news", "update",
-        "verified", "account", "com", "www", "http", "https",
-    }
-    stop_words = {
-        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "of",
-        "for", "from", "with", "this", "that", "is", "are", "was", "were",
-    }
-
-    def statement_tokens(value: str) -> set[str]:
-        words = re.findall(r"[a-zA-Z]{3,}", value.casefold())
-        return {word for word in words if word not in months | noise_words | stop_words}
-
-    distinct_sentences: list[str] = []
-    distinct_tokens: list[set[str]] = []
-    for sentence in sentences:
-        sentence = re.split(r"\bRead\s+(?:more|less)\b", sentence, maxsplit=1, flags=re.IGNORECASE)[0]
-        sentence = re.sub(
-            r"^(?:\s*['\"]?\d{0,2}\s*(?:January|February|March|April|May|June|July|August|September|October|November|December)[a-z]*\s*\d{0,2}\s*,?\s*\d{4}\W*)+",
-            "",
-            sentence,
-            flags=re.IGNORECASE,
-        ).strip(" '\".,-|…")
-        tokens = statement_tokens(sentence)
-        if len(tokens) < 4:
-            continue
-        duplicate = False
-        for previous in distinct_tokens:
-            overlap = len(tokens & previous) / max(1, min(len(tokens), len(previous)))
-            if overlap >= 0.65:
-                duplicate = True
-                break
-        if duplicate:
-            continue
-        distinct_sentences.append(sentence[:280])
-        distinct_tokens.append(tokens)
-        if len(distinct_sentences) == 3:
-            break
-    sentences = distinct_sentences
-
-    overview = (sentences[0] if sentences else cleaned_text[:320].strip()) or "Not enough readable content was available to describe the topic."
-    # Do not repeat the overview in the claim list. Each remaining statement is
-    # kept separate so mixed-accuracy posts are not treated as one claim.
-    main_points = sentences[1:]
-    timing = details.get("published_text") or details.get("published_at") or "No clear posting date was found."
-    freshness = details.get("freshness") or "The recency could not be confirmed from the visible post."
-    author = details.get("author") or "The visible author could not be identified."
-    statement_count = max(1, len(sentences))
-    separate_statements = [
-        {"number": index, "statement": sentence}
-        for index, sentence in enumerate(sentences, start=1)
-    ] if len(sentences) > 1 else []
-    if timing == "No clear posting date was found.":
-        recency_explanation = "No clear posting date was visible, so SuriPH could not confirm whether this is new, old, or reposted content."
-    elif "older" in freshness.casefold():
-        recency_explanation = "This appears to be an older post. If it is being shared again now, its original date and event timeline may change how the claims should be understood."
-    else:
-        recency_explanation = "This appears recent based on the visible timestamp, but a recent upload does not prove the event itself is new. The event date and original source still need to match the claims."
-    assessment_scope = (
-        f"SuriPH identified {statement_count} separate statements and checked each one individually, because an accurate statement does not automatically make every other statement in the same post accurate."
-        if statement_count > 1
-        else "SuriPH found one main checkable statement after removing repeated captions and Facebook interface text."
-    )
-    checked_material = details.get("extraction_scope") or "The readable post text and available media content"
+    details = context if isinstance(context, dict) else {}
     return {
-        "overview": overview,
-        "main_points": main_points,
-        "separate_statements": separate_statements,
-        "author": author,
-        "timing": timing,
-        "freshness": freshness,
-        "recency_explanation": recency_explanation,
-        "assessment_scope": assessment_scope,
-        "checked_material": checked_material,
+        "overview": text[:320] + ("…" if len(text) > 320 else ""),
+        "main_points": [], "separate_statements": [],
+        "author": details.get("author") or "Not supplied",
+        "timing": details.get("published_text") or details.get("published_at") or "Not supplied",
+        "freshness": "Not independently verified",
+        "recency_explanation": "Posting dates and event context have not been independently verified.",
+        "assessment_scope": "One hybrid-model prediction was computed from the complete supplied text. Individual claims were not fact-checked.",
+        "checked_material": details.get("extraction_scope") or "The supplied text",
     }
 
 
@@ -192,30 +219,75 @@ def _screen(
     page_url: str | None = None,
     page_title: str | None = None,
     context: dict[str, Any] | None = None,
+    capture_candidate: bool = False,
+    research_consent: bool = False,
+    retain_text: bool = False,
+    retrieve_sources: bool = False,
 ) -> dict[str, Any]:
+    if retain_text and not research_consent:
+        raise HTTPException(status_code=422, detail="Saving text requires explicit research consent.")
+    started = time.perf_counter()
     analyzed_text = normalize_text(text)
     if not analyzed_text:
         raise HTTPException(status_code=422, detail="No usable text was provided for screening.")
-    prediction = classify(analyzed_text).to_dict()
+    try:
+        prediction = classify(analyzed_text).to_dict()
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="The trained classifier is unavailable. Please try again after service recovery.") from None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    inference_ms = (time.perf_counter() - started) * 1000
+    retrieval_started = time.perf_counter()
     excluded_domain = urlparse(page_url).netloc if page_url else None
     explanation = _context_explanation(analyzed_text, context)
-    retrieval_query = " ".join([explanation["overview"], *explanation.get("main_points", [])])
-    retrieval = retrieve_related_sources(retrieval_query, excluded_domain=excluded_domain)
-    fact_checks = search_fact_checks(retrieval_query)
-    fact_check_signal = fact_checks.get("signal")
-    if fact_check_signal:
-        prediction["internal_label"] = fact_check_signal["internal_label"]
-        prediction["public_label"] = fact_check_signal["public_label"]
-        prediction["temporary_score"] = fact_check_signal["confidence"]
-    if retrieval["retrieval_status"] == "available":
-        explanation["related_coverage"] = f"Related reporting was found from {len(retrieval['related_sources'])} credible source(s)."
-    elif retrieval["retrieval_status"] == "disabled":
-        explanation["related_coverage"] = "Related-source lookup is currently turned off, so similar coverage was not compared for this result."
-    else:
-        explanation["related_coverage"] = "No matching credible coverage was found for comparison."
+    try:
+        retrieval = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain) if retrieve_sources else {"retrieval_status": "not_requested", "related_sources": []}
+    except Exception:
+        retrieval = {"retrieval_status": "unavailable", "related_sources": []}
+    fact_checks = {"status": "admin_review_only", "matches": [], "signal": None}
+    linguistic_indicators = describe(prediction["linguistic_indicators"])
+    prediction["linguistic_indicators"] = linguistic_indicators
+    retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
+    explanation["related_coverage"] = (
+        "Retrieved links are related reading only; they have not been verified as supporting or debunking this text."
+        if retrieval["related_sources"] else
+        "No related links are available for this result. Retrieval does not affect the model prediction."
+    )
+    topic_suggestion = suggest_topic(analyzed_text)
+    candidate_id = None
+    if capture_candidate:
+        try:
+            candidate_id = database.create_candidate(
+                text=analyzed_text,
+                page_url=page_url,
+                page_title=page_title,
+                source_type=input_type,
+                proposed_label=prediction["internal_label"],
+                topic=topic_suggestion.topic,
+                topic_confidence=topic_suggestion.confidence,
+            )
+            database.log_audit(
+                "CANDIDATE_AUTO_CAPTURED",
+                f"Candidate sample {candidate_id} captured from {input_type} screening.",
+                "screening-system",
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=503,
+                detail="Screening completed, but the candidate could not be saved for required review.",
+            ) from None
+    receipt = None
+    if research_consent:
+        try:
+            receipt = research_store.save(prediction, text=analyzed_text, input_type=input_type,
+                                          sources=retrieval["related_sources"], retain_text=retain_text)
+        except Exception:
+            raise HTTPException(status_code=503, detail="Research storage is unavailable. No receipt was created; retry without saving or try later.") from None
     return {
+        "research_receipt": receipt,
+        "storage_status": "saved_with_consent" if receipt else "not_saved",
+        "timings_ms": {"inference": round(inference_ms, 3), "retrieval": round(retrieval_ms, 3)},
         **prediction,
-        "confidence": prediction["temporary_score"],
         "analyzed_text": analyzed_text,
         "timestamp": _timestamp(),
         "input_type": input_type,
@@ -228,8 +300,12 @@ def _screen(
         "related_sources": retrieval["related_sources"],
         "fact_check_status": fact_checks["status"],
         "fact_check_matches": fact_checks["matches"],
-        "decision_source": "google_fact_check" if fact_check_signal else "screening_model",
-        "decision_basis": fact_check_signal["basis"] if fact_check_signal else None,
+        "decision_source": "screening_model",
+        "decision_basis": None,
+        "linguistic_indicators": linguistic_indicators,
+        "candidate_sample_id": candidate_id,
+        "topic_suggestion": topic_suggestion.to_dict(),
+        "evidence_status": "missing" if capture_candidate else "not_captured",
         "disclaimer": config.DISCLAIMER,
     }
 
@@ -248,6 +324,7 @@ async def _read_upload(file: UploadFile, expected_prefix: str) -> bytes:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
+    model = model_health()
     return {
         "backend": "available",
         "database": database.database_health(),
@@ -256,9 +333,20 @@ def health() -> dict[str, Any]:
             "serper": "configured" if config.SERPER_API_KEY else "not_configured",
             "google_fact_check": "configured" if config.GOOGLE_FACT_CHECK_API_KEY else "not_configured",
         },
-        "model_status": config.MODEL_STATUS,
+        "model": model,
+        "model_status": model["status"],
         "timestamp": _timestamp(),
     }
+
+
+@app.get("/ready")
+def readiness(response: Response) -> dict[str, Any]:
+    database_status = database.database_health()
+    model = model_health()
+    ready = database_status["status"] == "available" and model["status"] == "ready"
+    if not ready:
+        response.status_code = 503
+    return {"ready": ready, "database": database_status, "model": model}
 
 
 @app.post("/analyze")
@@ -270,6 +358,9 @@ def analyze(request: ScreenRequest) -> dict[str, Any]:
         page_url=request.page_url,
         page_title=request.page_title,
         context=request.context,
+        research_consent=request.research_consent,
+        retain_text=request.retain_text,
+        retrieve_sources=request.retrieve_sources,
     )
 
 
@@ -285,10 +376,14 @@ async def analyze_image(
     page_title: str | None = Form(default=None),
     post_text: str | None = Form(default=None),
     context_json: str | None = Form(default=None),
+    capture_candidate: bool = Form(default=False),
+    research_consent: bool = Form(default=False),
+    retain_text: bool = Form(default=False),
+    retrieve_sources: bool = Form(default=False),
 ) -> dict[str, Any]:
     contents = await _read_upload(file, "image/")
     try:
-        extraction = extract_image_text(contents)
+        extraction = await run_in_threadpool(extract_image_text, contents)
     except MediaProcessingError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     try:
@@ -297,13 +392,15 @@ async def analyze_image(
         post_context = {}
     readable_post_text = normalize_text(post_text or "")
     screening_text = "\n".join(part for part in [readable_post_text, extraction["ocr_text"]] if part)
-    result = _screen(
+    result = await run_in_threadpool(_screen,
         screening_text,
         input_type="image",
         extraction_status=extraction["extraction_status"],
         page_url=page_url,
         page_title=page_title,
         context=post_context,
+        capture_candidate=False,
+        research_consent=research_consent, retain_text=retain_text, retrieve_sources=retrieve_sources,
     )
     related_coverage = result["context_explanation"].get("related_coverage")
     result["context_explanation"] = _context_explanation(readable_post_text or extraction["ocr_text"], post_context)
@@ -319,13 +416,16 @@ async def analyze_video(
     page_title: str | None = Form(default=None),
     post_text: str | None = Form(default=None),
     context_json: str | None = Form(default=None),
+    research_consent: bool = Form(default=False),
+    retain_text: bool = Form(default=False),
+    retrieve_sources: bool = Form(default=False),
 ) -> dict[str, Any]:
     contents = await _read_upload(file, "video/")
     suffix = Path(file.filename or "video.mp4").suffix.lower() or ".mp4"
     if suffix not in {".mp4", ".webm", ".mov", ".mkv", ".avi"}:
         raise HTTPException(status_code=415, detail="The video file type is unsupported.")
     try:
-        extraction = process_video(contents, suffix=suffix)
+        extraction = await run_in_threadpool(process_video, contents, suffix=suffix)
     except MediaProcessingError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     try:
@@ -334,13 +434,14 @@ async def analyze_video(
         post_context = {}
     readable_post_text = normalize_text(post_text or "")
     screening_text = "\n".join(part for part in [readable_post_text, extraction["analyzed_text"]] if part)
-    result = _screen(
+    result = await run_in_threadpool(_screen,
         screening_text,
         input_type="video",
         extraction_status=extraction["extraction_status"],
         page_url=page_url,
         page_title=page_title,
         context=post_context,
+        research_consent=research_consent, retain_text=retain_text, retrieve_sources=retrieve_sources,
     )
     related_coverage = result["context_explanation"].get("related_coverage")
     result["context_explanation"] = _context_explanation(readable_post_text or extraction["analyzed_text"], post_context)
@@ -355,24 +456,7 @@ async def analyze_video(
 
 @app.post("/candidates", status_code=201)
 def submit_candidate(request: CandidateRequest) -> dict[str, Any]:
-    try:
-        candidate_id = database.create_candidate(
-            text=normalize_text(request.text),
-            page_url=request.page_url,
-            page_title=request.page_title,
-        )
-        database.log_audit(
-            "CANDIDATE_SUBMITTED", f"Candidate sample {candidate_id} submitted.", "public-user"
-        )
-    except Exception:
-        raise HTTPException(
-            status_code=503, detail="Candidate submission is unavailable because the database is offline."
-        ) from None
-    return {
-        "candidate_sample_id": candidate_id,
-        "validation_status": "pending",
-        "training_status": "not_training_data",
-    }
+    raise HTTPException(status_code=410, detail="Automatic candidate submission is retired. Use opt-in research storage on /analyze.")
 
 
 def _token_signature(payload: str) -> str:
@@ -381,16 +465,16 @@ def _token_signature(payload: str) -> str:
     return hmac.new(config.SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
-def _create_token(username: str) -> str:
+def _create_token(username: str, role: str) -> str:
     payload = json.dumps(
-        {"username": username, "expires": int(time.time()) + config.SESSION_HOURS * 3600},
+        {"username": username, "role": role, "expires": int(time.time()) + config.SESSION_HOURS * 3600},
         separators=(",", ":"),
     )
     encoded = base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
     return f"{encoded}.{_token_signature(encoded)}"
 
 
-def _decode_token(token: str) -> str:
+def _decode_token(token: str) -> dict[str, str]:
     try:
         encoded, signature = token.split(".", 1)
         if not hmac.compare_digest(_token_signature(encoded), signature):
@@ -399,12 +483,15 @@ def _decode_token(token: str) -> str:
         payload = json.loads(base64.urlsafe_b64decode(padded).decode())
         if int(payload["expires"]) < int(time.time()):
             raise ValueError
-        return str(payload["username"])
+        role = str(payload["role"])
+        if role not in {"admin", "viewer"}:
+            raise ValueError
+        return {"username": str(payload["username"]), "role": role}
     except (KeyError, TypeError, ValueError, json.JSONDecodeError):
         raise HTTPException(status_code=401, detail="Administrator session is invalid or expired.") from None
 
 
-def current_admin(request: Request) -> str:
+def current_user(request: Request) -> dict[str, str]:
     token = request.cookies.get("suriph_admin_token")
     authorization = request.headers.get("Authorization", "")
     if not token and authorization.startswith("Bearer "):
@@ -412,6 +499,51 @@ def current_admin(request: Request) -> str:
     if not token:
         raise HTTPException(status_code=401, detail="Administrator authentication is required.")
     return _decode_token(token)
+
+
+def current_admin(user: dict[str, str] = Depends(current_user)) -> str:
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="This account has view-only access.")
+    return user["username"]
+
+
+class ResearchAction(BaseModel):
+    record_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    withdrawal_token: str = Field(min_length=20, max_length=100)
+    usefulness: int | None = Field(default=None, ge=1, le=5)
+
+
+@app.post("/research/feedback")
+def research_feedback(payload: ResearchAction):
+    if payload.usefulness is None:
+        raise HTTPException(status_code=422, detail="Select a usefulness rating from 1 to 5.")
+    return _research_action(payload, False)
+
+
+@app.post("/research/withdraw")
+def research_withdraw(payload: ResearchAction):
+    return _research_action(payload, True)
+
+
+def _research_action(payload, withdraw):
+    try:
+        research_store.change(payload.record_id, payload.withdrawal_token, usefulness=payload.usefulness, withdraw=withdraw)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Research receipt not found.") from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Research storage is unavailable.") from None
+    return {"status": "withdrawn" if withdraw else "feedback_saved"}
+
+
+@app.get("/admin-api/research-export")
+def research_export(_username: str = Depends(current_admin)):
+    rows = _database_or_503(research_store.export_rows)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["record_id", "consent_version", "input_type", "usefulness", "label", "model_score", "training_run_id", "artifact_sha256", "features_json"])
+    for row in rows:
+        writer.writerow([row["record_id"], row["consent_version"], row["input_type"], row["usefulness"], row["internal_label"], row["model_score"], row["training_run_id"], row["artifact_sha256"], json.dumps(row["linguistic_indicators"])])
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="suriph-research.csv"'})
 
 
 @app.post("/admin-api/login")
@@ -422,7 +554,8 @@ def admin_login(credentials: LoginRequest, response: Response) -> dict[str, str]
         raise HTTPException(status_code=503, detail="Administrator login is unavailable.") from None
     if not user:
         raise HTTPException(status_code=401, detail="Invalid administrator credentials.")
-    token = _create_token(user["username"])
+    role = user.get("role", "admin")
+    token = _create_token(user["username"], role)
     response.set_cookie(
         "suriph_admin_token",
         token,
@@ -435,22 +568,22 @@ def admin_login(credentials: LoginRequest, response: Response) -> dict[str, str]
         database.log_audit("ADMIN_LOGIN", "Administrator signed in.", user["username"])
     except Exception:
         pass
-    return {"status": "authenticated", "token": token, "username": user["username"]}
+    return {"status": "authenticated", "token": token, "username": user["username"], "role": role}
 
 
 @app.post("/admin-api/logout")
-def admin_logout(response: Response, username: str = Depends(current_admin)) -> dict[str, str]:
+def admin_logout(response: Response, user: dict[str, str] = Depends(current_user)) -> dict[str, str]:
     response.delete_cookie("suriph_admin_token")
     try:
-        database.log_audit("ADMIN_LOGOUT", "Administrator signed out.", username)
+        database.log_audit("ADMIN_LOGOUT", "Administrative user signed out.", user["username"])
     except Exception:
         pass
     return {"status": "logged_out"}
 
 
 @app.get("/admin-api/check-auth")
-def check_auth(username: str = Depends(current_admin)) -> dict[str, Any]:
-    return {"authenticated": True, "username": username}
+def check_auth(user: dict[str, str] = Depends(current_user)) -> dict[str, Any]:
+    return {"authenticated": True, **user}
 
 
 def _database_or_503(operation):
@@ -461,8 +594,391 @@ def _database_or_503(operation):
 
 
 @app.get("/admin-api/candidates")
-def admin_candidates(limit: int = 100, _username: str = Depends(current_admin)):
-    return {"candidates": _database_or_503(lambda: database.list_candidates(min(limit, 500)))}
+def admin_candidates(
+    limit: int = 100,
+    topic: str | None = None,
+    validation_status: str | None = None,
+    evidence_status: str | None = None,
+    _username: str = Depends(current_admin),
+):
+    if topic and topic not in config.TOPIC_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Unknown topic filter.")
+    if validation_status and validation_status not in {"pending", "approved", "needs_revision", "excluded"}:
+        raise HTTPException(status_code=422, detail="Unknown validation status filter.")
+    if evidence_status and evidence_status not in {"missing", "unverified", "verified"}:
+        raise HTTPException(status_code=422, detail="Unknown evidence status filter.")
+    return {
+        "candidates": _database_or_503(
+            lambda: database.list_candidates(
+                min(limit, 10_000),
+                topic=topic,
+                validation_status=validation_status,
+                evidence_status=evidence_status,
+            )
+        )
+    }
+
+
+@app.get("/admin-api/candidate-summary")
+def admin_candidate_summary(_username: str = Depends(current_admin)):
+    return _database_or_503(database.candidate_topic_summary)
+
+
+def _safe_spreadsheet_value(value: Any) -> Any:
+    if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+@app.get("/admin-api/candidates-export")
+def admin_export_candidates(
+    format: Literal["csv", "xlsx"] = "csv",
+    topic: str | None = None,
+    validation_status: str | None = None,
+    evidence_status: str | None = None,
+    _username: str = Depends(current_admin),
+):
+    if topic and topic not in config.TOPIC_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Unknown topic filter.")
+    rows = _database_or_503(
+        lambda: database.export_candidates(
+            topic=topic,
+            validation_status=validation_status,
+            evidence_status=evidence_status,
+        )
+    )
+    rows = [{key: _safe_spreadsheet_value(value) for key, value in row.items()} for row in rows]
+    filename = f"suriph-candidates-{datetime.now(timezone.utc).date().isoformat()}.{format}"
+    fieldnames = list(rows[0]) if rows else [
+        "candidate_sample_id", "text", "input_type", "language", "topic",
+        "topic_confidence", "topic_review_status", "proposed_label",
+        "validation_status", "training_status", "evidence_status", "evidence_urls",
+        "source_url", "page_title", "claim_group_id", "submitted_at",
+    ]
+    if format == "csv":
+        stream = io.StringIO(newline="")
+        writer = csv.DictWriter(stream, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+        content = io.BytesIO(stream.getvalue().encode("utf-8-sig"))
+        media_type = "text/csv; charset=utf-8"
+    else:
+        try:
+            import pandas as pd
+            content = io.BytesIO()
+            pd.DataFrame(rows, columns=fieldnames).to_excel(content, index=False, engine="openpyxl")
+            content.seek(0)
+        except ImportError:
+            raise HTTPException(status_code=503, detail="Excel export support is not installed.") from None
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return StreamingResponse(
+        content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/admin-api/candidates/{candidate_id}/review")
+def admin_review_candidate(
+    candidate_id: int,
+    review: CandidateReviewRequest,
+    username: str = Depends(current_admin),
+):
+    if review.decision == "approve" and not review.proposed_label:
+        raise HTTPException(status_code=422, detail="Approved candidates require a final proposed label.")
+    if review.decision == "approve" and (not review.language or not review.topic or not review.claim_group_id):
+        raise HTTPException(
+            status_code=422,
+            detail="Approved candidates require reviewed language, topic, and claim group ID.",
+        )
+    if review.decision == "approve" and review.topic not in config.TOPIC_CATEGORIES:
+        raise HTTPException(status_code=422, detail="Topic must use one of the eight paper-defined categories.")
+    try:
+        result = database.review_candidate(
+            candidate_id,
+            decision=review.decision,
+            proposed_label=review.proposed_label,
+            notes=review.notes,
+            reviewer=username,
+            language=review.language,
+            topic=review.topic,
+            claim_group_id=review.claim_group_id,
+        )
+        database.log_audit(
+            "CANDIDATE_REVIEWED",
+            f"Candidate {candidate_id} marked {review.decision}.",
+            username,
+        )
+        return result
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.get("/admin-api/candidates/{candidate_id}/evidence")
+def admin_candidate_evidence(candidate_id: int, _username: str = Depends(current_admin)):
+    return {"evidence": _database_or_503(lambda: database.list_evidence(candidate_id))}
+
+
+@app.get("/admin-api/candidates/{candidate_id}/annotations")
+def admin_candidate_annotations(candidate_id: int, _username: str = Depends(current_admin)):
+    return {"annotations": _database_or_503(lambda: database.list_annotations(candidate_id))}
+
+
+@app.post("/admin-api/candidates/{candidate_id}/annotations", status_code=201)
+def admin_add_annotation(candidate_id: int, payload: IndependentAnnotationRequest, username: str = Depends(current_admin)):
+    try:
+        annotation_id = database.add_independent_annotation(
+            candidate_id,
+            reviewer=username,
+            proposed_label=payload.proposed_label,
+            annotation_round=payload.annotation_round,
+            evidence_sufficient=payload.evidence_sufficient,
+            notes=payload.notes,
+        )
+        database.log_audit("INDEPENDENT_ANNOTATION_ADDED", f"Annotation {annotation_id} added to candidate {candidate_id}.", username)
+        return {"annotation_id": annotation_id}
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.post("/admin-api/candidates/{candidate_id}/evidence", status_code=201)
+def admin_add_evidence(
+    candidate_id: int,
+    evidence: EvidenceRequest,
+    username: str = Depends(current_admin),
+):
+    try:
+        evidence_id = database.add_evidence(
+            candidate_id,
+            source_url=evidence.source_url,
+            publisher=evidence.publisher,
+            rating=evidence.rating,
+            claim_match_status=evidence.claim_match_status,
+            notes=evidence.notes,
+            reviewer=username,
+        )
+        database.log_audit("EVIDENCE_ADDED", f"Evidence {evidence_id} added to candidate {candidate_id}.", username)
+        return {"evidence_record_id": evidence_id}
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+
+
+@app.get("/admin-api/candidates/{candidate_id}/fact-check-search")
+def admin_fact_check_search(candidate_id: int, _username: str = Depends(current_admin)):
+    candidate = _database_or_503(lambda: database.get_candidate(candidate_id))
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate sample was not found.")
+    return search_fact_checks(candidate["text_content"])
+
+
+@app.get("/admin-api/dataset-versions")
+def admin_dataset_versions(_username: str = Depends(current_admin)):
+    return {"dataset_versions": _database_or_503(database.list_dataset_versions)}
+
+
+@app.get("/admin-api/dataset-versions/{version_id}/composition")
+def admin_dataset_composition(version_id: int, _username: str = Depends(current_admin)):
+    return {
+        "composition": _database_or_503(lambda: database.dataset_composition(version_id)),
+        "targets": {
+            "total_taglish": config.MIN_TAGLISH_SAMPLES,
+            "per_class": config.MIN_SAMPLES_PER_CLASS,
+            "per_topic": config.MIN_SAMPLES_PER_TOPIC,
+            "per_topic_class": config.MIN_SAMPLES_PER_TOPIC_CLASS,
+            "topics": config.TOPIC_CATEGORIES,
+        },
+    }
+
+
+@app.post("/admin-api/dataset-versions/import", status_code=201)
+async def admin_import_validated_dataset(
+    version_name: str = Form(min_length=1, max_length=120),
+    file: UploadFile = File(...),
+    username: str = Depends(current_admin),
+):
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".csv", ".xlsx")):
+        raise HTTPException(status_code=415, detail="Upload a CSV or XLSX validated dataset.")
+    contents = await file.read(config.MAX_MEDIA_BYTES + 1)
+    await file.close()
+    if not contents:
+        raise HTTPException(status_code=422, detail="The validated dataset file is empty.")
+    if len(contents) > config.MAX_MEDIA_BYTES:
+        raise HTTPException(status_code=413, detail="The validated dataset file is too large.")
+    try:
+        import pandas as pd
+        frame = pd.read_excel(io.BytesIO(contents)) if filename.endswith(".xlsx") else pd.read_csv(io.BytesIO(contents))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"The dataset file could not be read: {exc}") from None
+    frame.columns = [re.sub(r"[^a-z0-9]+", "_", str(column).strip().casefold()).strip("_") for column in frame.columns]
+    if "text" not in frame.columns:
+        raise HTTPException(status_code=422, detail="The dataset requires a text column.")
+    label_column = next((name for name in ("label", "final_label", "proposed_label") if name in frame.columns), None)
+    evidence_column = next((name for name in ("evidence_url", "evidence_urls") if name in frame.columns), None)
+    required = {"topic", "claim_group_id"}
+    missing = sorted(required - set(frame.columns))
+    if not label_column:
+        missing.append("label")
+    if not evidence_column:
+        missing.append("evidence_url")
+    if missing:
+        raise HTTPException(status_code=422, detail="Missing required columns: " + ", ".join(missing))
+
+    def cell(value: Any) -> str:
+        if pd.isna(value):
+            return ""
+        return str(value).strip()
+
+    imported_rows = []
+    for row_number, (_, source) in enumerate(frame.iterrows(), start=2):
+        text_value = normalize_text(cell(source.get("text")))
+        raw_label = cell(source.get(label_column))
+        label_map = {"1": "Misleading", "misleading": "Misleading", "0": "Non-Misleading", "non-misleading": "Non-Misleading", "non misleading": "Non-Misleading"}
+        label = label_map.get(raw_label.casefold())
+        topic = cell(source.get("topic"))
+        claim_group_id = cell(source.get("claim_group_id"))
+        evidence_url = cell(source.get(evidence_column)).split(" | ", 1)[0].split(" [", 1)[0]
+        partition = cell(source.get("partition_name")).casefold() if "partition_name" in frame.columns else ""
+        if not text_value:
+            raise HTTPException(status_code=422, detail=f"Row {row_number}: text is required.")
+        if not label:
+            raise HTTPException(status_code=422, detail=f"Row {row_number}: label must be Misleading/Non-Misleading or 1/0.")
+        if topic not in config.TOPIC_CATEGORIES:
+            raise HTTPException(status_code=422, detail=f"Row {row_number}: topic must use one of the eight paper-defined categories.")
+        if not claim_group_id:
+            raise HTTPException(status_code=422, detail=f"Row {row_number}: claim_group_id is required.")
+        parsed_evidence = urlparse(evidence_url)
+        if parsed_evidence.scheme not in {"http", "https"} or not parsed_evidence.netloc:
+            raise HTTPException(status_code=422, detail=f"Row {row_number}: a valid evidence URL is required.")
+        if partition and partition not in {"train", "validation", "test"}:
+            raise HTTPException(status_code=422, detail=f"Row {row_number}: partition_name must be train, validation, or test.")
+        imported_rows.append({
+            "text": text_value,
+            "label": label,
+            "topic": topic,
+            "claim_group_id": claim_group_id,
+            "evidence_url": evidence_url,
+            "partition_name": partition or None,
+            "language": cell(source.get("language")) or "Taglish",
+            "source_url": cell(source.get("source_url")) or None,
+            "page_title": cell(source.get("page_title")) or None,
+            "publisher": cell(source.get("publisher")) or None,
+            "rating": cell(source.get("rating")) or None,
+        })
+    try:
+        result = database.import_validated_dataset(version_name, imported_rows, created_by=username)
+        database.log_audit("VALIDATED_DATASET_IMPORTED", f"Imported {len(imported_rows)} rows into dataset version {result['dataset_version_id']}.", username)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.post("/admin-api/dataset-versions", status_code=201)
+def admin_create_dataset_version(
+    payload: DatasetVersionRequest, username: str = Depends(current_admin)
+):
+    version_id = _database_or_503(
+        lambda: database.create_dataset_version(payload.version_name, payload.description, username)
+    )
+    database.log_audit("DATASET_VERSION_CREATED", f"Dataset version {version_id} created.", username)
+    return {"dataset_version_id": version_id}
+
+
+@app.post("/admin-api/dataset-versions/{version_id}/items", status_code=201)
+def admin_add_dataset_item(
+    version_id: int, payload: DatasetItemRequest, username: str = Depends(current_admin)
+):
+    try:
+        item_id = database.add_dataset_item(
+            version_id,
+            candidate_id=payload.candidate_sample_id,
+            final_label=payload.final_label,
+            partition_name=payload.partition_name,
+            claim_group_id=payload.claim_group_id,
+        )
+        database.log_audit("DATASET_ITEM_ADDED", f"Dataset item {item_id} added to version {version_id}.", username)
+        return {"dataset_item_id": item_id}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.post("/admin-api/dataset-versions/{version_id}/items/bulk")
+def admin_bulk_add_dataset_items(version_id: int, username: str = Depends(current_admin)):
+    try:
+        result = database.bulk_add_approved_candidates(version_id)
+        database.log_audit(
+            "DATASET_ITEMS_BULK_ADDED",
+            f"Added {result['added']} approved candidates to dataset version {version_id}.",
+            username,
+        )
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.post("/admin-api/dataset-versions/{version_id}/approve")
+def admin_approve_dataset_version(version_id: int, username: str = Depends(current_admin)):
+    try:
+        database.approve_dataset_version(version_id)
+        database.log_audit("DATASET_VERSION_APPROVED", f"Dataset version {version_id} approved.", username)
+        return {"status": "approved"}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+def _approved_artifact_path(value: str) -> Path:
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = config.MODEL_STORAGE_DIR / candidate
+    candidate = candidate.resolve()
+    try:
+        candidate.relative_to(config.MODEL_STORAGE_DIR)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Model artifacts must be inside SURI_MODEL_STORAGE_DIR.") from None
+    if not candidate.is_file():
+        raise HTTPException(status_code=422, detail="Model artifact does not exist.")
+    return candidate
+
+
+@app.get("/admin-api/model-versions")
+def admin_model_versions(_user: dict[str, str] = Depends(current_user)):
+    return {"model_versions": _database_or_503(database.list_model_versions)}
+
+
+@app.get("/admin-api/training-runs")
+def admin_training_runs(_username: str = Depends(current_admin)):
+    return {"training_runs": _database_or_503(database.list_training_runs)}
+
+
+@app.post("/admin-api/training-runs", status_code=202)
+def admin_queue_training(payload: RetrainingRequest, username: str = Depends(current_admin)):
+    raise HTTPException(status_code=410, detail="This deployment is pinned to the verified model_4 hybrid pipeline. Training, model registration and activation are disabled.")
+
+
+@app.post("/admin-api/model-versions", status_code=201)
+def admin_register_model(payload: ModelVersionRequest, username: str = Depends(current_admin)):
+    raise HTTPException(status_code=410, detail="This deployment is pinned to the verified model_4 hybrid pipeline. Training, model registration and activation are disabled.")
+
+
+@app.post("/admin-api/model-versions/{model_id}/review")
+def admin_review_model(
+    model_id: int, payload: ModelReviewRequest, username: str = Depends(current_admin)
+):
+    try:
+        database.review_model_version(model_id, payload.decision, username)
+        database.log_audit("MODEL_VERSION_REVIEWED", f"Model {model_id} marked {payload.decision}.", username)
+        return {"status": payload.decision}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.post("/admin-api/model-versions/{model_id}/activate")
+def admin_activate_model(model_id: int, username: str = Depends(current_admin)):
+    raise HTTPException(status_code=410, detail="This deployment is pinned to the verified model_4 hybrid pipeline. Training, model registration and activation are disabled.")
 
 
 @app.get("/admin-api/audit-logs")
@@ -471,10 +987,10 @@ def admin_audit_logs(limit: int = 100, _username: str = Depends(current_admin)):
 
 
 @app.get("/admin-api/stats")
-def admin_stats(_username: str = Depends(current_admin)):
+def admin_stats(_user: dict[str, str] = Depends(current_user)):
     return {"stats": _database_or_503(database.sprint_stats)}
 
 
 @app.get("/admin-api/system-status")
-def admin_system_status(_username: str = Depends(current_admin)):
+def admin_system_status(_user: dict[str, str] = Depends(current_user)):
     return health()

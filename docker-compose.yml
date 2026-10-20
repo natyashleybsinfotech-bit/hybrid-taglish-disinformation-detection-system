@@ -1,0 +1,108 @@
+name: suriph
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  database:
+    image: mariadb:11.4.13
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DATABASE:?Generate .env.production first}
+      MARIADB_USER: ${MARIADB_USER:?Generate .env.production first}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?Generate .env.production first}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Generate .env.production first}
+    logging: *logging
+    volumes:
+      - suriph-database:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    build: ./backend-api
+    restart: unless-stopped
+    env_file: ${SURI_ENV_FILE:-.env.production}
+    environment:
+      MARIADB_ROOT_PASSWORD: ""
+      MARIADB_PASSWORD: ""
+      MARIADB_USER: ""
+      SURI_AUTO_MIGRATE: "false"
+    init: true
+    logging: *logging
+    volumes:
+      - suriph-model-cache:/app/data/runtime-models
+      - "./backend-api/models/TRAINING RESULTS/models/model_4.joblib:/app/artifacts/models/model_4.joblib:ro"
+      - "./backend-api/models/TRAINING RESULTS/models/contextual_encoder:/app/artifacts/models/contextual_encoder:ro"
+      - "./backend-api/models/TRAINING RESULTS/models/tagalog_tokenizer:/app/artifacts/models/tagalog_tokenizer:ro"
+      - "./backend-api/models/TRAINING RESULTS/models/feature_config.json:/app/artifacts/models/feature_config.json:ro"
+      - "./backend-api/models/TRAINING RESULTS/run_manifest.json:/app/artifacts/run_manifest.json:ro"
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+    depends_on:
+      database:
+        condition: service_healthy
+
+  admin:
+    build:
+      context: ./admin-dashboard
+      args:
+        VITE_API_BASE_URL: ${PUBLIC_API_URL}
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  migrate:
+    build: ./backend-api
+    profiles: [maintenance]
+    env_file: ${SURI_ENV_FILE:-.env.production}
+    command: ["python", "-m", "src.manage", "provision"]
+    restart: "no"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  proxy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    profiles: [https]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-api.example.com}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-admin.example.com}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - suriph-caddy-data:/data
+      - suriph-caddy-config:/config
+    logging: *logging
+    depends_on:
+      api:
+        condition: service_healthy
+      admin:
+        condition: service_started
+
+volumes:
+  suriph-database:
+  suriph-model-cache:
+  suriph-caddy-data:
+  suriph-caddy-config:

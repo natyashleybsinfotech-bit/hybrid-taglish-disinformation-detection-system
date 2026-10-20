@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import re
 import subprocess
 import sys
@@ -137,6 +138,10 @@ def extract_image_text(image_bytes: bytes) -> dict:
     if len(image_bytes) > config.MAX_MEDIA_BYTES:
         raise MediaProcessingError("The image exceeds the configured upload limit.")
     try:
+        from PIL import Image
+        with Image.open(io.BytesIO(image_bytes)) as preview:
+            if preview.width * preview.height > 20_000_000:
+                raise MediaProcessingError("Image exceeds the 20-megapixel processing limit.")
         import cv2
         import numpy as np
         image = cv2.imdecode(np.frombuffer(image_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -146,19 +151,20 @@ def extract_image_text(image_bytes: bytes) -> dict:
     except MediaProcessingError:
         raise
     except Exception as exc:
-        raise MediaProcessingError("EasyOCR could not extract text from the image.") from exc
+        raise MediaProcessingError("The image is unreadable or text extraction failed.") from exc
     if not lines:
         raise MediaProcessingError("No readable text was found in the image.")
     return {"extraction_status": "completed", "ocr_text": "\n".join(lines), "lines": lines}
 
 
 def _run_ffmpeg(arguments: list[str]) -> None:
-    result = subprocess.run(
-        [ffmpeg_executable(), "-hide_banner", "-loglevel", "error", "-y", *arguments],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    try:
+        result = subprocess.run(
+            [ffmpeg_executable(), "-hide_banner", "-loglevel", "error", "-y", *arguments],
+            capture_output=True, text=True, timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        raise MediaProcessingError("Media decoding timed out. Submit a shorter clip.") from None
     if result.returncode != 0:
         raise MediaProcessingError("FFmpeg could not process the submitted video.")
 
@@ -170,6 +176,8 @@ def _read_pcm_wave(path: Path):
         with wave.open(str(path), "rb") as stream:
             if stream.getnchannels() != 1 or stream.getsampwidth() != 2:
                 raise MediaProcessingError("The extracted audio format is unsupported.")
+            if stream.getnframes() / stream.getframerate() > 120:
+                raise MediaProcessingError("Video audio exceeds the 120-second limit. Submit a shorter clip.")
             samples = np.frombuffer(stream.readframes(stream.getnframes()), dtype="<i2")
         return samples.astype(np.float32) / 32768.0
     except MediaProcessingError:
@@ -190,14 +198,15 @@ def process_video(video_bytes: bytes, suffix: str = ".mp4") -> dict:
         audio_path = temp_dir / "audio.wav"
         frame_pattern = temp_dir / "frame-%03d.jpg"
         video_path.write_bytes(video_bytes)
-        _run_ffmpeg(["-i", str(video_path), "-vn", "-ac", "1", "-ar", "16000", str(audio_path)])
+        _run_ffmpeg(["-protocol_whitelist", "file,pipe", "-format_whitelist", "mov,matroska,webm,avi", "-i", str(video_path), "-t", "121", "-vn", "-ac", "1", "-ar", "16000", str(audio_path)])
+        audio = _read_pcm_wave(audio_path)  # Reject overlong clips before transcription.
         interval = max(1, config.VIDEO_FRAME_INTERVAL_SECONDS)
         _run_ffmpeg([
-            "-i", str(video_path), "-vf", f"fps=1/{interval}", "-frames:v",
+            "-protocol_whitelist", "file,pipe", "-format_whitelist", "mov,matroska,webm,avi", "-i", str(video_path), "-vf", f"fps=1/{interval}", "-frames:v",
             str(max(1, config.VIDEO_MAX_FRAMES)), str(frame_pattern),
         ])
         try:
-            transcription = _get_whisper_model().transcribe(_read_pcm_wave(audio_path), fp16=False)
+            transcription = _get_whisper_model().transcribe(audio, fp16=False)
             transcript_parts = _normalize_parts([str(transcription.get("text", ""))])
         except MediaProcessingError:
             raise

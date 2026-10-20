@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
 
 :root {
   /* Premium Dark Mode Colors */
@@ -29,7 +29,7 @@
 }
 
 body {
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: system-ui, sans-serif;
   background-color: #070b17;
   color: var(--text-primary);
   min-height: 100vh;
@@ -116,7 +116,7 @@ body {
   padding: 12px 24px;
   border-radius: 10px;
   font-weight: 600;
-  font-family: 'Outfit', sans-serif;
+  font-family: system-ui, sans-serif;
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -145,7 +145,7 @@ body {
   border: 1px solid var(--border);
   padding: 8px 16px;
   border-radius: 8px;
-  font-family: 'Outfit', sans-serif;
+  font-family: system-ui, sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -202,20 +202,20 @@ body {
 }
 
 /* Forms */
-input[type="text"], input[type="password"], select {
+input[type="text"], input[type="password"], input[type="url"], input[type="file"], input:not([type]), select, textarea {
   background: rgba(15, 23, 42, 0.5);
   border: 1px solid var(--border);
   color: white;
   padding: 12px 16px;
   border-radius: 10px;
-  font-family: 'Outfit', sans-serif;
+  font-family: system-ui, sans-serif;
   font-size: 14px;
   outline: none;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
 }
 
-input[type="text"]:focus, input[type="password"]:focus, select:focus {
+input[type="text"]:focus, input[type="password"]:focus, input[type="url"]:focus, input[type="file"]:focus, input:not([type]):focus, select:focus, textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
   background: rgba(15, 23, 42, 0.8);
@@ -248,6 +248,109 @@ td {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.summary-grid > div {
+  display: grid;
+  gap: 4px;
+  min-height: 76px;
+  align-content: center;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.summary-grid strong { font-size: 24px; }
+.summary-grid small { color: var(--text-secondary); }
+
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0 14px;
+  padding: 5px;
+  width: fit-content;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.tab-button {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: transparent;
+  font: 600 13px system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.tab-button.active { color: white; background: rgba(99, 102, 241, 0.8); }
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 18px;
+}
+
+.section-heading p, .advanced-panel p {
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.inline-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.inline-form input { min-width: 220px; }
+.row-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.advanced-panel summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.advanced-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.notice-success {
+  margin-top: 14px;
+  padding: 11px 14px;
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.progress-track {
+  height: 7px;
+  margin-bottom: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  transition: width .35s ease;
+}
+
+@media (max-width: 760px) {
+  .section-heading { align-items: stretch; flex-direction: column; }
+  .inline-form { display: grid; }
+  .inline-form input { min-width: 0; }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -263,3 +366,17 @@ td {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Participant-study accessibility and narrow-screen layout. */
+:focus-visible { outline: 3px solid #0e7490; outline-offset: 3px; }
+.login-shell { grid-template-columns: minmax(0, 1fr); }
+.login-layout, .login-layout > *, .login-form, .field-label, .field-label input { min-width: 0; max-width: 100%; }
+.admin-main { min-width: 0; overflow-wrap: anywhere; }
+.admin-main table { display: block; overflow-x: auto; max-width: 100%; }
+@media (max-width: 800px) {
+  .admin-layout { flex-direction: column; }
+  .admin-layout > aside { width: 100% !important; border-right: 0 !important; border-bottom: 1px solid var(--border); }
+  .admin-layout nav { display: flex !important; flex-wrap: wrap; margin-top: 12px !important; gap: 4px !important; }
+  .admin-main { padding: 18px !important; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

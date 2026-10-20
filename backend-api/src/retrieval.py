@@ -8,6 +8,10 @@ from urllib import error, request
 from urllib.parse import urlparse
 
 import config
+try:
+    from .provider_http import open_provider, read_json, safe_link
+except ImportError:
+    from provider_http import open_provider, read_json, safe_link
 
 
 def _source_name(item: dict) -> str:
@@ -66,9 +70,9 @@ def retrieve_related_sources(query: str, excluded_domain: str | None = None) -> 
         headers={"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"},
     )
     try:
-        with request.urlopen(req, timeout=config.SERPER_TIMEOUT_SECONDS) as response:
-            body = json.loads(response.read().decode("utf-8"))
-    except (error.HTTPError, error.URLError, TimeoutError, json.JSONDecodeError):
+        with open_provider(req, timeout=config.SERPER_TIMEOUT_SECONDS) as response:
+            body = read_json(response)
+    except (error.HTTPError, error.URLError, TimeoutError, ValueError):
         return {"retrieval_status": "unavailable", "related_sources": []}
     sources = []
     seen_hosts: set[str] = set()
@@ -77,12 +81,14 @@ def retrieve_related_sources(query: str, excluded_domain: str | None = None) -> 
         title = str(item.get("title", "")).strip()
         host = urlparse(url).netloc
         normalized_host = host.casefold().removeprefix("www.")
-        if url and title and normalized_host not in seen_hosts and _is_trusted_domain(host) and not _is_blocked_domain(host, excluded_domain):
+        if safe_link(url) and title and normalized_host not in seen_hosts and _is_trusted_domain(host) and not _is_blocked_domain(host, excluded_domain):
             sources.append({
                 "title": title,
                 "url": url,
                 "snippet": str(item.get("snippet", "")).strip(),
                 "source": _source_name(item),
+                "date": item.get("date") or None,
+                "kind": "search_result",
             })
             seen_hosts.add(normalized_host)
             if len(sources) == config.SERPER_MAX_RESULTS:

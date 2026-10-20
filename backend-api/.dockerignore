@@ -1,0 +1,11 @@
+.env*
+.venv
+__pycache__
+*.pyc
+tests
+data
+backend-runtime*.log
+requirements-train.txt
+models/*.pkl
+models/*.joblib
+models/TRAINING RESULTS

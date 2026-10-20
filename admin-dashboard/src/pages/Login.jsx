@@ -11,7 +11,7 @@ export default function Login({ onLogin }) {
     event.preventDefault(); setBusy(true); setError('');
     try {
       const { data } = await api.post('/login', { username, password });
-      localStorage.setItem('admin_token', data.token); onLogin();
+      onLogin(data);
     } catch (reason) { setError(reason.response?.data?.detail || 'Administrator login failed.'); }
     finally { setBusy(false); }
   };
@@ -24,7 +24,7 @@ export default function Login({ onLogin }) {
         <h1>Understand what you’re reading.</h1>
         <p className="intro-copy">A focused workspace for reviewing content signals, candidate samples, and system activity in one place.</p>
         <div className="intro-features">
-          <div><span><FileCheck2 size={16} /></span><p><strong>Review signals</strong><small>Clear, explainable screening results</small></p></div>
+          <div><span><FileCheck2 size={16} /></span><p><strong>Review signals</strong><small>Measured signals and model predictions</small></p></div>
           <div><span><Database size={16} /></span><p><strong>Curate samples</strong><small>Keep validation separate from training</small></p></div>
           <div><span><Activity size={16} /></span><p><strong>Track activity</strong><small>See health and audit events at a glance</small></p></div>
         </div>
@@ -36,7 +36,7 @@ export default function Login({ onLogin }) {
         <form onSubmit={login} className="login-form">
           <label className="field-label">Username<input value={username} onChange={(event) => setUsername(event.target.value)} required autoComplete="username" placeholder="Enter your username" /></label>
           <label className="field-label">Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" placeholder="Enter your password" /></label>
-          {error && <p className="login-error">{error}</p>}
+          {error && <p role="alert" className="login-error">{error}</p>}
           <button className="btn-primary login-submit" disabled={busy}>{busy ? 'Signing in…' : 'Continue'} {!busy && <ArrowRight size={17} />}</button>
         </form>
         <div className="secure-note"><ShieldCheck size={14} /> Protected administrator area</div>

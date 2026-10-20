@@ -1,0 +1,12 @@
+{
+  "static_checks_passed": true,
+  "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+  "artifact_mounts": 5,
+  "api_workers": 1,
+  "retired_runtime_imports": 0,
+  "database_exposed": false,
+  "docker_build_tested": false,
+  "compose_stack_tested": false,
+  "tls_tested": false,
+  "limitation": "YAML, paths and invariants checked locally; Docker is not installed."
+}

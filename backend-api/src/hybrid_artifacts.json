@@ -1,0 +1,12 @@
+{
+  "training_run_id": "20261011T235112Z",
+  "provenance": "SHA-256 inventory of supplied contextual_encoder files; classifier and Tagalog tokenizer hashes are separately anchored to the training export.",
+  "files": {
+    "models/contextual_encoder/config.json": "7f13faae81a4420192f29d9fe5cd1dc7b80fa12229687c5edc7aaacfc2ac0eb9",
+    "models/contextual_encoder/model.safetensors": "45620facecba512b46c58430d27e20af43952eda9c1be56e023d0bbcfdcf10cb",
+    "models/contextual_encoder/special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+    "models/contextual_encoder/tokenizer.json": "bf1b59b7b11c95f194f51708d918eea378e09d05f84c0e1656dc5180e8117088",
+    "models/contextual_encoder/tokenizer_config.json": "91955163d30880d1ef0928cfdd729baaf413401dc4456f3ab1a48b3eec2ec624",
+    "models/contextual_encoder/vocab.txt": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
+  }
+}

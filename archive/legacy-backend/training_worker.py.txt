@@ -1,0 +1,83 @@
+"""Process administrator-approved SuriPH retraining jobs."""
+
+from __future__ import annotations
+
+import csv
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import config
+
+try:
+    from . import database
+except ImportError:
+    import database
+
+
+WORK_DIR = config.BASE_DIR / "data" / "runtime-training"
+
+
+def process_one() -> bool:
+    run = database.claim_training_run()
+    if not run:
+        return False
+    run_id = int(run["training_run_id"])
+    try:
+        records = database.export_dataset_version(int(run["dataset_version_id"]))
+        if not records:
+            raise RuntimeError("Approved dataset version contains no items.")
+        database.update_training_progress(run_id, 12, "Exporting approved dataset")
+        WORK_DIR.mkdir(parents=True, exist_ok=True)
+        dataset_path = WORK_DIR / f"dataset-{run_id}.csv"
+        with dataset_path.open("w", newline="", encoding="utf-8") as output:
+            writer = csv.DictWriter(
+                output, fieldnames=["text", "label", "partition_name", "claim_group_id"]
+            )
+            writer.writeheader()
+            writer.writerows(records)
+        database.update_training_progress(run_id, 20, "Training four model configurations")
+        artifact = config.MODEL_STORAGE_DIR / f"candidate-{run['requested_version_name']}.pkl"
+        command = [
+            sys.executable,
+            str(config.BASE_DIR / "src" / "train_model.py"),
+            "--dataset", str(dataset_path),
+            "--output", str(artifact),
+            "--model-version", str(run["requested_version_name"]),
+        ]
+        completed = subprocess.run(command, check=False, capture_output=True, text=True)
+        if completed.returncode != 0:
+            raise RuntimeError((completed.stderr or completed.stdout or "Training failed.")[-4000:])
+        database.update_training_progress(run_id, 90, "Validating and registering candidate model")
+        manifest = json.loads(artifact.with_suffix(artifact.suffix + ".json").read_text(encoding="utf-8"))
+        model_id = database.register_model_version(
+            dataset_version_id=int(run["dataset_version_id"]),
+            model_name=str(manifest["model_name"]),
+            version_name=str(manifest["model_version"]),
+            feature_mode=str(manifest["feature_mode"]),
+            metrics=dict(manifest["metrics"]),
+            artifact_path=str(artifact),
+            created_by=str(run["requested_by"]),
+        )
+        database.finish_training_run(run_id, status="completed", model_version_id=model_id)
+        database.log_audit(
+            "RETRAINING_COMPLETED", f"Training run {run_id} produced candidate model {model_id}.", "training-worker"
+        )
+    except Exception as exc:
+        database.finish_training_run(run_id, status="failed", error_message=str(exc)[-4000:])
+        database.log_audit("RETRAINING_FAILED", f"Training run {run_id} failed.", "training-worker")
+    finally:
+        if 'dataset_path' in locals():
+            dataset_path.unlink(missing_ok=True)
+    return True
+
+
+def main() -> None:
+    raise RuntimeError("Retraining is disabled for the pinned model_4 deployment.")
+
+
+if __name__ == "__main__":
+    main()

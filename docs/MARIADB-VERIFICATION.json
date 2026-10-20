@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "engine": "MariaDB 11.4.13 native Windows",
+  "schema_version": 5,
+  "actual_provision_command": "passed",
+  "empty_migration": "passed",
+  "idempotent_migration": "passed",
+  "runtime_ddl_denied": "passed",
+  "transaction_rollback": "passed",
+  "restart_persistence": "passed",
+  "database_outage": "passed",
+  "logical_gzip_restore_to_isolated_database": "passed",
+  "withdrawal_after_restore": "passed",
+  "production_docker_wrapper_tested": false
+}

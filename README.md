@@ -1,24 +1,70 @@
-# SuriPH Sprint 1 Working Prototype
+# SuriPH
 
-This build implements user-triggered screening for manual or page-extracted text, uploaded images, and uploaded videos. Results come from a deterministic mock classifier and must not be presented as trained-model or fact-checking verdicts.
+Start with [START_HERE.md](START_HERE.md) and the [release evidence](docs/RELEASE-READINESS.md).
+Use the [documentation index](docs/README.md) to find the paper, training references,
+setup, research materials and [project layout](docs/PROJECT-STRUCTURE.md).
 
-## Components
+SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Chrome extension, and an administrator dashboard. It screens text and text extracted from images or videos, reports model predictions and scores, and can attach related reporting and published fact-check evidence.
 
-- `backend-api`: FastAPI screening API, EasyOCR, packaged FFmpeg, Whisper, optional Serper retrieval, and MySQL/MariaDB persistence.
-- `chrome-extension`: popup workflow for manual text, selected text, supported post text (including accessible open shadow roots), image uploads, and video uploads.
-- `admin-dashboard`: authenticated real system status, candidate-sample records, and audit records. Retraining and model-performance pages are intentionally outside Sprint 1.
+The classifier is loaded from a versioned model bundle. The API never falls back to random, hash-based, or mock verdicts. If the bundle is missing or incompatible, screening returns an error and the readiness endpoint fails.
 
-## Configuration
+## Repository layout
 
-Set server secrets and service configuration as environment variables. Use `backend-api/.env.example` as the variable checklist; it contains placeholders only. At minimum, configure `SURI_DB_USER`, `SURI_ADMIN_USERNAME`, `SURI_ADMIN_PASSWORD`, and a long random `SURI_SESSION_SECRET`. `SERPER_API_KEY` is optional; retrieval reports `unavailable_not_configured` without it.
+- `backend-api`: inference API, MariaDB persistence, OCR/video processing, maintenance scripts and tests.
+- `chrome-extension`: user-triggered page, text, image, and video screening.
+- `admin-dashboard`: role-controlled system health/performance views and researcher-only dataset governance.
+- `docker-compose.yml`: production-shaped API and dashboard deployment.
 
-The API applies versioned MySQL/MariaDB migrations on startup. The configured database itself must already exist. Media model weights are downloaded on first use into `backend-api/data/runtime-models` by default and are ignored by Git.
+Ordinary screening stores no input or prediction. Optional research storage requires
+explicit consent, with a separate choice to retain text. Existing curated candidate workflows remain available. The system suggests one of the paper's eight topic
+domains and retains the model result as a proposed label. A researcher must confirm a
+matching evidence URL before approval. Candidate Samples reports counts per topic and
+exports the filtered review queue as UTF-8 CSV or Excel. Datasets and Models shows
+approved dataset versions, historical training records and the pinned runtime model.
 
-## Run
+Research storage is text-only when separately consented; otherwise only prediction
+and feature metadata are retained. Uploaded image/video bytes, extracted frames, and
+temporary media paths are never written to the dataset or MariaDB; video working files
+are removed when processing finishes.
 
-From the repository root:
+## Active hybrid model
+
+The only active classifier is `backend-api/models/TRAINING RESULTS/models/model_4.joblib`
+from training run `20261011T235112Z`, using frozen multilingual DistilBERT, the seven
+saved linguistic features and Logistic Regression with threshold **0.65**.
+The exact raw-text pipeline reproduced all **598** reference test labels and all
+probabilities within the declared tolerance (maximum difference **3.15e-6**).
+
+Read [the integration guide](docs/HYBRID-INTEGRATION.md) for the artifact layout,
+exact preprocessing, dependencies, API fields, verification evidence and limitations.
+The old `hybrid_model.pkl`/schema-1 loader is retired. Renaming another model does
+not make it compatible. Registration, activation and retraining are disabled.
+
+`/health` and `/ready` report the classifier identity, SHA-256, actual CPU/CUDA device,
+threshold and readiness. A load/inference failure returns 503 for prediction and
+false readiness. No alternative classifier or fabricated prediction is used.
+
+## Local development
+
+For a fresh checkout configure private local settings from the example. On this prepared workstation, preserve the existing `.env.local`.
+
+On the prepared Windows workstation, the portable MariaDB instance is bound only to
+`127.0.0.1:3306`. Its local, ignored configuration is in
+`backend-api/.env.local`; values there override `backend-api/.env` for local use.
+Start or stop it from the repository root with:
 
 ```powershell
+.\scripts\start-mariadb.ps1
+.\scripts\stop-mariadb.ps1
+```
+
+Read development credentials privately from `.env.local`. Production setup generates
+new random credentials; never reuse a development password.
+
+Start the API from the repository root:
+
+```powershell
+python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r .\backend-api\requirements.txt
 Set-Location .\backend-api
 ..\.venv\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000
@@ -28,28 +74,73 @@ In a second terminal:
 
 ```powershell
 Set-Location .\admin-dashboard
+npm ci
 npm run dev
 ```
 
-Build and load the browser extension:
+The dataset review workflows remain available, but this deployment cannot queue
+training or switch its active classifier. Historical registry records do not control
+inference. Do not start the old training worker.
+
+Build and load the extension:
 
 ```powershell
 Set-Location .\chrome-extension
+npm ci
 npm run build
 ```
 
-Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`. The extension never collects or classifies page content until the user clicks an extraction or analysis control.
+Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`.
 
-## Verification
+## Production deployment
+
+Follow the full [deployment runbook](docs/DEPLOYMENT.md) for the VPS setup,
+model acceptance, commands, extension release, backup/restore and rollback steps.
+
+1. Preserve the verified model_4 export and complete inference component directory.
+2. Choose a Docker-capable Linux VPS and API/dashboard domains.
+3. Run `scripts/prepare_deployment.py` with those domains to generate private settings and random credentials.
+4. Build the containers and run `python -m src.deployment_check --media` inside the API container.
+5. Start Compose with `--profile https` to enable Caddy HTTPS, and verify `/ready` and real text/image/video screening.
+6. Build the extension with the public HTTPS API URL; test admin/viewer permissions and database recovery before release.
+
+Production rejects placeholder secrets, incompatible or changed model components, localhost CORS origins,
+and wildcard trusted hosts. It runs real hybrid inference during startup. Model
+failures remain visible through health/readiness; production database/bootstrap
+errors prevent startup. Training and model switching are disabled.
+
+## Release verification
 
 ```powershell
 Set-Location .\backend-api
 ..\.venv\Scripts\python.exe -B -m unittest discover -s tests -p 'test_*.py' -v
 
-Set-Location ..\chrome-extension
-npm run build
-
 Set-Location ..\admin-dashboard
+npm ci
 npm run lint
 npm run build
+
+Set-Location ..\chrome-extension
+npm ci
+npm run build
+
+Set-Location ..
+docker compose --env-file .env.production config --quiet
+docker compose --env-file .env.production build
 ```
+
+After the approved model is installed and the stack is live, record the response-time evidence required by the paper:
+
+```powershell
+python .\backend-api\scripts\benchmark.py --url https://api.example.com/analyze --requests 30
+```
+
+The paper-to-code review is recorded in [`docs/IMPLEMENTATION-TRACEABILITY.md`](docs/IMPLEMENTATION-TRACEABILITY.md).
+
+Before release, also run representative Filipino, English, and Taglish samples through text, image, and video flows; confirm model version/hash in the dashboard; test expired administrator and viewer sessions; and back up the `suriph-database` MariaDB volume.
+
+## Operational notes
+
+- Production Compose uses MariaDB 11.4.13. Local development and tests may leave `SURI_DB_HOST` empty to use SQLite.
+- The classifier loads its supplied encoder/tokenizers locally and never downloads replacement weights. OCR and Whisper may download/cache weights unless pre-populated in `backend-api/data/runtime-models`.
+- Model scores are predictions, not calibrated certainty or factual verification. Retrieved links require independent review.

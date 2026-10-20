@@ -1,160 +1,127 @@
-import React, { useEffect, useState } from 'react';
-import { analyzeMedia, analyzeText } from './api.js';
+import React, { useEffect, useRef, useState } from 'react';
+import { analyzeMedia, analyzeText, researchAction, privacyInfo } from './api.js';
 
 const EMPTY_PAGE = { url: '', title: '' };
-
-function Result({ result }) {
+const safeUrl = value => { try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) ? url.href : null; } catch { return null; } };
+export function Result({ result }) {
   if (!result) return null;
-  const context = result.context_explanation;
-  return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm">
-      <strong className="block w-full rounded-lg bg-emerald-500 px-3 py-3 text-center text-sm text-emerald-950">
-        {result.public_label}
-      </strong>
-      <p className="text-xs font-bold text-slate-700">Confidence: {(result.temporary_score * 100).toFixed(1)}%</p>
-      {result.decision_source === 'google_fact_check' && result.decision_basis && (
-        <p className="rounded-lg border border-violet-200 bg-violet-50 p-2 text-[11px] font-medium text-violet-900">
-          Google fact-check evidence influenced this result: {result.decision_basis}
-        </p>
-      )}
-
-      <div className="rounded-lg border border-sky-200 bg-sky-50 p-2">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">Related coverage from credible sources</p>
-        {!result.related_sources?.length && <p className="mt-1 text-[11px] text-slate-600">{result.retrieval_status === 'unavailable' ? 'Credible-source lookup is temporarily unavailable. Try again.' : 'No matching credible article was found for this claim.'}</p>}
-        {result.related_sources?.map((source) => (
-          <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="block truncate text-[11px] text-sky-400 hover:underline">
-            {source.title || source.url}
-          </a>
-        ))}
-      </div>
-
-      <div className="rounded-lg border border-violet-200 bg-violet-50 p-2 text-xs text-slate-700">
-        <p className="font-bold text-violet-800">Published fact-checks from Google Fact Check Tools</p>
-        {!result.fact_check_matches?.length && <p className="mt-1 text-[11px]">{result.fact_check_status === 'unavailable_not_configured' ? 'Google Fact Check is ready, but its API key has not been configured yet.' : result.fact_check_status === 'unavailable' ? 'Google Fact Check is temporarily unavailable.' : 'No previously fact-checked claim matched this post.'}</p>}
-        {result.fact_check_matches?.map((match) => <div key={match.url} className="mt-2 border-t border-violet-200 pt-2">
-          <p className="font-semibold">{match.publisher}: {match.rating}</p>
-          <a href={match.url} target="_blank" rel="noreferrer" className="block truncate text-[11px] text-sky-700 hover:underline">{match.title || match.claim || 'Open fact-check article'}</a>
-        </div>)}
-      </div>
-
-      {context && <div className="space-y-2 rounded-xl border border-teal-200 bg-teal-50 p-3 text-xs text-teal-950">
-        <h2 className="text-sm font-bold text-teal-700">Context overview</h2>
-        <div>
-          <p className="font-semibold">What the post is about</p>
-          <p className="mt-1 leading-relaxed">{context.overview || 'There was not enough readable content to produce a clear overview.'}</p>
-        </div>
-        {!!context.separate_statements?.length && <details className="rounded-lg border border-teal-200 bg-white p-2">
-          <summary className="cursor-pointer font-semibold text-teal-700">View {context.separate_statements.length} separate statements</summary>
-          <div className="mt-2 space-y-1.5">
-          {context.separate_statements.map((claim) => <div key={`${claim.number}-${claim.statement}`} className="rounded-lg border border-teal-100 bg-white p-2 text-slate-700">
-            <p>{claim.number}. {claim.statement}</p>
-          </div>)}
-          </div>
-        </details>}
-        <div className="grid grid-cols-1 gap-1 rounded-lg bg-white p-2 text-slate-700">
-          <p><strong>Source:</strong> {context.author}</p>
-          <p><strong>Posted:</strong> {context.timing}</p>
-          <p><strong>Recency:</strong> {context.freshness}</p>
-        </div>
-        {context.recency_explanation && <p className="leading-relaxed"><strong>Why timing matters:</strong> {context.recency_explanation}</p>}
-        {context.assessment_scope && <p className="leading-relaxed"><strong>How the statements were checked:</strong> {context.assessment_scope}</p>}
-        {context.checked_material && <p className="leading-relaxed"><strong>Content used:</strong> {context.checked_material}</p>}
-        {context.related_coverage && <p className="leading-relaxed"><strong>Related coverage:</strong> {context.related_coverage}</p>}
-      </div>}
-
-      <details className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-        <summary className="cursor-pointer text-xs font-semibold text-slate-700">View the content checked by SuriPH</summary>
-        <p className="mt-2 max-h-28 overflow-auto text-[11px] leading-relaxed text-slate-600">{result.analyzed_text}</p>
-      </details>
-      <div className="rounded-lg border border-amber-300 border-l-4 bg-amber-50 p-2 text-[11px] font-semibold leading-relaxed text-amber-900">{result.disclaimer}</div>
+  const retrieval = result.retrieval_status;
+  const noSources = retrieval === 'not_requested' ? 'Related-source lookup was not requested.' : retrieval === 'no_results' ? 'No matching links were returned from the allowed publishers.' : 'Related-source lookup is unavailable. The prediction is unchanged.';
+  return <section className="result-stack" aria-label="Analysis result">
+    <article className="result-card prediction-card">
+      <p className="eyebrow">MODEL PREDICTION</p><h2>{result.internal_label}</h2>
+      <p className="score"><strong>{result.model_score > .99995 && result.model_score < 1 ? '>99.99' : result.model_score > 0 && result.model_score < .00005 ? '<0.01' : (result.model_score * 100).toFixed(2)}%</strong> Misleading-class score</p>
+      <p>This score is the model output for the Misleading class. Scores of 65% or above predict Misleading. It is not calibrated certainty or a factual verdict.</p>
+    </article>
+    <details className="result-card"><summary>Seven measured text signals</summary>
+      <p>Measurements from this input, before scaling. These are not feature contributions or proof that a claim is false. A zero denominator produces 0.</p>
+      <dl className="feature-list">{result.linguistic_indicators?.map(item => <div key={item.name} data-feature={item.name} data-value={item.value}>
+        <dt>{item.display_name || item.name.replaceAll('_', ' ')} <strong>{Number(item.value).toFixed(4)} ratio</strong></dt>
+        <dd>{item.definition}</dd>
+      </div>)}</dl>
+    </details>
+    <section className="result-card"><h3>Related reading</h3><p>Links are search results, not automatically supporting or refuting evidence. Review the original claim, date and context.</p>
+      {!result.related_sources?.length && <p className="notice">{noSources} Missing links do not validate the prediction.</p>}
+      {result.related_sources?.filter(source => safeUrl(source.url)).map(source => <article className="source" key={source.url}>
+        <a href={safeUrl(source.url)} target="_blank" rel="noopener noreferrer">{source.title}</a>
+        <p>{source.source || 'Publisher not supplied'} · Search result{source.date ? ` · ${source.date}` : ''}</p>
+      </article>)}
     </section>
-  );
+    <details className="result-card"><summary>Text that was analyzed</summary><p className="input-preview">{result.analyzed_text}</p></details>
+    <p className="notice">{result.disclaimer}</p>
+  </section>;
 }
 
 export default function Popup() {
-  const [text, setText] = useState('');
-  const [page, setPage] = useState(EMPTY_PAGE);
-  const [file, setFile] = useState(null);
-  const [mediaKind, setMediaKind] = useState('image');
-  const [status, setStatus] = useState('idle');
-  const [error, setError] = useState('');
-  const [result, setResult] = useState(null);
-  const [enabled, setEnabled] = useState(true);
-
-  useEffect(() => { chrome.storage.local.get({ suriphLastResult: null, suriphLastText: '', suriphLastPage: EMPTY_PAGE }, (saved) => { if (saved.suriphLastResult) { setResult(saved.suriphLastResult); setText(saved.suriphLastText || saved.suriphLastResult.analyzed_text || ''); setPage(saved.suriphLastPage || EMPTY_PAGE); setStatus('completed'); } }); }, []);
-
-  useEffect(() => { chrome.storage.local.get({ suriphEnabled: true }, (settings) => setEnabled(settings.suriphEnabled !== false)); }, []);
-
-  const toggleExtension = async () => {
-    const next = !enabled; setEnabled(next);
-    await chrome.storage.local.set({ suriphEnabled: next });
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (tab?.id) { try { await chrome.tabs.sendMessage(tab.id, { type: 'SURIPH_SET_ENABLED', enabled: next }); } catch (_) { /* unsupported page */ } try { await chrome.tabs.reload(tab.id); } catch (_) { /* tab closed */ } }
-  };
-
-  const fail = (reason) => {
-    setStatus('failed');
-    setError(reason?.message || String(reason));
-  };
-
-  const extract = async (mode) => {
-    setStatus('extracting'); setError(''); setResult(null);
-    try {
+  const [text, setText] = useState(''), [page, setPage] = useState(EMPTY_PAGE);
+  const [file, setFile] = useState(null), [kind, setKind] = useState('image');
+  const [status, setStatus] = useState('idle'), [error, setError] = useState(''), [result, setResult] = useState(null);
+  const [consent, setConsent] = useState(false), [retain, setRetain] = useState(false), [lookup, setLookup] = useState(false);
+  const [enabled, setEnabled] = useState(true), [receipts, setReceipts] = useState([]), [notice, setNotice] = useState('');
+  const [retentionDays, setRetentionDays] = useState(null);
+  const lock = useRef(false);
+  const busy = !['idle', 'completed', 'failed'].includes(status);
+  useEffect(() => {
+    // Retire old full-text/result storage. Only explicit research receipts survive closing.
+    chrome.storage.local.remove(['suriphLastResult', 'suriphLastText', 'suriphLastPage']);
+    chrome.storage.local.get({ suriphEnabled: true, suriphReceipts: [] }, saved => { setEnabled(saved.suriphEnabled); setReceipts(saved.suriphReceipts); });
+    privacyInfo().then(policy => setRetentionDays(policy.retention_days)).catch(() => {});
+  }, []);
+  const clearResult = () => { setResult(null); setError(''); setNotice(''); setStatus('idle'); };
+  async function perform(nextStatus, action) {
+    if (lock.current) return;
+    lock.current = true; setStatus(nextStatus); setError(''); setResult(null); setNotice('');
+    try { await action(); setStatus('completed'); }
+    catch (reason) { setError(reason.message || 'The service is unavailable. Try again later.'); setStatus('failed'); }
+    finally { lock.current = false; }
+  }
+  async function show(output) {
+    setResult(output);
+    if (output.research_receipt) {
+      const updated = [...receipts, output.research_receipt];
+      setReceipts(updated); await chrome.storage.local.set({ suriphReceipts: updated });
+    }
+  }
+  async function extract(mode) {
+    await perform('Reading selected content', async () => {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      if (!tab?.id) throw new Error('No active page is available.');
+      if (!tab?.id) throw new Error('Open a supported page first.');
       const response = await chrome.tabs.sendMessage(tab.id, { type: 'SURIPH_EXTRACT', mode });
-      if (!response?.ok) throw new Error(response?.error || 'This page is not supported by the extension.');
-      if (!response.text) throw new Error(mode === 'selection' ? 'Select text on the page first.' : 'No supported post text was found.');
-      setText(response.text);
-      setPage({ url: response.pageUrl, title: response.pageTitle });
-      setStatus('idle');
-    } catch (reason) { fail(reason); }
-  };
-
-  const runText = async () => {
-    if (!text.trim()) return fail(new Error('Enter or extract text before screening.'));
-    setStatus('analyzing'); setError(''); setResult(null);
+      if (!response?.ok || !response.text?.trim()) throw new Error(response?.error || 'No readable text was found. Select text on a supported page, or paste it here.');
+      setText(response.text); setPage({ url: tab.url, title: tab.title });
+    });
+  }
+  const options = { researchConsent: consent, retainText: consent && retain, retrieveSources: lookup };
+  async function runText() { await perform('Analyzing text', async () => {
+    if (!text.trim()) throw new Error('Enter or select text before analyzing.');
+    await show(await analyzeText({ text, pageUrl: page.url, pageTitle: page.title, ...options }));
+  }); }
+  async function runMedia() { await perform('Extracting and analyzing media', async () => {
+    if (!file) throw new Error('Choose a file first.');
+    const output = await analyzeMedia(kind, file, { ...page, ...options }); setText(output.analyzed_text); await show(output);
+  }); }
+  async function act(action, receipt, rating) {
+    if (lock.current) return;
+    lock.current = true; setStatus('Saving research choice'); setNotice(''); setError('');
     try {
-      const output = await analyzeText({ text, pageUrl: page.url, pageTitle: page.title }); setResult(output); await chrome.storage.local.set({ suriphLastResult: output, suriphLastText: text, suriphLastPage: page });
-      setStatus('completed');
-    } catch (reason) { fail(reason); }
-  };
-
-  const runMedia = async () => {
-    if (!file) return fail(new Error(`Choose an ${mediaKind} file first.`));
-    setStatus('processing_media'); setError(''); setResult(null);
-    try {
-      const response = await analyzeMedia(mediaKind, file, page);
-      setResult(response); setText(response.analyzed_text); await chrome.storage.local.set({ suriphLastResult: response, suriphLastText: response.analyzed_text, suriphLastPage: page }); setStatus('completed');
-    } catch (reason) { fail(reason); }
-  };
-
-  return (
-    <main className="popup-shell max-h-[620px] w-[390px] overflow-auto bg-white p-4 font-sans text-slate-900">
-      <header className="mb-3 flex items-start justify-between gap-3">
-        <div><h1 className="text-base font-bold text-teal-700">SuriPH</h1>
-        <p className="text-[10px] text-slate-500">Check posts, images, and videos with context</p>
-        </div>
-        <div className="flex items-center gap-1.5"><button onClick={toggleExtension} className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] ${enabled ? 'border-emerald-500/60 text-emerald-300' : 'border-slate-600 text-slate-400'}`} aria-pressed={enabled}><span className={`h-2 w-2 rounded-full ${enabled ? 'bg-emerald-400' : 'bg-slate-500'}`} />{enabled ? 'On' : 'Off'}</button><button onClick={() => window.close()} aria-label="Close SuriPH popup" className="rounded-full border border-slate-700 px-2 py-0.5 text-sm leading-none text-slate-400 hover:border-slate-500 hover:text-white">×</button></div>
-      </header>
-      <section className="space-y-2">
-        <textarea value={text} onChange={(event) => setText(event.target.value)} maxLength={20000} rows={6} placeholder="Paste text, or extract it from the active page…" className="w-full resize-y rounded border border-slate-700 bg-slate-900 p-2 text-xs outline-none focus:border-emerald-500" />
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => extract('selection')} className="rounded border border-slate-700 p-2 text-xs hover:bg-slate-800">Use selected text</button>
-          <button onClick={() => extract('post')} className="rounded border border-slate-700 p-2 text-xs hover:bg-slate-800">Extract supported post</button>
-        </div>
-        <button onClick={runText} disabled={['extracting', 'analyzing', 'processing_media'].includes(status)} className="w-full rounded bg-emerald-600 p-2 text-xs font-semibold hover:bg-emerald-500 disabled:opacity-50">Check text</button>
-      </section>
-      <section className="my-3 space-y-2 border-y border-slate-200 py-3">
-        <div className="grid grid-cols-2 gap-2">
-          {['image', 'video'].map((kind) => <button key={kind} onClick={() => { setMediaKind(kind); setFile(null); }} className={`rounded p-1.5 text-xs ${mediaKind === kind ? 'bg-sky-700' : 'bg-slate-800'}`}>{kind === 'image' ? 'Image OCR' : 'Video + audio'}</button>)}
-        </div>
-        <input type="file" accept={mediaKind === 'image' ? 'image/*' : 'video/*'} onChange={(event) => setFile(event.target.files?.[0] || null)} className="block w-full text-[11px] text-slate-400 file:mr-2 file:rounded file:border-0 file:bg-slate-700 file:px-2 file:py-1 file:text-white" />
-        <button onClick={runMedia} disabled={!file || status === 'processing_media'} className="w-full rounded bg-sky-700 p-2 text-xs font-semibold hover:bg-sky-600 disabled:opacity-50">Check {mediaKind}</button>
-      </section>
-      {!['idle', 'completed', 'failed'].includes(status) && <p className="mb-3 text-xs text-sky-300">Status: {(status === 'analyzing' ? 'screening' : status === 'processing_media' ? 'processing media' : status.replace('_', ' '))}...</p>}
-      {error && <p role="alert" className="mb-3 rounded border border-red-800 bg-red-950/50 p-2 text-xs text-red-300">{error}</p>}
-      <Result result={result} />
-    </main>
-  );
+      await researchAction(action, receipt, rating);
+      if (action === 'withdraw') {
+        const updated = receipts.filter(item => item.record_id !== receipt.record_id);
+        setReceipts(updated); await chrome.storage.local.set({ suriphReceipts: updated });
+      }
+      setNotice(action === 'withdraw' ? 'The saved research record was deleted. Backup copies expire under the retention policy.' : 'Your usefulness rating was saved. This does not change the prediction.');
+    } catch (reason) { setError(reason.message); }
+    finally { lock.current = false; setStatus('completed'); }
+  }
+  return <main className="popup-shell">
+    <header className="brand-row"><div><h1>SuriPH</h1><p>Read carefully. Check the context.</p></div><button className="secondary" aria-pressed={enabled} disabled={busy} onClick={async () => { const next = !enabled; setEnabled(next); await chrome.storage.local.set({ suriphEnabled: next }); }}>Page tools {enabled ? 'on' : 'off'}</button></header>
+    <section className="result-card input-card"><label htmlFor="screen-text">Text to analyze</label>
+      <p>Use public, non-sensitive content. Text is processed by the study server; it is not saved by default.</p>
+      <textarea id="screen-text" rows={6} value={text} disabled={busy} onChange={event => { setText(event.target.value); setPage(EMPTY_PAGE); clearResult(); }} placeholder="Paste English, Filipino or Taglish text…" />
+      <div className="button-row"><button className="secondary" disabled={busy} onClick={() => extract('selection')}>Use selected text</button><button className="secondary" disabled={busy} onClick={() => extract('post')}>Use post caption</button></div>
+      <fieldset disabled={busy} className="choices"><legend>Privacy choices</legend>
+        <label><input type="checkbox" checked={lookup} onChange={e => { setLookup(e.target.checked); clearResult(); }} />Search related sources. Send up to 500 characters of the text as a query to Serper/Google.</label>
+        <label><input type="checkbox" disabled={!retentionDays} checked={consent} onChange={e => { setConsent(e.target.checked); if (!e.target.checked) setRetain(false); clearResult(); }} />I voluntarily consent to saving this result, its text-signal values and optional usefulness feedback for the SuriPH study.</label>
+        {consent && <label><input type="checkbox" checked={retain} onChange={e => { setRetain(e.target.checked); clearResult(); }} />Also save the submitted text and returned evidence links for researcher review.</label>}
+      </fieldset>
+      <p className="small">No name or account is required. Saving is optional and does not affect access or grades. {retentionDays ? `Server retention: ${retentionDays} days.` : 'Research saving is unavailable until the server privacy settings load.'} You can withdraw saved records below. Private backup copies follow the study retention policy. Do not submit private or identifying content.</p>
+      <button className="primary" disabled={busy} onClick={runText}>Analyze text</button>
+    </section>
+    <details className="result-card"><summary>Optional image or video extraction</summary><p>Experimental acquisition: review extracted text. Quality depends on the media and server support; this is not a validated OCR or transcription assessment.</p>
+      <label htmlFor="media-kind">Media type</label><select id="media-kind" disabled={busy} value={kind} onChange={e => { setKind(e.target.value); setFile(null); clearResult(); }}><option value="image">Image OCR</option><option value="video">Video and audio</option></select>
+      <label htmlFor="media-file">Choose a file (maximum 50 MiB)</label><input key={kind} id="media-file" disabled={busy} type="file" accept={kind === 'image' ? 'image/*' : 'video/*'} onChange={e => { setFile(e.target.files?.[0] || null); clearResult(); }} />
+      <button className="secondary" disabled={busy || !file} onClick={runMedia}>Extract and analyze {kind}</button>
+    </details>
+    <div aria-live="polite" role="status">{busy && <p className="notice">{status}… Please keep this popup open.</p>}{notice && <p className="notice">{notice}</p>}</div>
+    {error && <p role="alert" className="error">{error}</p>}
+    {!result && !busy && !error && <p className="empty-state">Your prediction and seven text measurements will appear here.</p>}
+    <Result result={result} />
+    {!!receipts.length && <details className="result-card"><summary>Research receipts and feedback ({receipts.length})</summary><p>Receipts stay on this device without your text. Save the receipt code before removing the extension. Contact the study team with it for deletion from a later backup restoration.</p>
+      {receipts.map(receipt => <article key={receipt.record_id} className="receipt"><code>{receipt.record_id}</code><p>Expires: {new Date(receipt.expires_at).toLocaleDateString()} · Text {receipt.text_retained ? 'included' : 'not included'}</p>
+        <label htmlFor={receipt.record_id}>How useful was this result? (optional)</label><select id={receipt.record_id} disabled={busy} defaultValue="" onChange={e => e.target.value && act('feedback', receipt, Number(e.target.value))}><option value="">Choose 1–5</option>{[1,2,3,4,5].map(value => <option key={value} value={value}>{value}{value === 1 ? ' — Not useful' : value === 5 ? ' — Very useful' : ''}</option>)}</select>
+        <button className="secondary" disabled={busy} onClick={() => act('withdraw', receipt)}>Delete this saved record</button>
+      </article>)}
+    </details>}
+    <footer><button className="text-button" disabled={busy} onClick={() => { setText(''); setPage(EMPTY_PAGE); setFile(null); clearResult(); }}>Clear this input and result</button><p>Research prototype · Predictions can be wrong.</p></footer>
+  </main>;
 }

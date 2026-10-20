@@ -7,6 +7,10 @@ import re
 from urllib import error, parse, request
 
 import config
+try:
+    from .provider_http import open_provider, read_json, safe_link
+except ImportError:
+    from provider_http import open_provider, read_json, safe_link
 
 
 def _tokens(value: str) -> set[str]:
@@ -19,47 +23,6 @@ def _similarity(query: str, claim: str) -> float:
     if not query_tokens or not claim_tokens:
         return 0.0
     return round(len(query_tokens & claim_tokens) / min(len(query_tokens), len(claim_tokens)), 3)
-
-
-def _evidence_signal(matches: list[dict]) -> dict | None:
-    """Derive a conservative verdict signal from closely matching ClaimReviews."""
-    false_terms = {
-        "false", "misleading", "incorrect", "fake", "fabricated", "scam",
-        "altered", "out of context", "not true", "pants on fire",
-    }
-    true_terms = {"true", "correct", "accurate", "verified", "legitimate"}
-    supported: list[tuple[str, dict]] = []
-
-    for match in matches:
-        if float(match.get("match_strength", 0)) < 0.5:
-            continue
-        rating = str(match.get("rating", "")).casefold()
-        if any(term in rating for term in false_terms):
-            supported.append(("Misleading", match))
-        elif any(term in rating for term in true_terms):
-            supported.append(("Non-Misleading", match))
-
-    if not supported:
-        return None
-
-    misleading_count = sum(label == "Misleading" for label, _ in supported)
-    non_misleading_count = len(supported) - misleading_count
-    if misleading_count == non_misleading_count:
-        return None
-
-    chosen_label = "Misleading" if misleading_count > non_misleading_count else "Non-Misleading"
-    best_match = max(
-        (match for label, match in supported if label == chosen_label),
-        key=lambda item: float(item.get("match_strength", 0)),
-    )
-    strength = float(best_match.get("match_strength", 0))
-    return {
-        "internal_label": chosen_label,
-        "public_label": "Potentially Misleading" if chosen_label == "Misleading" else "No Misleading Information Detected",
-        "confidence": round(min(0.95, 0.75 + strength * 0.2), 4),
-        "basis": f"A closely matching published fact-check rated the claim as: {best_match.get('rating', 'not stated')}",
-        "source_url": best_match.get("url", ""),
-    }
 
 
 def search_fact_checks(query: str) -> dict:
@@ -75,9 +38,9 @@ def search_fact_checks(query: str) -> dict:
     })
     endpoint = f"https://factchecktools.googleapis.com/v1alpha1/claims:search?{params}"
     try:
-        with request.urlopen(endpoint, timeout=config.GOOGLE_FACT_CHECK_TIMEOUT_SECONDS) as response:
-            body = json.loads(response.read().decode("utf-8"))
-    except (error.HTTPError, error.URLError, TimeoutError, json.JSONDecodeError):
+        with open_provider(endpoint, timeout=config.GOOGLE_FACT_CHECK_TIMEOUT_SECONDS) as response:
+            body = read_json(response)
+    except (error.HTTPError, error.URLError, TimeoutError, ValueError):
         return {"status": "unavailable", "matches": [], "signal": None}
 
     matches = []
@@ -87,7 +50,7 @@ def search_fact_checks(query: str) -> dict:
         similarity = _similarity(query, claim_text)
         for review in claim.get("claimReview", []):
             url = str(review.get("url", "")).strip()
-            if not url or url in seen_urls:
+            if not safe_link(url) or url in seen_urls:
                 continue
             publisher = review.get("publisher") or {}
             matches.append({
@@ -111,5 +74,5 @@ def search_fact_checks(query: str) -> dict:
     return {
         "status": "available" if matches else "no_results",
         "matches": matches,
-        "signal": _evidence_signal(matches),
+        "signal": None,
     }

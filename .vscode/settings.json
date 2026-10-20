@@ -1,6 +1,27 @@
 {
   "python.analysis.extraPaths": [
-    "./taglish-detector",
-    "./taglish-detector/src"
-  ]
+    "./backend-api",
+    "./backend-api/src"
+  ],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/node_modules": true,
+    "**/venv": true,
+    ".venv": true,
+    "admin-dashboard/dist": true,
+    "chrome-extension/dist": true,
+    "backend-api/data/runtime-*": true,
+    ".run": true,
+    "tmp": true,
+    "tools": true
+  },
+  "search.exclude": {
+    "**/venv": true,
+    ".venv": true,
+    "tmp": true,
+    "tools": true,
+    "backend-api/data": true,
+    "backend-api/models/TRAINING RESULTS": true,
+    "backups": true
+  }
 }

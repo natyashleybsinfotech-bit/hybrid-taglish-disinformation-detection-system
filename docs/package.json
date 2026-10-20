@@ -2,9 +2,9 @@
   "name": "capstone-wtf",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "tools/generate_sdd.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "generate": "node tools/generate_sdd.js"
   },
   "keywords": [],
   "author": "",

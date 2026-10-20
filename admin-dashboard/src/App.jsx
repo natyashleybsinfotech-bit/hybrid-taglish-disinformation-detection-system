@@ -1,53 +1,67 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
-import { Activity as ActivityIcon, Database, LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
+import { Activity as ActivityIcon, Database, GitBranch, LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
 import { api } from './api.js';
 import Activity from './pages/Activity.jsx';
 import Candidates from './pages/Candidates.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
+import Governance from './pages/Governance.jsx';
+import Performance from './pages/Performance.jsx';
+import Research from './pages/Research.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
-function Layout({ children, onLogout }) {
+export function Layout({ children, onLogout, user }) {
   const logout = async () => {
     try { await api.post('/logout'); } catch { /* Clear the local session even if the API is unavailable. */ }
     localStorage.removeItem('admin_token');
     onLogout();
   };
   const links = [
-    ['/', LayoutDashboard, 'System status'],
-    ['/candidates', Database, 'Candidate samples'],
-    ['/activity', ActivityIcon, 'Audit log'],
+    ['/performance', ActivityIcon, 'Model performance'],
+    ...(user.role === 'admin' ? [
+      ['/research', ShieldCheck, 'Participant research'],
+      ['/candidates', Database, 'Candidate samples'],
+      ['/governance', GitBranch, 'Dataset and models'],
+      ['/activity', ActivityIcon, 'Audit log'],
+      ['/', LayoutDashboard, 'System status'],
+    ] : [
+      ['/', LayoutDashboard, 'System status'],
+    ]),
   ];
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="admin-layout" style={{ display: 'flex', minHeight: '100vh' }}>
       <aside style={{ width: 240, padding: 20, borderRight: '1px solid var(--border)', background: 'var(--bg-sidebar)' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ShieldCheck color="var(--accent)" /> SuriPH</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Sprint 1 administration</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{user.role === 'viewer' ? 'AFP evaluation Â· view only' : 'Research administration'}</p>
         <nav style={{ display: 'grid', gap: 8, marginTop: 28 }}>
           {links.map(([to, Icon, label]) => <NavLink key={to} to={to} style={({ isActive }) => ({ padding: 12, borderRadius: 8, color: 'white', textDecoration: 'none', background: isActive ? 'var(--accent)' : 'transparent' })}><Icon size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />{label}</NavLink>)}
         </nav>
         <button className="ghost-btn" onClick={logout} style={{ marginTop: 30 }}><LogOut size={16} /> Log out</button>
       </aside>
-      <main style={{ flex: 1, padding: 32 }}>{children}</main>
+      <main className="admin-main" style={{ flex: 1, padding: 32 }}>{children}</main>
     </div>
   );
 }
 
 export default function App() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem('admin_token')));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    if (!localStorage.getItem('admin_token')) return;
-    api.get('/check-auth').then(() => setAuthenticated(true)).catch(() => localStorage.removeItem('admin_token')).finally(() => setLoading(false));
+    localStorage.removeItem('admin_token');
+    api.get('/check-auth').then(({ data }) => setUser(data)).catch(() => localStorage.removeItem('admin_token')).finally(() => setLoading(false));
   }, []);
-  if (loading) return <p style={{ padding: 40 }}>Checking administrator session…</p>;
-  if (!authenticated) return <Login onLogin={() => setAuthenticated(true)} />;
+  if (loading) return <p style={{ padding: 40 }}>Checking administrator sessionâ€¦</p>;
+  if (!user) return <Login onLogin={(data) => setUser(data)} />;
   return (
-    <BrowserRouter><Layout onLogout={() => setAuthenticated(false)}><Routes>
+    <ErrorBoundary><BrowserRouter><Layout user={user} onLogout={() => setUser(null)}><Routes>
       <Route path="/" element={<Dashboard />} />
-      <Route path="/candidates" element={<Candidates />} />
-      <Route path="/activity" element={<Activity />} />
+      <Route path="/performance" element={<Performance />} />
+      {user.role === 'admin' && <Route path="/research" element={<Research />} />}
+      {user.role === 'admin' && <Route path="/candidates" element={<Candidates />} />}
+      {user.role === 'admin' && <Route path="/governance" element={<Governance />} />}
+      {user.role === 'admin' && <Route path="/activity" element={<Activity />} />}
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes></Layout></BrowserRouter>
+    </Routes></Layout></BrowserRouter></ErrorBoundary>
   );
 }

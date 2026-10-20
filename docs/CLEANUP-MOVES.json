@@ -1,0 +1,164 @@
+[
+    {
+        "from":  "backend-api/verify_hybrid.py",
+        "to":  "backend-api/scripts/verify_hybrid.py",
+        "sha256":  "674ab93efbaf2ae208a39e12b404ffc75b8620793aba3a111dd2362c3ee925ca",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/verify_http.py",
+        "to":  "backend-api/scripts/verify_http.py",
+        "sha256":  "3cfe24dd4a3e23d6c7f43479cb7f46712c76600685b09819ad97e99304865a2f",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/benchmark.py",
+        "to":  "backend-api/scripts/benchmark.py",
+        "sha256":  "cfc0e28d8bbd5f837678b91d38c9e70f3791f84a0042d78210999082b3faaec4",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/fix_admin.py",
+        "to":  "backend-api/scripts/fix_admin.py",
+        "sha256":  "5e461e2b0ceae938fe20a3828b6598513b160043717684ab491444cc04b7a928",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/log_current_model.py",
+        "to":  "backend-api/scripts/log_current_model.py",
+        "sha256":  "f0bc2aa2a0ec6f5c702083131f66033b3ecbb8d6d8d39a4e0661b55253963385",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/populate_sample_data.py",
+        "to":  "backend-api/scripts/populate_sample_data.py",
+        "sha256":  "2829ec818b70943c491c452000885c1ff2819681f3e94cfcaba6bf4c640c2988",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/docs/final.docx",
+        "to":  "docs/references/final.docx",
+        "sha256":  "cb5415989e7a14936c2405914eb1eb57b34d91aef4f5b4969d125637027eb501",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/docs/REVISED-PAPER-1-3.pdf",
+        "to":  "docs/references/REVISED-PAPER-1-3.pdf",
+        "sha256":  "6d5dc51b81d09f8c63d8f8242b1051f553e45a4c9b0a44c4a4097720ff931872",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/docs/SuriPH_Codex_Prototype_Instructions.docx",
+        "to":  "docs/references/SuriPH_Codex_Prototype_Instructions.docx",
+        "sha256":  "ffc333c8bb29ce2b973be7da7bf1f6be39bbb7354c21e9be713d9576621a4241",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/docs/SuriPH_Sprint1_Working_Prototype.docx",
+        "to":  "docs/references/SuriPH_Sprint1_Working_Prototype.docx",
+        "sha256":  "c778af9cbfdf5cfcdc19829aa4e0b63cd3bb86355fd95b3b598209d7b55c215c",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/docs/SuriPH_Sprint1_Working_Prototype_v2.docx",
+        "to":  "docs/references/SuriPH_Sprint1_Working_Prototype_v2.docx",
+        "sha256":  "c1b98550f374af9cc9dec35bc54215ef6fcf96ff769b041ec536860fa99b5009",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/generate_sdd.js",
+        "to":  "docs/tools/generate_sdd.js",
+        "sha256":  "1664dc004ca5dd1a544140b02469b29212684daedcba1f4a67aab70c42c53b8a",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/sdd_sec1.js",
+        "to":  "docs/tools/sdd_sec1.js",
+        "sha256":  "8ab9ecdb9453557ca5cf385e94fae1f8abc8949170b4900f8d9789eb16b2dce4",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/sdd_sec2.js",
+        "to":  "docs/tools/sdd_sec2.js",
+        "sha256":  "ad82f67c9231046a2f7e286aa18d708ece58e9e71003419d5b6043d5ad677119",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/sdd_sec3.js",
+        "to":  "docs/tools/sdd_sec3.js",
+        "sha256":  "c8acfca9ea5124dc4138c6a3c2fc95eadcfb481d06e07187c56db3bac359f9f6",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/sdd_sec4.js",
+        "to":  "docs/tools/sdd_sec4.js",
+        "sha256":  "dee516c4b6527cb05607c11b071a040f81e2d66574ed1225c53b908b4b825b16",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/sdd_sec56.js",
+        "to":  "docs/tools/sdd_sec56.js",
+        "sha256":  "13fd11f24fe99feb7f1179e83a89b168e628faa3fc5f983c17b3b1098173f7ba",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/sdd_sec78.js",
+        "to":  "docs/tools/sdd_sec78.js",
+        "sha256":  "f79e50593bc2b4b90dcfdf52eef3efc54a34fe856c35b1ad5fc62c6c9651e633",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "docs/sdd_sections.js",
+        "to":  "docs/tools/sdd_sections.js",
+        "sha256":  "d92e03de85d70ac2031fcd223d875ccaa032580c86cda125e9ceaabda579ed8e",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/scratch/test_model.py",
+        "to":  "archive/legacy-backend/test_model.py.txt",
+        "sha256":  "6714c83a125882f3c0cd79f5bd29399e61f03fab7264e0253daf7ed65cb6ca85",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/src/train_model.py",
+        "to":  "archive/legacy-backend/train_model.py.txt",
+        "sha256":  "95947fd5dcee0c13e30e4e8763342ce4142c7c5d4f5778a2a2479fd2993871f1",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/src/training_worker.py",
+        "to":  "archive/legacy-backend/training_worker.py.txt",
+        "sha256":  "8de842071a18a9c7e4ce59678fd26297373a54d2f3be379016e27447e67356da",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/src/embedding_extractor.py",
+        "to":  "archive/legacy-backend/embedding_extractor.py.txt",
+        "sha256":  "d74f84afe1210a63d7711ebcdbbd9dfc0a454d87d7a514a47e3b83969590a9b9",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/src/feature_extractor.py",
+        "to":  "archive/legacy-backend/feature_extractor.py",
+        "sha256":  "51adc125787a4f611de7a21c8a0a26236d2c42e1499be5aea1c09753990d60dd",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/src/preprocessing.py",
+        "to":  "archive/legacy-backend/preprocessing.py.txt",
+        "sha256":  "38500f77ef1ffb450f7b733747772cab8b7bed45ed218ee2a1edc0714645fe1b",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/src/data_loader.py",
+        "to":  "archive/legacy-backend/data_loader.py.txt",
+        "sha256":  "206c260400fbf8491fd3e992ab13cd6cf5045c9bb57b58f5c8309f73771df1a0",
+        "bytes_preserved":  true
+    },
+    {
+        "from":  "backend-api/src/taglish_filter.py",
+        "to":  "archive/legacy-backend/taglish_filter.py.txt",
+        "sha256":  "be89e598a5021de7060f395420f0d4bb16541f01d918c4c2f8b28f3475d41e07",
+        "bytes_preserved":  true
+    }
+]

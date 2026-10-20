@@ -1,0 +1,10 @@
+import { useEffect, useState } from 'react';
+import { api } from '../api.js';
+
+export default function Performance() {
+  const [models, setModels] = useState([]);
+  const [runtime, setRuntime] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => { api.get('/system-status').then(({ data }) => setRuntime(data.model)).catch(() => {}); api.get('/model-versions').then(({ data }) => setModels(data.model_versions)).catch((reason) => setError(reason.response?.data?.detail || reason.message)); }, []);
+  return <div><h1>Model performance</h1><p style={{ color: 'var(--text-secondary)' }}>Read-only quality information for the approved model versions. Dataset and retraining controls are not available here.</p>{error && <p style={{ color: 'var(--danger)' }}>{error}</p>}<section className="card" style={{ marginTop: 20 }}><h2>Active inference pipeline</h2><p>{runtime ? `${runtime.classifier}: ${runtime.status} · ${runtime.device || 'device unavailable'}` : 'Runtime status unavailable'}</p><p>Training run 20261011T235112Z · Threshold 0.65. All 598 saved test labels were reproduced on CPU with maximum score difference 0.00000315. This verifies integration, not factual correctness.</p><p>Only the hybrid model serves predictions. The reference experiments do not establish that the hybrid outperformed TF-IDF. Historical registry entries below cannot select the running classifier.</p></section><section className="card" style={{ marginTop: 20, overflowX: 'auto' }}><table><thead><tr><th>Version</th><th>Status</th><th>Dataset</th><th>Evaluation metrics</th></tr></thead><tbody>{models.length ? models.map((model) => <tr key={model.model_version_id}><td>{model.version_name}<br/><small>{model.model_name}</small></td><td>{model.status}</td><td>#{model.dataset_version_id}</td><td><pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{JSON.stringify(model.metrics, null, 2)}</pre></td></tr>) : <tr><td colSpan="4">No model version has been registered yet.</td></tr>}</tbody></table></section></div>;
+}

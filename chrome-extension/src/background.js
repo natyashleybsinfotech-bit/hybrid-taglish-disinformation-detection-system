@@ -1,21 +1,31 @@
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+async function boundedFetch(url, options = {}) {
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 120000);
+  try { return await fetch(url, { ...options, signal: controller.signal }); }
+  catch (error) { if (error.name === 'AbortError') throw new Error('The request timed out. Try again with a shorter input.'); throw error; }
+  finally { clearTimeout(timer); }
+}
 async function postJson(payload) {
   let response;
-  try { response = await fetch(`${API_BASE}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); }
-  catch (_) { throw new Error('SuriPH backend is unavailable. Start the FastAPI server on 127.0.0.1:8000.'); }
+  try { response = await boundedFetch(`${API_BASE}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); }
+  catch (_) { throw new Error('SuriPH backend is unavailable. Check the configured API connection.'); }
   const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Screening failed with status ${response.status}.`); return body;
 }
 async function postMedia(path, url, payload) {
   let mediaResponse;
-  try { mediaResponse = await fetch(url); } catch (_) { throw new Error('Post media could not be fetched. The platform may be protecting or expiring this media URL.'); }
+  const parsed = new URL(url); const host = parsed.hostname.toLowerCase();
+  if (parsed.protocol !== 'https:' || !['facebook.com','fbcdn.net','fbsbx.com','x.com','twimg.com','youtube.com','googlevideo.com','reddit.com','redd.it'].some(domain => host === domain || host.endsWith(`.${domain}`))) throw new Error('This media origin is not supported. Use a local file through the popup.');
+  try { mediaResponse = await boundedFetch(url); } catch (_) { throw new Error('Post media could not be fetched. The platform may be protecting or expiring this media URL.'); }
   if (!mediaResponse.ok) throw new Error(`Post media fetch failed (${mediaResponse.status}).`);
   const blob = await mediaResponse.blob(); if (!blob.size) throw new Error('The post media was empty.');
+  if (blob.size > 50 * 1024 * 1024) throw new Error('Media exceeds the 50 MiB limit.');
   const form = new FormData(); form.append('file', blob, `suriph-${path.includes('video') ? 'post.mp4' : 'post.jpg'}`);
+  if (path.includes('image')) form.append('capture_candidate', 'false');
   if (payload.page_url) form.append('page_url', payload.page_url); if (payload.page_title) form.append('page_title', payload.page_title);
   if (payload.text) form.append('post_text', payload.text); if (payload.context) form.append('context_json', JSON.stringify(payload.context));
   let response;
-  try { response = await fetch(`${API_BASE}/${path}`, { method: 'POST', body: form }); }
-  catch (_) { throw new Error('SuriPH backend is unavailable. Start the FastAPI server on 127.0.0.1:8000.'); }
+  try { response = await boundedFetch(`${API_BASE}/${path}`, { method: 'POST', body: form }); }
+  catch (_) { throw new Error('SuriPH backend is unavailable. Check the configured API connection.'); }
   const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Media processing failed with status ${response.status}.`); return body;
 }
 async function postMediaBlob(path, blob, payload) {
@@ -29,14 +39,17 @@ async function postMediaBlob(path, blob, payload) {
 async function analyzePayload(payload) {
   const media = payload.media || {};
   if (media.video_url || media.has_video) {
-    if (!media.video_url) { if (!payload.text?.trim()) throw new Error('This video is protected by the platform and could not be fetched for processing.'); const result = await postJson(payload); result.media_status = 'unavailable'; result.media_error = 'The video URL was not accessible; caption screening is shown.'; return result; }
-    try { const result = await postMedia('analyze/video', media.video_url, payload); result.context = payload.context || {}; return result; }
-    catch (error) { if (!payload.text?.trim()) throw error; const result = await postJson(payload); result.media_status = 'unavailable'; result.media_error = error.message; return result; }
+    if (!media.video_url) throw new Error('The selected video is unavailable. Choose caption/text explicitly to screen its caption.');
+    return postMedia('analyze/video', media.video_url, payload);
   }
   if (Array.isArray(media.image_urls) && media.image_urls.length) {
     const extracted = [];
-    for (const url of media.image_urls) { try { const result = await postMedia('analyze/image', url, payload); if (result.extraction?.ocr_text) extracted.push(result.extraction.ocr_text); } catch (_) { /* keep other images usable */ } }
-    if (extracted.length) return postJson({ text: `${payload.text || ''}\n${extracted.join('\n')}`.trim(), page_url: payload.page_url, page_title: payload.page_title, context: payload.context });
+    for (const url of media.image_urls) {
+      const result = await postMedia('analyze/image', url, payload);
+      if (result.extraction?.ocr_text) extracted.push(result.extraction.ocr_text);
+    }
+    if (!extracted.length) throw new Error('No readable image text was extracted. No caption-only prediction was substituted.');
+    return postJson({ text: `${payload.text || ''}\n${extracted.join('\n')}`.trim(), page_url: payload.page_url, page_title: payload.page_title, context: payload.context });
   }
   return postJson(payload);
 }

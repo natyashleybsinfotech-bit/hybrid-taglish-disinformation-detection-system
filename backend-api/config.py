@@ -1,16 +1,20 @@
-"""Environment-backed configuration for the SuriPH working prototype."""
+"""Environment-backed configuration for the SuriPH API."""
 
 from __future__ import annotations
 
 import os
 import tempfile
 from pathlib import Path
+from urllib.parse import quote_plus, urlparse
 
 from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env", override=False)
+if os.getenv("SURI_APP_ENV") != "production" and os.getenv("SURI_LOAD_ENV_FILES", "true").lower() == "true":
+    # Explicit environment values always win, including in CI and containers.
+    load_dotenv(BASE_DIR / ".env.local", override=False)
+    load_dotenv(BASE_DIR / ".env", override=False)
 
 
 def _env(name: str, default: str = "") -> str:
@@ -27,16 +31,49 @@ def _env_int(name: str, default: int) -> int:
 APP_ENV = _env("SURI_APP_ENV", "development")
 APP_HOST = _env("SURI_APP_HOST", "127.0.0.1")
 APP_PORT = _env_int("SURI_APP_PORT", 8000)
-DB_HOST = _env("SURI_DB_HOST", "127.0.0.1")
+DATABASE_URL = _env("SURI_DATABASE_URL")
+DB_HOST = _env("SURI_DB_HOST")
 DB_PORT = _env_int("SURI_DB_PORT", 3306)
-DB_USER = _env("SURI_DB_USER")
-DB_PASSWORD = os.getenv("SURI_DB_PASSWORD", "")
-DB_NAME = _env("SURI_DB_NAME", "suriph")
-DB_CONNECT_TIMEOUT = _env_int("SURI_DB_CONNECT_TIMEOUT", 2)
+DB_USER = _env("SURI_DB_USER", _env("MARIADB_USER"))
+DB_PASSWORD = os.getenv("SURI_DB_PASSWORD", os.getenv("MARIADB_PASSWORD", ""))
+DB_NAME = _env("SURI_DB_NAME", _env("MARIADB_DATABASE", "suriph"))
+_sqlite_path_text = _env("SURI_SQLITE_PATH")
+_sqlite_path = Path(_sqlite_path_text) if _sqlite_path_text else Path("data/runtime-sqlite/suriph.db")
+DB_PATH = _sqlite_path if _sqlite_path.is_absolute() else BASE_DIR / _sqlite_path
+DB_CONNECT_TIMEOUT = _env_int("SURI_DB_CONNECT_TIMEOUT", 5)
+if not DATABASE_URL and DB_HOST and DB_USER:
+    DATABASE_URL = (
+        f"mysql+pymysql://{quote_plus(DB_USER)}:{quote_plus(DB_PASSWORD)}@"
+        f"{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+    )
+DB_ENGINE = "mariadb" if DATABASE_URL.startswith(("mysql", "mariadb")) else "sqlite"
 ADMIN_BOOTSTRAP_USERNAME = _env("SURI_ADMIN_USERNAME")
 ADMIN_BOOTSTRAP_PASSWORD = os.getenv("SURI_ADMIN_PASSWORD", "")
+VIEWER_BOOTSTRAP_USERNAME = _env("SURI_VIEWER_USERNAME")
+VIEWER_BOOTSTRAP_PASSWORD = os.getenv("SURI_VIEWER_PASSWORD", "")
 SESSION_SECRET = os.getenv("SURI_SESSION_SECRET", "")
 SESSION_HOURS = _env_int("SURI_SESSION_HOURS", 8)
+MIN_TAGLISH_SAMPLES = _env_int("SURI_MIN_TAGLISH_SAMPLES", 4000)
+MIN_SAMPLES_PER_CLASS = _env_int("SURI_MIN_SAMPLES_PER_CLASS", 2000)
+MIN_SAMPLES_PER_TOPIC = _env_int("SURI_MIN_SAMPLES_PER_TOPIC", 500)
+MIN_SAMPLES_PER_TOPIC_CLASS = _env_int("SURI_MIN_SAMPLES_PER_TOPIC_CLASS", 250)
+MIN_TRAIN_SAMPLES = _env_int("SURI_MIN_TRAIN_SAMPLES", 2800)
+MIN_VALIDATION_SAMPLES = _env_int("SURI_MIN_VALIDATION_SAMPLES", 600)
+MIN_TEST_SAMPLES = _env_int("SURI_MIN_TEST_SAMPLES", 600)
+ENFORCE_PAPER_DATASET = _env("SURI_ENFORCE_PAPER_DATASET", "true").lower() in {"1", "true", "yes", "on"}
+PILOT_ANNOTATORS = _env_int("SURI_PILOT_ANNOTATORS", 4)
+MIN_PILOT_SAMPLES = _env_int("SURI_MIN_PILOT_SAMPLES", 100)
+MAX_PILOT_SAMPLES = _env_int("SURI_MAX_PILOT_SAMPLES", 150)
+TOPIC_CATEGORIES = (
+    "Politics, Governance, and Elections",
+    "Health and Medicine",
+    "Economy, Finance, and Employment",
+    "Public Safety, Disaster, and Security",
+    "Science, Technology, and Environment",
+    "Education and Social Issues",
+    "Entertainment and Public Figures",
+    "Other and General",
+)
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
 SERPER_ENABLED = _env("SERPER_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
 SERPER_TIMEOUT_SECONDS = _env_int("SERPER_TIMEOUT_SECONDS", 8)
@@ -65,14 +102,30 @@ CORS_ORIGINS = tuple(
     for origin in _env("SURI_CORS_ORIGINS", _cors_default).split(",")
     if origin.strip()
 )
-MODEL_STATUS = "mock-prototype"
+TRUSTED_HOSTS = tuple(
+    host.strip() for host in _env("SURI_TRUSTED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
+    if host.strip()
+)
 DISCLAIMER = (
-    "DISCLAIMER: This result is an assistive screening signal, not proof that a claim is true or false. "
-    "Please read the cited sources, check the posting date and full context, and consult professional fact-checkers when needed."
+    "This is a model prediction and can be wrong. Its score is not calibrated certainty or proof that a claim is true or false. "
+    "Related links are not automatically supporting or debunking evidence. Check original sources, dates and context."
 )
 
-# Legacy constants remain import-compatible, but Sprint 1 does not load the model.
-MODEL_PATH = BASE_DIR / "models" / "hybrid_model.pkl"
+_artifact_dir = Path(_env("SURI_MODEL_ARTIFACT_DIR", "models/TRAINING RESULTS"))
+MODEL_ARTIFACT_DIR = (_artifact_dir if _artifact_dir.is_absolute() else BASE_DIR / _artifact_dir).resolve()
+MODEL_DEVICE = _env("SURI_MODEL_DEVICE", "auto")
+MODEL_CPU_THREADS = _env_int("SURI_MODEL_CPU_THREADS", 4)
+MAX_TEXT_CHARACTERS = 1_000_000
+_model_bundle_text = str(MODEL_ARTIFACT_DIR / "models" / "model_4.joblib")
+_model_bundle_path = Path(_model_bundle_text)
+MODEL_BUNDLE_PATH = (
+    _model_bundle_path if _model_bundle_path.is_absolute() else BASE_DIR / _model_bundle_path
+)
+MODEL_STORAGE_DIR = Path(_env("SURI_MODEL_STORAGE_DIR", str(BASE_DIR / "models"))).resolve()
+MODEL_REQUIRED = _env("SURI_MODEL_REQUIRED", "true").lower() in {"1", "true", "yes", "on"}
+MODEL_WARMUP = _env("SURI_MODEL_WARMUP", "true" if APP_ENV == "production" else "false").lower() == "true"
+TRAINING_ENABLED = False  # This deployment serves only the pinned, already-trained model_4.
+MODEL_PATH = MODEL_BUNDLE_PATH
 RAW_DATA_PATH = BASE_DIR / "data" / "raw" / "corpus.csv"
 PROCESSED_DATA_PATH = BASE_DIR / "data" / "processed" / "features.npz"
 CLEAN_CSV_PATH = BASE_DIR / "data" / "processed" / "clean.csv"
@@ -84,7 +137,6 @@ TRAIN_RATIO = 0.70
 VAL_RATIO = 0.15
 TEST_RATIO = 0.15
 RANDOM_SEED = 42
-CLASSIFICATION_THRESHOLD = 0.50
 FILIPINO_PARTICLES = [
     "ba", "kasi", "naman", "nga", "pa", "na", "daw", "raw", "lang", "po",
     "ate", "kuya", "pala", "eh", "talaga", "sobra", "grabe", "ay", "hay",
@@ -104,3 +156,55 @@ EMOTIONAL_WORDS = [
     "mahal", "masakit", "nasaktan", "iyak", "luha", "saya", "masaya",
     "malungkot", "nagagalit", "natatakot", "naiinis", "nagulat", "nagulantang",
 ]
+
+
+def validate_runtime_config() -> None:
+    """Reject unsafe production configuration before accepting traffic."""
+    if APP_ENV != "production":
+        return
+    errors = []
+    def unsafe_secret(value: str, minimum: int) -> bool:
+        return len(value) < minimum or value.lower().startswith(("replace-", "generate-", "changeme", "change-me"))
+
+    if unsafe_secret(SESSION_SECRET, 32):
+        errors.append("SURI_SESSION_SECRET must be a random value of at least 32 characters")
+    if not ADMIN_BOOTSTRAP_USERNAME:
+        errors.append("SURI_ADMIN_USERNAME is required")
+    if unsafe_secret(ADMIN_BOOTSTRAP_PASSWORD, 12):
+        errors.append("SURI_ADMIN_PASSWORD must contain at least 12 characters")
+    if not VIEWER_BOOTSTRAP_USERNAME:
+        errors.append("SURI_VIEWER_USERNAME is required for the AFP view-only account")
+    if unsafe_secret(VIEWER_BOOTSTRAP_PASSWORD, 12):
+        errors.append("SURI_VIEWER_PASSWORD must contain at least 12 characters")
+    if ADMIN_BOOTSTRAP_USERNAME == VIEWER_BOOTSTRAP_USERNAME:
+        errors.append("Administrator and viewer usernames must differ")
+    if ADMIN_BOOTSTRAP_PASSWORD == VIEWER_BOOTSTRAP_PASSWORD:
+        errors.append("Administrator and viewer passwords must differ")
+    if not CORS_ORIGINS or any(
+        urlparse(origin).scheme != "https" or not urlparse(origin).hostname
+        or urlparse(origin).hostname in {"localhost", "127.0.0.1"}
+        or urlparse(origin).hostname.endswith("example.com")
+        or urlparse(origin).path not in {"", "/"}
+        for origin in CORS_ORIGINS
+    ):
+        errors.append("SURI_CORS_ORIGINS must contain real HTTPS deployment origins")
+    if not TRUSTED_HOSTS or "*" in TRUSTED_HOSTS:
+        errors.append("SURI_TRUSTED_HOSTS must explicitly list deployment hosts")
+    if DB_ENGINE != "mariadb":
+        errors.append("Production requires SURI_DATABASE_URL or MariaDB SURI_DB_* settings")
+    from sqlalchemy.engine import make_url
+    try:
+        database_password = make_url(DATABASE_URL).password or ""
+        if unsafe_secret(database_password, 16):
+            errors.append("The database password must be a non-placeholder value of at least 16 characters")
+    except Exception:
+        errors.append("The database URL is invalid")
+    if not MODEL_REQUIRED or not MODEL_WARMUP:
+        errors.append("Production requires SURI_MODEL_REQUIRED=true and SURI_MODEL_WARMUP=true")
+    if errors:
+        raise RuntimeError("Unsafe production configuration: " + "; ".join(errors))
+
+RESEARCH_RETENTION_DAYS = max(1, _env_int("SURI_RESEARCH_RETENTION_DAYS", 30))
+AUTO_MIGRATE = _env("SURI_AUTO_MIGRATE", "true" if APP_ENV != "production" else "false").lower() == "true"
+TRAFFIC_LIMITS_ENABLED = _env("SURI_TRAFFIC_LIMITS", "true" if APP_ENV == "production" else "false").lower() == "true"
+INFERENCE_TIMEOUT_SECONDS = max(1, _env_int("SURI_INFERENCE_TIMEOUT_SECONDS", 120))

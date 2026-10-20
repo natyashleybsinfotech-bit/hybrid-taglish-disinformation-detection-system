@@ -1,0 +1,34 @@
+{
+  "device": "cpu",
+  "api_workers": 1,
+  "inference_threads": 4,
+  "max_in_flight_requests": 2,
+  "platform": "win32",
+  "processor": 12,
+  "short_requests": 5,
+  "short_http_ms": [
+    56.53689999996914,
+    30.095500000015818,
+    30.139099999928476,
+    30.7510000000093,
+    31.039599999985512
+  ],
+  "short_http_median_ms": 30.7510000000093,
+  "short_inference_ms": [
+    29.128,
+    25.645,
+    25.39,
+    25.587,
+    25.961
+  ],
+  "long_inference_ms": 1490.771,
+  "long_content_tokens": 1611,
+  "peak_process_tree_rss_mib": 817.3203125,
+  "three_concurrent_statuses": [
+    200,
+    200,
+    503
+  ],
+  "retrieval": "disabled; live provider measured separately",
+  "scope": "Native Windows; production worker/thread/admission settings; SQLite test DB. Not a Linux Docker capacity guarantee."
+}

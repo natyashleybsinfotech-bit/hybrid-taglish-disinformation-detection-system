@@ -1,0 +1,18 @@
+{
+  "serper": {
+    "enabled": true,
+    "credential_present": true,
+    "status": "available",
+    "results": 2,
+    "latency_ms": 2692.26,
+    "live_request_attempted": true
+  },
+  "google_fact_check": {
+    "enabled": true,
+    "credential_present": true,
+    "status": "available",
+    "results": 3,
+    "latency_ms": 689.927,
+    "live_request_attempted": true
+  }
+}

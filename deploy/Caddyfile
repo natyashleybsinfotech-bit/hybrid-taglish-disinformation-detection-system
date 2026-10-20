@@ -1,0 +1,17 @@
+{
+    email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+    header Strict-Transport-Security "max-age=31536000"
+    request_body {
+        max_size 55MB
+    }
+    reverse_proxy api:8000
+}
+
+{$ADMIN_DOMAIN} {
+    header Strict-Transport-Security "max-age=31536000"
+    encode gzip
+    reverse_proxy admin:80
+}

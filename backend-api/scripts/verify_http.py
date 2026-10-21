@@ -76,15 +76,15 @@ def main():
                     status, body = request(base, "/analyze", {"text": text})
                     assert status == 422 and "model_score" not in body
                 novel = f"Bagong integration check {time.time_ns()}. Suriin natin ang source ng balita."
-                status, first = request(base, "/analyze", {"text": novel, "research_consent": True})
+                status, first = request(base, "/analyze", {"text": novel})
                 assert status == 200 and first["analyzed_text"] == novel
                 assert first["predicted_class"] == int(first["model_score"] >= .65)
+                assert "research_receipt" not in first and "storage_status" not in first
                 (BASE.parent / 'tmp' / 'ui-real-result.json').write_text(json.dumps(first), encoding='utf-8')
                 long_text = "Basahin natin ang buong artikulo at suriin ang source. " * 100 + "UNIQUE_TAIL_73129"
-                status, long_result = request(base, "/analyze", {"text": long_text, "research_consent": True})
+                status, long_result = request(base, "/analyze", {"text": long_text})
                 assert status == 200 and long_result["analyzed_text"] == long_text
                 assert long_result["content_token_count"] > 510 and long_result["chunk_count"] > 1
-                assert long_result["research_receipt"]["record_id"] != first["research_receipt"]["record_id"]
                 node = shutil.which("node")
                 if not node:
                     raise RuntimeError("Node.js is required for the extension transport check")
@@ -114,8 +114,9 @@ def main():
                 report = {"passed": True, "live_http": True, "device": state["model"]["device"],
                           "empty_input_status": 422, "long_text_chunks": long_result["chunk_count"],
                           "long_text_content_tokens": long_result["content_token_count"],
-                          "novel_input_and_persistence": "passed", "extension_transport": "passed", "browser_ui_tested": False}
-                output = BASE.parent / "tmp" / "hybrid-http-verification.json"
+                          "novel_input_processed": "passed", "screening_storage_fields_absent": True,
+                          "extension_transport": "passed", "browser_ui_tested": False}
+                output = BASE.parent / "docs" / "HYBRID-HTTP-VERIFICATION.json"
                 output.parent.mkdir(exist_ok=True)
                 output.write_text(json.dumps(report, indent=2), encoding="utf-8")
                 print(json.dumps(report, indent=2), flush=True)

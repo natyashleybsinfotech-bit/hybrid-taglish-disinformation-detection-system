@@ -58,8 +58,9 @@ Invoke-RestMethod http://127.0.0.1:8000/analyze -Method Post -ContentType applic
 ```
 
 The default request saves nothing and does not query an external evidence provider.
-The popup has separate unchecked choices for source lookup, research storage and text
-retention. Feedback/withdrawal controls appear for explicitly saved results.
+The popup has one unchecked choice for external source lookup. Participant surveys and
+responses are handled separately from the extension and administrator dashboard; the
+screening API does not save them.
 
 ## Reproducible local Compose rehearsal (Docker required)
 

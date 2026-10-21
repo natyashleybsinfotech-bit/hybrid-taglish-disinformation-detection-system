@@ -5,7 +5,8 @@
   "empty_input_status": 422,
   "long_text_chunks": 4,
   "long_text_content_tokens": 1611,
-  "novel_input_and_persistence": "passed",
+  "novel_input_processed": "passed",
+  "screening_storage_fields_absent": true,
   "extension_transport": "passed",
   "browser_ui_tested": false
 }

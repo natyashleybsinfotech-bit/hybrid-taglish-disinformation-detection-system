@@ -8,7 +8,6 @@ import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
 import Governance from './pages/Governance.jsx';
 import Performance from './pages/Performance.jsx';
-import Research from './pages/Research.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 export function Layout({ children, onLogout, user }) {
@@ -20,7 +19,6 @@ export function Layout({ children, onLogout, user }) {
   const links = [
     ['/performance', ActivityIcon, 'Model performance'],
     ...(user.role === 'admin' ? [
-      ['/research', ShieldCheck, 'Participant research'],
       ['/candidates', Database, 'Candidate samples'],
       ['/governance', GitBranch, 'Dataset and models'],
       ['/activity', ActivityIcon, 'Audit log'],
@@ -33,7 +31,7 @@ export function Layout({ children, onLogout, user }) {
     <div className="admin-layout" style={{ display: 'flex', minHeight: '100vh' }}>
       <aside style={{ width: 240, padding: 20, borderRight: '1px solid var(--border)', background: 'var(--bg-sidebar)' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><ShieldCheck color="var(--accent)" /> SuriPH</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{user.role === 'viewer' ? 'AFP evaluation · view only' : 'Research administration'}</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{user.role === 'viewer' ? 'AFP evaluation · view only' : 'System administration'}</p>
         <nav style={{ display: 'grid', gap: 8, marginTop: 28 }}>
           {links.map(([to, Icon, label]) => <NavLink key={to} to={to} style={({ isActive }) => ({ padding: 12, borderRadius: 8, color: 'white', textDecoration: 'none', background: isActive ? 'var(--accent)' : 'transparent' })}><Icon size={16} style={{ marginRight: 8, verticalAlign: 'middle' }} />{label}</NavLink>)}
         </nav>
@@ -57,7 +55,6 @@ export default function App() {
     <ErrorBoundary><BrowserRouter><Layout user={user} onLogout={() => setUser(null)}><Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/performance" element={<Performance />} />
-      {user.role === 'admin' && <Route path="/research" element={<Research />} />}
       {user.role === 'admin' && <Route path="/candidates" element={<Candidates />} />}
       {user.role === 'admin' && <Route path="/governance" element={<Governance />} />}
       {user.role === 'admin' && <Route path="/activity" element={<Activity />} />}

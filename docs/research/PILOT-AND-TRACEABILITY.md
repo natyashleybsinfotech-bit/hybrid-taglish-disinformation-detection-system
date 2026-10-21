@@ -2,8 +2,8 @@
 
 This supersedes the older traceability file's training/activation and agreement-statistic
 claims. The PDF still describes some historical proposals. The user's final scope pins
-model_4, removes retraining/activation and the removed inter-rater statistic, and requires
-opt-in storage. Record these changes in the final manuscript; do not silently imply the
+model_4, removes retraining/activation and the removed inter-rater statistic, and keeps
+survey collection outside the product. Record these changes in the final manuscript; do not silently imply the
 old proposal was fully implemented.
 
 ## Pilot checklist (record actual date, operator and result)
@@ -18,8 +18,8 @@ old proposal was fully implemented.
 - [ ] Long text, changed input, duplicate click and timeout behavior checked in real Chrome.
 - [ ] Live lookup/no-result/provider failure demonstrated with clear limitations.
 - [ ] Optional real media cases checked; unsupported cases excluded from participant tasks.
-- [ ] Consent off stores nothing; separate text consent, feedback and withdrawal checked.
-- [ ] Retention timer active; backup/restore and reapplication of withdrawals rehearsed.
+- [ ] Extension/admin contain no participant survey, receipt, feedback or export controls.
+- [ ] Separate approved survey storage and retention process documented and rehearsed.
 - [ ] Viewer cannot write; expired sessions and DB outage handled.
 - [ ] Workload and acceptable response time reviewed against measured target-server evidence.
 - [ ] Pilot comments reviewed, defects fixed/retested, task duration recorded.
@@ -45,7 +45,7 @@ when the test requires live behavior.
 | User-triggered acquisition | Manual, selected text/caption, image/video modules | INSTALLED-EXTENSION-VERIFICATION.json; MEDIA-VERIFICATION.json | Synthetic supported-origin Chromium capture passed; current third-party DOM and manual Chrome still require hands-on testing |
 | Independent contextual retrieval | Serper related reading; Google researcher review | PROVIDER-VERIFICATION.json; mocked failure/empty tests | Links do not prove relevance or verdict |
 | Candidate governance | Existing curator workflows and protected dataset records | Existing API/database suite | Public auto-capture retired; no participant text enters training automatically |
-| Privacy and research evaluation | Opt-in ResearchRecords, feedback, withdrawal, export | test_participant; MariaDB integration | External questionnaire consent/approvals remain institutional work |
+| Privacy and research evaluation | No screening storage; survey collection kept outside extension/admin | test_participant; installed extension and admin browser reports | Questionnaire consent, approvals and private response storage remain institutional work |
 | Persistence and reliability | Schema v5, runtime DML account, migration service | MARIADB-VERIFICATION.json | Native test passed; Docker/Linux wrapper pending |
 | Performance efficiency | One worker, four CPU threads, two in-flight screenings | RESOURCE-MEASUREMENTS.json; LIVE-STACK-PERFORMANCE.json | Windows workloads; no Docker/Linux capacity guarantee |
 | Security/admin access | HttpOnly cookie session, origin checks, role checks, bounded providers | Automated auth/origin/failure tests; ADMIN-BROWSER-VERIFICATION.json | Production HTTPS and broader browser matrix pending |

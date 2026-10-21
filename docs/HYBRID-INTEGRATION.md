@@ -173,10 +173,10 @@ Empty/whitespace inputs return 422. Text has an explicit **1,000,000-character A
 limit**; oversize input is rejected rather than silently clipped. The extension no
 longer clips post text to 20,000 characters or reuses a cached post prediction on a
 new screening action. It no longer silently substitutes caption-only screening
-when selected media fails. The popup no longer saves input/results locally; only
-explicit research receipts and the user's lookup preference persist. The same
-preference controls lookup from the in-page S button. Clicking Analyze performs a
-new request.
+when selected media fails. The popup no longer saves input/results or research
+receipts locally; only the page-tools and lookup preferences persist. Survey and
+participant collection are separate from the extension and admin dashboard. The same
+lookup preference controls the in-page S button. Clicking Analyze performs a new request.
 
 From the project root in another terminal:
 

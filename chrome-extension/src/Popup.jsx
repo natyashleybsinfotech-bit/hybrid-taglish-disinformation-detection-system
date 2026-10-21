@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { analyzeMedia, analyzeText, researchAction, privacyInfo } from './api.js';
+import { analyzeMedia, analyzeText } from './api.js';
 
 const EMPTY_PAGE = { url: '', title: '' };
 const safeUrl = value => { try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) ? url.href : null; } catch { return null; } };
@@ -46,32 +46,24 @@ export default function Popup() {
   const [text, setText] = useState(''), [page, setPage] = useState(EMPTY_PAGE);
   const [file, setFile] = useState(null), [kind, setKind] = useState('image');
   const [status, setStatus] = useState('idle'), [error, setError] = useState(''), [result, setResult] = useState(null);
-  const [consent, setConsent] = useState(false), [retain, setRetain] = useState(false), [lookup, setLookup] = useState(false);
-  const [enabled, setEnabled] = useState(true), [receipts, setReceipts] = useState([]), [notice, setNotice] = useState('');
-  const [retentionDays, setRetentionDays] = useState(null);
+  const [lookup, setLookup] = useState(false);
+  const [enabled, setEnabled] = useState(true);
   const lock = useRef(false);
   const busy = !['idle', 'completed', 'failed'].includes(status);
   useEffect(() => {
-    // Retire old full-text/result storage. Only explicit research receipts survive closing.
-    chrome.storage.local.remove(['suriphLastResult', 'suriphLastText', 'suriphLastPage']);
-    chrome.storage.local.get({ suriphEnabled: true, suriphReceipts: [], suriphRetrieveSources: false }, saved => { setEnabled(saved.suriphEnabled); setReceipts(saved.suriphReceipts); setLookup(saved.suriphRetrieveSources); });
-    privacyInfo().then(policy => setRetentionDays(policy.retention_days)).catch(() => {});
+    // Remove data from retired prototype flows; keep only active user preferences.
+    chrome.storage.local.remove(['suriphLastResult', 'suriphLastText', 'suriphLastPage', 'suriphReceipts']);
+    chrome.storage.local.get({ suriphEnabled: true, suriphRetrieveSources: false }, saved => { setEnabled(saved.suriphEnabled); setLookup(saved.suriphRetrieveSources); });
   }, []);
-  const clearResult = () => { setResult(null); setError(''); setNotice(''); setStatus('idle'); };
+  const clearResult = () => { setResult(null); setError(''); setStatus('idle'); };
   async function perform(nextStatus, action) {
     if (lock.current) return;
-    lock.current = true; setStatus(nextStatus); setError(''); setResult(null); setNotice('');
+    lock.current = true; setStatus(nextStatus); setError(''); setResult(null);
     try { await action(); setStatus('completed'); }
     catch (reason) { setError(reason.message || 'The service is unavailable. Try again later.'); setStatus('failed'); }
     finally { lock.current = false; }
   }
-  async function show(output) {
-    setResult(output);
-    if (output.research_receipt) {
-      const updated = [...receipts, output.research_receipt];
-      setReceipts(updated); await chrome.storage.local.set({ suriphReceipts: updated });
-    }
-  }
+  const show = output => setResult(output);
   async function extract(mode) {
     await perform('Reading selected content', async () => {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
@@ -81,7 +73,7 @@ export default function Popup() {
       setText(response.text); setPage({ url: tab.url, title: tab.title });
     });
   }
-  const options = { researchConsent: consent, retainText: consent && retain, retrieveSources: lookup };
+  const options = { retrieveSources: lookup };
   async function runText() { await perform('Analyzing text', async () => {
     if (!text.trim()) throw new Error('Enter or select text before analyzing.');
     await show(await analyzeText({ text, pageUrl: page.url, pageTitle: page.title, ...options }));
@@ -90,19 +82,6 @@ export default function Popup() {
     if (!file) throw new Error('Choose a file first.');
     const output = await analyzeMedia(kind, file, { ...page, ...options }); setText(output.analyzed_text); await show(output);
   }); }
-  async function act(action, receipt, rating) {
-    if (lock.current) return;
-    lock.current = true; setStatus('Saving research choice'); setNotice(''); setError('');
-    try {
-      await researchAction(action, receipt, rating);
-      if (action === 'withdraw') {
-        const updated = receipts.filter(item => item.record_id !== receipt.record_id);
-        setReceipts(updated); await chrome.storage.local.set({ suriphReceipts: updated });
-      }
-      setNotice(action === 'withdraw' ? 'The saved research record was deleted. Backup copies expire under the retention policy.' : 'Your usefulness rating was saved. This does not change the prediction.');
-    } catch (reason) { setError(reason.message); }
-    finally { lock.current = false; setStatus('completed'); }
-  }
   async function setPageTools(next) {
     setEnabled(next);
     await chrome.storage.local.set({ suriphEnabled: next });
@@ -115,12 +94,10 @@ export default function Popup() {
       <p>Use public, non-sensitive content. Text is processed by the study server; it is not saved by default. Use the complete post caption or article text; brief isolated statements can receive unreliable extreme scores.</p>
       <textarea id="screen-text" rows={6} value={text} disabled={busy} onChange={event => { setText(event.target.value); setPage(EMPTY_PAGE); clearResult(); }} placeholder="Paste English, Filipino or Taglish text…" />
       <div className="button-row"><button className="secondary" disabled={busy} onClick={() => extract('selection')}>Use selected text</button><button className="secondary" disabled={busy} onClick={() => extract('post')}>Use post caption</button></div>
-      <fieldset disabled={busy} className="choices"><legend>Privacy choices</legend>
+      <fieldset disabled={busy} className="choices"><legend>External lookup</legend>
         <label><input type="checkbox" checked={lookup} onChange={e => { const next = e.target.checked; setLookup(next); chrome.storage.local.set({ suriphRetrieveSources: next }); clearResult(); }} />Search related reading and published fact-check reviews. Send up to 500 characters of the text to Serper and Google Fact Check. This setting also applies to the in-page S button.</label>
-        <label><input type="checkbox" disabled={!retentionDays} checked={consent} onChange={e => { setConsent(e.target.checked); if (!e.target.checked) setRetain(false); clearResult(); }} />I voluntarily consent to saving this result, its text-signal values and optional usefulness feedback for the SuriPH study.</label>
-        {consent && <label><input type="checkbox" checked={retain} onChange={e => { setRetain(e.target.checked); clearResult(); }} />Also save the submitted text and returned evidence links for researcher review.</label>}
       </fieldset>
-      <p className="small">No name or account is required. Saving is optional and does not affect access or grades. {retentionDays ? `Server retention: ${retentionDays} days.` : 'Research saving is unavailable until the server privacy settings load.'} You can withdraw saved records below. Private backup copies follow the study retention policy. Do not submit private or identifying content.</p>
+      <p className="small">Analysis results are not saved by the screening service. External lookup is optional and does not change the classifier prediction. Do not submit private or identifying content.</p>
       <button className="primary" disabled={busy} onClick={runText}>Analyze text</button>
     </section>
     <details className="result-card"><summary>Optional image or video extraction</summary><p>Experimental acquisition: review extracted text. Quality depends on the media and server support; this is not a validated OCR or transcription assessment.</p>
@@ -128,16 +105,10 @@ export default function Popup() {
       <label htmlFor="media-file">Choose a file (maximum 50 MiB)</label><input key={kind} id="media-file" disabled={busy} type="file" accept={kind === 'image' ? 'image/*' : 'video/*'} onChange={e => { setFile(e.target.files?.[0] || null); clearResult(); }} />
       <button className="secondary" disabled={busy || !file} onClick={runMedia}>Extract and analyze {kind}</button>
     </details>
-    <div aria-live="polite" role="status">{busy && <p className="notice">{status}… Please keep this popup open.</p>}{notice && <p className="notice">{notice}</p>}</div>
+    <div aria-live="polite" role="status">{busy && <p className="notice">{status}… Please keep this popup open.</p>}</div>
     {error && <p role="alert" className="error">{error}</p>}
     {!result && !busy && !error && <p className="empty-state">Your prediction and seven text measurements will appear here.</p>}
     <Result result={result} />
-    {!!receipts.length && <details className="result-card"><summary>Research receipts and feedback ({receipts.length})</summary><p>Receipts stay on this device without your text. Save the receipt code before removing the extension. Contact the study team with it for deletion from a later backup restoration.</p>
-      {receipts.map(receipt => <article key={receipt.record_id} className="receipt"><code>{receipt.record_id}</code><p>Expires: {new Date(receipt.expires_at).toLocaleDateString()} · Text {receipt.text_retained ? 'included' : 'not included'}</p>
-        <label htmlFor={receipt.record_id}>How useful was this result? (optional)</label><select id={receipt.record_id} disabled={busy} defaultValue="" onChange={e => e.target.value && act('feedback', receipt, Number(e.target.value))}><option value="">Choose 1–5</option>{[1,2,3,4,5].map(value => <option key={value} value={value}>{value}{value === 1 ? ' — Not useful' : value === 5 ? ' — Very useful' : ''}</option>)}</select>
-        <button className="secondary" disabled={busy} onClick={() => act('withdraw', receipt)}>Delete this saved record</button>
-      </article>)}
-    </details>}
     <footer><button className="text-button" disabled={busy} onClick={() => { setText(''); setPage(EMPTY_PAGE); setFile(null); clearResult(); }}>Clear this input and result</button><p>Research prototype · Predictions can be wrong.</p></footer>
   </main>;
 }

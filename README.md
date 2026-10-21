@@ -15,17 +15,17 @@ The classifier is loaded from a versioned model bundle. The API never falls back
 - `admin-dashboard`: role-controlled system health/performance views and researcher-only dataset governance.
 - `docker-compose.yml`: production-shaped API and dashboard deployment.
 
-Ordinary screening stores no input or prediction. Optional research storage requires
-explicit consent, with a separate choice to retain text. Existing curated candidate workflows remain available. The system suggests one of the paper's eight topic
+Screening stores no input, prediction, survey response or participant record. Survey
+collection is separate from the extension and administrator dashboard. Existing curated candidate workflows remain available. The system suggests one of the paper's eight topic
 domains and retains the model result as a proposed label. A researcher must confirm a
 matching evidence URL before approval. Candidate Samples reports counts per topic and
 exports the filtered review queue as UTF-8 CSV or Excel. Datasets and Models shows
 approved dataset versions, historical training records and the pinned runtime model.
 
-Research storage is text-only when separately consented; otherwise only prediction
-and feature metadata are retained. Uploaded image/video bytes, extracted frames, and
-temporary media paths are never written to the dataset or MariaDB; video working files
-are removed when processing finishes.
+Uploaded image/video bytes, extracted frames, and temporary media paths are never
+written to the dataset or MariaDB; video working files are removed when processing
+finishes. Historical survey materials and any existing private records remain preserved
+outside the product UI for the research team to manage under its approved process.
 
 ## Active hybrid model
 

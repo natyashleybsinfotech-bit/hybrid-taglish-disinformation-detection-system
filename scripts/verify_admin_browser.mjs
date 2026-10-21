@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,8 +12,7 @@ const CHROME = process.env.SURI_TEST_BROWSER || 'C:/Program Files/Google/Chrome/
 const RUN = path.join(ROOT, 'tmp', `admin-browser-${Date.now()}`);
 const PROFILE = path.join(RUN, 'profile');
 const SHOTS = path.join(RUN, 'screenshots');
-const DOWNLOADS = path.join(RUN, 'downloads');
-await Promise.all([mkdir(PROFILE, { recursive: true }), mkdir(SHOTS, { recursive: true }), mkdir(DOWNLOADS, { recursive: true })]);
+await Promise.all([mkdir(PROFILE, { recursive: true }), mkdir(SHOTS, { recursive: true })]);
 
 function envFile(file) {
   return Object.fromEntries(file.split(/\r?\n/).filter(line => line && !line.trimStart().startsWith('#') && line.includes('='))
@@ -109,21 +108,11 @@ try {
   console.error('admin-browser: reload passed');
   const sessionReload = !(await evaluate(client, 'document.body.innerText')).includes('Enter your credentials');
   assert.equal(sessionReload, true);
+  assert.equal((await evaluate(client, 'document.body.innerText')).includes('Participant research'), false);
   await evaluate(client, 'history.pushState({},"","/research"); window.dispatchEvent(new PopStateEvent("popstate")); true');
-  await waitFor(client, 'document.body.innerText.includes("Download research CSV")');
-  console.error('admin-browser: research route loaded');
-  await screenshot(client, 'admin-research-actual', 1280, 900);
-  await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOADS });
-  await clickText(client, 'Download research CSV');
-  let exportName;
-  for (let attempt = 0; attempt < 100 && !exportName; attempt++) {
-    exportName = (await readdir(DOWNLOADS)).find(name => name.endsWith('.csv'));
-    await wait(100);
-  }
-  assert.ok(exportName, 'Research export did not download');
-  const exportText = await readFile(path.join(DOWNLOADS, exportName), 'utf8');
-  assert.ok(exportText.startsWith('record_id,consent_version,input_type,usefulness,label,model_score,training_run_id,artifact_sha256,features_json'));
-  assert.ok(!exportText.toLowerCase().includes('withdrawal_token'));
+  await waitFor(client, 'location.pathname==="/"');
+  const retiredExport = await evaluate(client, `fetch('http://127.0.0.1:8000/admin-api/research-export',{credentials:'include'}).then(r=>r.status)`, true);
+  assert.equal(retiredExport, 404);
   await clickText(client, 'Log out');
   await waitFor(client, 'document.body.innerText.includes("Enter your credentials")');
   console.error('admin-browser: admin logout passed');
@@ -136,8 +125,6 @@ try {
   await waitFor(client, 'document.body.innerText.includes("view only")');
   console.error('admin-browser: viewer login passed');
   assert.equal((await evaluate(client, 'document.body.innerText')).includes('Participant research'), false);
-  const viewerExport = await evaluate(client, `fetch('http://127.0.0.1:8000/admin-api/research-export',{credentials:'include'}).then(r=>r.status)`, true);
-  assert.equal(viewerExport, 403);
 
   const payload = Buffer.from(JSON.stringify({ username: 'expired-fixture', role: 'admin', expires: 1 })).toString('base64url');
   const signature = createHmac('sha256', privateEnv.SURI_SESSION_SECRET).update(payload).digest('hex');
@@ -149,11 +136,11 @@ try {
 
   const report = {
     passed: true,
-    browser: 'Google Chrome (isolated off-screen profile)',
+    browser: `${path.basename(CHROME).toLowerCase().includes('msedge') ? 'Microsoft Edge' : 'Google Chrome'} (isolated off-screen profile)`,
     actual_dashboard_and_api: true,
     admin_login: 'passed', session_cookie_reload: 'passed', login_json_exposes_token: false,
-    logout_revocation_status: afterLogout, export_download: 'passed', export_excludes_withdrawal_token: true,
-    viewer_export_status: viewerExport, expired_session_status: expired,
+    logout_revocation_status: afterLogout, participant_view_absent: 'passed', retired_research_export_status: retiredExport,
+    expired_session_status: expired,
     keyboard_first_target: firstKeyboardTarget, desktop_no_horizontal_overflow: noHorizontalOverflow,
     narrow_no_horizontal_overflow: narrowOverflow,
     screenshots_private: true,

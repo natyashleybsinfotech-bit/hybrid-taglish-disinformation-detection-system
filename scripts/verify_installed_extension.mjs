@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash, createHmac, X509Certificate } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:https';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,8 +14,7 @@ const EXTENSION = path.join(ROOT, 'chrome-extension', 'dist');
 const RUN = path.join(ROOT, 'tmp', `installed-extension-${Date.now()}`);
 const PROFILE = path.join(RUN, 'profile');
 const SHOTS = path.join(RUN, 'screenshots');
-const DOWNLOADS = path.join(RUN, 'downloads');
-await Promise.all([mkdir(PROFILE, { recursive: true }), mkdir(SHOTS, { recursive: true }), mkdir(DOWNLOADS, { recursive: true })]);
+await Promise.all([mkdir(PROFILE, { recursive: true }), mkdir(SHOTS, { recursive: true })]);
 
 const certPath = path.join(RUN, 'fixture.cer');
 const pfxPath = path.join(RUN, 'fixture.pfx');
@@ -151,7 +150,8 @@ try {
   assert.equal(await evaluate(social.client, 'document.querySelectorAll("#suriph-control-host").length'), 1);
 
   let popup = await reopenPopup(port, extensionId, social.client); clients.push(popup);
-  await waitFor(popup, 'document.body.innerText.includes("Server retention:")', 20000);
+  await waitFor(popup, 'Boolean(document.querySelector("#screen-text"))', 20000);
+  assert.ok(!/participant|research receipts|voluntarily consent|usefulness rating/i.test(await bodyText(popup)));
   await screenshot(popup, 'popup-installed-empty');
   await evaluate(popup, `(() => { const input=[...document.querySelectorAll('label')].find(node=>node.textContent.includes('Search related reading'))?.querySelector('input'); if(!input.checked) input.click(); return input.checked; })()`);
 
@@ -211,16 +211,6 @@ try {
   const sourceLinks = await evaluate(popup, `(() => { const heading=[...document.querySelectorAll('h3')].find(node=>node.textContent.includes('Related reading')); return heading?.parentElement.querySelectorAll('a').length || 0; })()`);
   const factCheckLinks = await evaluate(popup, `(() => { const heading=[...document.querySelectorAll('h3')].find(node=>node.textContent.includes('Published fact-check reviews')); return heading?.parentElement.querySelectorAll('a').length || 0; })()`);
 
-  await evaluate(popup, `(() => { const label=[...document.querySelectorAll('label')].find(node=>node.textContent.includes('voluntarily consent')); const input=label?.querySelector('input'); if(!input.checked) input.click(); return input.checked; })()`);
-  await setControl(popup, '#screen-text', 'Synthetic consent rehearsal record; no participant content.');
-  await clickText(popup, 'Analyze text');
-  await waitFor(popup, 'document.querySelectorAll("article.receipt").length===1', 180000);
-  await evaluate(popup, `(() => { const select=document.querySelector('article.receipt select'); select.value='5'; select.dispatchEvent(new Event('change',{bubbles:true})); return true; })()`);
-  await waitFor(popup, 'document.body.innerText.includes("usefulness rating was saved")', 30000);
-  await clickText(popup, 'Delete this saved record');
-  await waitFor(popup, 'document.body.innerText.includes("saved research record was deleted")', 30000);
-  assert.equal(await evaluate(popup, 'document.querySelectorAll("article.receipt").length'), 0);
-
   const admin = await newTarget(port, 'http://127.0.0.1:5173/'); clients.push(admin.client);
   await waitFor(admin.client, 'Boolean(document.querySelector("input[autocomplete=username]"))', 30000);
   await screenshot(admin.client, 'admin-actual-login', 1280, 900);
@@ -231,17 +221,11 @@ try {
   await admin.client.send('Page.reload', { ignoreCache: true });
   await waitFor(admin.client, 'document.body.innerText.includes("Log out")', 30000);
   const sessionPersisted = !(await bodyText(admin.client)).includes('Enter your credentials');
+  assert.ok(!(await bodyText(admin.client)).includes('Participant research'));
   await evaluate(admin.client, 'history.pushState({},"","/research"); window.dispatchEvent(new PopStateEvent("popstate")); true');
-  await waitFor(admin.client, 'document.body.innerText.includes("Download research CSV")', 30000);
-  await screenshot(admin.client, 'admin-actual-research', 1280, 900);
-  await admin.client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOADS });
-  await clickText(admin.client, 'Download research CSV');
-  for (let attempt = 0; attempt < 100 && !(await readdir(DOWNLOADS)).some(name => name.endsWith('.csv')); attempt++) await wait(100);
-  const exportName = (await readdir(DOWNLOADS)).find(name => name.endsWith('.csv'));
-  assert.ok(exportName, 'Research export did not download');
-  const exportText = await readFile(path.join(DOWNLOADS, exportName), 'utf8');
-  assert.ok(exportText.startsWith('record_id,consent_version,input_type,usefulness,label,model_score,training_run_id,artifact_sha256,features_json'));
-  assert.ok(!exportText.includes('Synthetic consent rehearsal'));
+  await waitFor(admin.client, 'location.pathname==="/"', 30000);
+  const retiredExportStatus = await evaluate(admin.client, `fetch('http://127.0.0.1:8000/admin-api/research-export',{credentials:'include'}).then(response=>response.status)`, true);
+  assert.equal(retiredExportStatus, 404);
   await clickText(admin.client, 'Log out');
   await waitFor(admin.client, 'document.body.innerText.includes("Enter your credentials")', 30000);
   const afterLogout = await fetch('http://127.0.0.1:8000/admin-api/check-auth').then(response => response.status);
@@ -252,8 +236,6 @@ try {
   await clickText(admin.client, 'Continue');
   await waitFor(admin.client, 'document.body.innerText.includes("view only")', 30000);
   assert.ok(!(await bodyText(admin.client)).includes('Participant research'));
-  const viewerStatus = await evaluate(admin.client, `fetch('http://127.0.0.1:8000/admin-api/research-export',{credentials:'include'}).then(response=>response.status)`, true);
-  assert.equal(viewerStatus, 403);
   await clickText(admin.client, 'Log out');
 
   const payload = Buffer.from(JSON.stringify({ username: 'expired-fixture', role: 'admin', expires: 1 })).toString('base64url');
@@ -267,9 +249,9 @@ try {
     manual_text: 'passed', empty_input: 'passed', selected_text: 'passed', supported_caption_fixture: 'passed',
     page_tools_reload_toggle: 'passed', lookup_preference_persistence: 'passed', repeated_submission_single_request: 'passed', stale_result_cleared: 'passed',
     long_input_complete_tail: 'passed', seven_feature_values_match_backend: 'passed',
-    live_evidence_links_returned: sourceLinks, live_fact_check_links_returned: factCheckLinks, consent_feedback_withdrawal: 'passed',
+    live_evidence_links_returned: sourceLinks, live_fact_check_links_returned: factCheckLinks, survey_controls_absent: 'passed',
     admin_login_logout: 'passed', admin_session_reload_persistence: sessionPersisted ? 'passed' : 'failed',
-    admin_export: 'passed', viewer_export_status: viewerStatus, expired_session_status: expiredStatus,
+    admin_participant_view_absent: 'passed', retired_research_export_status: retiredExportStatus, expired_session_status: expiredStatus,
     screenshots_private: true, screenshot_directory: path.relative(ROOT, SHOTS).replaceAll('\\', '/'),
     social_scope: 'Synthetic article fixture on a manifest-supported facebook.com origin; no account, post, message or participant data.',
     not_tested_here: ['manual Chrome installation (Chrome ignored command-line unpacked loading)', 'actual changing third-party DOM', 'screen reader', 'Chrome Web Store build', 'provider timeout in popup'],

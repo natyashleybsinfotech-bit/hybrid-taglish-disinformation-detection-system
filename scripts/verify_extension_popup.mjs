@@ -123,7 +123,6 @@ try {
     assert.match(await evaluate(popup, 'document.querySelector("[role=alert]").textContent'), /service is unavailable/i);
 
     const actualFixture = JSON.parse(await readFile(path.join(ROOT, 'tmp', 'ui-real-result.json'), 'utf8'));
-    delete actualFixture.research_receipt;
     for (const [retrievalStatus, expectedText] of [
       ['no_results', 'No matching links were returned'],
       ['unavailable', 'Related-source lookup is unavailable'],
@@ -152,7 +151,9 @@ try {
     await writeFile(path.join(ROOT, 'docs', 'EXTENSION-FAILURE-VERIFICATION.json'), JSON.stringify(failureReport, null, 2) + '\n');
     console.log(JSON.stringify(failureReport, null, 2));
   } else {
-  await waitFor(popup, 'document.body.innerText.includes("Server retention:")', 20000);
+  await waitFor(popup, 'Boolean(document.querySelector("#screen-text"))', 20000);
+  const popupText = await evaluate(popup, 'document.body.innerText');
+  assert.ok(!/participant|research receipts|voluntarily consent|usefulness rating/i.test(popupText));
   await screenshot(popup, 'popup-installed-empty');
 
   await clickText(popup, 'Analyze text');
@@ -184,15 +185,6 @@ try {
   await waitFor(popup, `Boolean(document.querySelector('[aria-label="Analysis result"]'))`);
   assert.equal(await evaluate(popup, `document.querySelector('.input-preview').textContent.endsWith(${JSON.stringify(tail)})`), true);
 
-  await setValue(popup, '#screen-text', 'Synthetic consent rehearsal only.');
-  await evaluate(popup, `(() => { const boxes=[...document.querySelectorAll('input[type=checkbox]')]; const consent=boxes.find(n=>n.parentElement.textContent.includes('voluntarily consent')); consent.click(); return consent.checked; })()`);
-  await clickText(popup, 'Analyze text');
-  await waitFor(popup, 'document.body.innerText.includes("Research receipts and feedback (1)")');
-  await evaluate(popup, `(() => { const select=document.querySelector('.receipt select'); select.value='4'; select.dispatchEvent(new Event('change',{bubbles:true})); return true; })()`);
-  await waitFor(popup, 'document.body.innerText.includes("usefulness rating was saved")');
-  await clickText(popup, 'Delete this saved record');
-  await waitFor(popup, 'document.body.innerText.includes("saved research record was deleted")');
-  assert.equal(await evaluate(popup, 'document.querySelectorAll(".receipt").length'), 0);
   await screenshot(popup, 'popup-installed-result');
 
   const report = {
@@ -205,7 +197,7 @@ try {
     actual_backend_connection: true,
     empty_input: 'passed', manual_text_prediction: 'passed', duplicate_click_single_request: 'passed',
     stale_result_cleared: 'passed', long_text_tail_preserved: 'passed', seven_feature_values_match_backend: 'passed',
-    consent_feedback_withdrawal: 'passed', screenshots_private: true,
+    survey_controls_absent: 'passed', screenshots_private: true,
     content_script_social_extraction: 'covered by the separate installed-extension rehearsal',
     limitations: ['No real social account or participant content was used.', 'Keyboard and screen-reader testing remains manual.'],
   };

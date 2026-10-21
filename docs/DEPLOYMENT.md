@@ -40,10 +40,9 @@ Sources: [Hostinger Docker manager](https://www.hostinger.com/support/12040789-h
 - Optional Serper and Google Fact Check keys if related-source lookup is needed.
   Without keys, the API honestly reports these services as unavailable; they are
   not required for classifier inference and do not override its prediction.
-- Intended audience/load, approved data retention period, and an off-server private
-  backup destination. Screened text is not stored by default; research metadata and optional text require consent;
-  uploaded media bytes are temporary. Explain this behavior in the extension's
-  privacy notice before distributing it.
+- Intended audience/load and an off-server private backup destination. Screening does
+  not store text, predictions or survey responses; uploaded media bytes are temporary.
+  Survey collection and its approved retention process remain separate from this product.
 
 ## Model acceptance
 
@@ -213,13 +212,13 @@ sudo systemctl status suriph-maintenance.service
 sudo systemctl list-timers suriph-maintenance.timer
 ```
 
-The daily job deletes expired ResearchRecords, then creates a compressed consistent
+The daily job deletes expired legacy ResearchRecords, then creates a compressed consistent
 logical dump. `--retention-days 7` rotates only this utility's completed backups after
 a successful new dump. It does not delete arbitrary paths, curate historical datasets,
 or upload files. Alert on failed jobs and disk pressure; restrict backup directories
 to operators. Off-server backups/exports must follow the same approved retention.
-Live withdrawal deletes a research record, not existing backups. Reapply outstanding
-withdrawals and purge expired records after restoration and before exposing the API.
+The product no longer creates or exposes these records. Continue cleanup for preserved
+legacy rows and apply any study withdrawal requests through the separate private process.
 
 ## Isolated Docker restore rehearsal
 
@@ -247,7 +246,7 @@ It did not execute these Docker commands, which remain an explicit release gate.
 
 - One Uvicorn worker; one frozen encoder/classifier instance. Four CPU inference
   threads by default; at most two in-flight screenings in the production middleware.
-- Twenty screening/research actions per minute per IP; five login attempts per minute.
+- Twenty screening actions per minute per IP; five login attempts per minute.
   Overload returns 503/Retry-After; rate limits return 429. Limits reset on restart and
   are not shared across replicas. Do not increase workers without a capacity design.
 - Text maximum: 1,000,000 characters, rejected rather than clipped. Full-text inference
@@ -265,7 +264,7 @@ It did not execute these Docker commands, which remain an explicit release gate.
   POST origin checks, role checks, no browser localStorage tokens. Serve API/dashboard
   on sibling subdomains of the same site. Use the same hostname spelling locally.
 - Structured request logs record random request ID, method, route template, status and
-  duration. Bodies, queries, raw text, receipt tokens and credentials are not logged.
+  duration. Bodies, queries, raw text and credentials are not logged.
 - Git/container ignores exclude models, raw datasets, secrets, backups and research-data.
   Private artifact mounts must contain model_4, full encoder, tokenizer/config and manifest.
 

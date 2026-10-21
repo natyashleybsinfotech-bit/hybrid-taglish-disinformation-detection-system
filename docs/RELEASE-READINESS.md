@@ -1,7 +1,8 @@
 # Release evidence and GO/NO-GO — October 21, 2026
 
-**Implemented:** the fixed hybrid runtime, privacy-aware participant flow, feature display,
-research feedback/export, MariaDB schema v5, administration and deployment scripts.
+**Implemented:** the fixed hybrid runtime, feature display, separate optional evidence
+lookup, MariaDB schema v5, administration and deployment scripts. Participant survey
+collection is outside the extension and administrator dashboard.
 **Tested:** the native local checks below. **Deployment prepared:** single-VPS Compose,
 private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 **Actually deployed:** no public deployment, hosting purchase, domain purchase or store submission.
@@ -12,22 +13,22 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | --- | --- | --- |
 | Raw-text hybrid parity | 598/598 labels; no probability mismatches at atol=rtol=1e-5 | [HYBRID-VERIFICATION.json](HYBRID-VERIFICATION.json) |
 | Model identity | Only model_4; run 20261011T235112Z; pinned SHA-256; threshold 0.65; CPU | [Integration contract](HYBRID-INTEGRATION.md) |
-| Backend regression suite | 70 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
+| Backend regression suite | 69 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
 | Model scope sanity probe | Saved examples produced both classes as recorded, but 10/10 short general statements were predicted Misleading with scores from 0.902293 to 1.0 | [Diagnostic report](MODEL-SANITY-DIAGNOSTIC.json) |
-| Live API and extension transport | Actual fresh inference, empty/long input, separate consented records, real fetch through extension client/background | [HTTP report](HYBRID-HTTP-VERIFICATION.json) |
+| Live API and extension transport | Actual fresh inference, empty/long input and real fetch through extension client/background | [HTTP report](HYBRID-HTTP-VERIFICATION.json) |
 | MariaDB | Empty/idempotent v1–v5 migration, actual provision command, DML-only writes, denied DDL, rollback, restart, outage, isolated SQL restore and withdrawal | [MariaDB report](MARIADB-VERIFICATION.json) |
 | Existing local database | Private logical backup made; schema v5 applied; existing candidate count preserved | Local operator execution; ignored backup under `backups/pre-schema5-*.sql.gz` |
 | Evidence providers | Current live provider check: Serper returned 3 links and Google Fact Check returned 3 reviews; an installed-extension run displayed 2 related links and 3 fact-check links | [Provider report](PROVIDER-VERIFICATION.json), [installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
 | Provider edge cases | Mocked success/empty/timeout, malformed or oversized response rejection, redirect rejection, missing-key behavior | `test_services.py`, `test_participant.py`; these fixtures are not live evidence |
 | Media | Actual EasyOCR image smoke passed in 13.4 s; video OCR + Whisper smoke passed in 21.4 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
 | UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; narrow viewport overflow checked | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
-| Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, focused caption extraction, reload toggle, persisted opt-in lookup, long/stale/duplicate behavior, live Serper/Google evidence and consent/withdrawal passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
+| Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, focused caption extraction, reload toggle, persisted opt-in lookup, long/stale/duplicate behavior, live Serper/Google evidence, and absence of survey controls passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
 | Extension failure states | A stopped backend produced a clear unavailable message and no prediction; controlled popup checks covered timeout, no-results and provider-unavailable display without changing the classifier result | [Failure-state report](EXTENSION-FAILURE-VERIFICATION.json) |
-| Administrator browser flow | Actual isolated Chrome login, HttpOnly-cookie reload, export, logout, viewer 403, expired 401, first keyboard focus and narrow layout passed | [Admin browser report](ADMIN-BROWSER-VERIFICATION.json) |
+| Administrator browser flow | Actual isolated Chromium login, HttpOnly-cookie reload, absent participant view/export, logout, expired 401, first keyboard focus and narrow layout passed | [Admin browser report](ADMIN-BROWSER-VERIFICATION.json) |
 | Frontends | Dashboard lint/build and extension build passed; release extension build intentionally rejects missing HTTPS configuration | `npm run lint`, `npm run build`, `npm run build:release` |
 | Dependencies | Runtime/model primary versions pinned; pip check passed; npm lockfiles retained | requirements files and package-lock files |
 | Cleanup and deployment paths | SHA-256-preserving moves; retired runtime imports absent; five read-only artifact mounts; database not exposed; single worker | [Structure](PROJECT-STRUCTURE.md), [static deployment checks](DEPLOYMENT-VERIFICATION.json) |
-| Privacy and access | No storage or external search by default; separate text consent; receipt withdrawal; export omits text/tokens; login JSON exposes no bearer token; origin/role tests | `test_participant.py`, `test_research_tools.py` |
+| Privacy and access | No screening/survey storage; external search remains opt-in; participant routes/export removed; login JSON exposes no bearer token; origin/role tests | `test_participant.py`, installed extension and admin browser reports |
 | Backup expiry | Completed expired dumps are removed; recent dumps, partial files and unrelated files are preserved | `test_backup_retention_only_removes_expired_completed_dumps` |
 
 The full raw-text pipeline—not saved embeddings or cached answers—produces the parity
@@ -45,9 +46,9 @@ focused post caption text, but those changes do not correct the classifier itsel
 
 [RESOURCE-MEASUREMENTS.json](RESOURCE-MEASUREMENTS.json) records one native Windows API
 worker, CPU execution, four inference threads and two admitted simultaneous screenings.
-Five short requests had a median HTTP latency of **79.01 ms**; measured inference ranged
-from approximately **36–91 ms** after startup. A **1,611-content-token/four-chunk** input
-took **2,898 ms** for inference. Peak sampled process-tree RSS was **815.6 MiB**. Three
+Five short requests had a median HTTP latency of **46.96 ms**; measured inference ranged
+from approximately **24–26 ms** after startup. A **1,611-content-token/four-chunk** input
+took **1,367 ms** for inference. Peak sampled process-tree RSS was **816.3 MiB**. Three
 simultaneous long requests returned **200, 503, 200**: overload was rejected, not fabricated.
 
 Retrieval was disabled for the model timing and measured separately with live provider
@@ -66,8 +67,8 @@ Windows workstation observation, not a Docker/Linux capacity result or SLA.
 
 ## What visual checks do and do not establish
 
-Screenshots cover popup input/result, 320-pixel popup layout, desktop/narrow admin login,
-and desktop/narrow research administration. Headless Chrome rendering uses the actual
+Screenshots cover popup input/result, 320-pixel popup layout and desktop/narrow admin login.
+Headless Chrome rendering uses the actual
 React components and an actual synthetic API result. It checks exact viewport width,
 horizontal overflow and seven unscaled feature values. The misleading prediction in a
 synthetic screenshot is the model's actual output, not an approved factual judgement.
@@ -90,8 +91,8 @@ responses, scores, reliability coefficients or certification is claimed. The his
 agreement statistic was removed from the active backend. The saved comparison still
 shows TF-IDF outperforming the hybrid on the reported test metrics.
 
-In-app usefulness feedback is a separate optional signal. It does not replace the formal
-questionnaire. Use the documented blank long-format response schema and validation tool;
+The product does not collect usefulness feedback or participant responses. Use the
+documented blank long-format response schema and validation tool for the separate survey;
 store actual responses only under private, ignored `research-data/` or approved storage.
 
 ## GO / NO-GO gate
@@ -102,7 +103,7 @@ store actual responses only under private, ignored `research-data/` or approved 
 - [x] Required artifact hashes, exact preprocessing/features, threshold and parity verified.
 - [x] Failure paths return errors; no reachable alternate classifier or random label.
 - [ ] Model owner resolves the observed short-input Misleading bias through a new reviewed training run, or formally restricts and validates the supported input scope.
-- [x] No default raw-input storage; consent, deletion, feedback and access checks tested.
+- [x] No screening or survey storage path is exposed; participant UI/routes/export are removed.
 - [x] Native MariaDB migration, least-privilege provisioning, restart and logical restore passed.
 - [x] Live providers and synthetic media processing checked; model and retrieval timings separated.
 - [x] Frontend builds and inspected headless component layouts passed.

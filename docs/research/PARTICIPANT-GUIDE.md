@@ -40,25 +40,11 @@ establishes that the classifier is correct or changes its prediction. [Serper](h
 supplies related search results, and the [Google Fact Check Tools API](https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search)
 supplies matching published reviews when available.
 
-Saving for research is optional and unchecked. If selected, the server saves a random
-record ID, consent version, input type, prediction, model identity, seven measurements,
-expiry time and optional usefulness rating. A second unchecked choice permits saving
-the text and returned links. Without it, those fields are not saved. Records are not
-automatically added to training data; retraining is disabled.
-
-The default server retention period is 30 days, enforced by daily scheduled cleanup.
-The receipt shows the expiry. Before recruitment, the facilitator must verify the actual
-configured period and functioning cleanup. Private backups default to seven days; live
-withdrawal does not edit an existing immutable backup. Restrict backup access, expire it
-on schedule and reapply withdrawal requests before a restore is opened to users.
-Exports and external survey files must follow the same approved deletion schedule.
-
-The extension stores only research receipts locally, without the submitted text. Use
-**Research receipts and feedback → Delete this saved record** to withdraw a saved
-record. Keep the receipt ID for the study team if the extension is removed or a backup is
-restored. Researchers must maintain any necessary withdrawal requests separately with
-restricted access. The CSV export excludes text, links, dates and withdrawal tokens but
-contains random record IDs: call it **pseudonymous**, not guaranteed anonymous.
+The extension and administrator dashboard do not collect, display or export participant
+responses, consent records, usefulness ratings or survey receipts. Conduct the formal
+survey through the separately approved questionnaire process. Keep response files in
+private, ignored `research-data/` or approved institutional storage, never in public
+frontend assets. Apply the study's approved retention and withdrawal process there.
 
 Possible inconveniences include slow processing, unavailable sources, extraction mistakes
 and incorrect predictions. This is not emergency, medical, legal or financial advice.
@@ -69,12 +55,12 @@ Do not make consequential decisions from the model score.
 1. The facilitator starts the verified local/API service and confirms `/ready` is ready.
 2. Open `chrome://extensions`, turn on Developer mode, select **Load unpacked**, and
    choose the prepared `chrome-extension/dist` directory. This is not Web Store publication.
-3. Review permissions: active tab, local settings/receipts, configured API origin, supported
+3. Review permissions: active tab, local settings, configured API origin, supported
    social pages and their media origins. No API key is embedded in the extension.
 4. Open the SuriPH popup. Use a new browser study profile without personal accounts where
    possible. Reload the extension and target page after a new build.
-5. At session end withdraw test records as appropriate, remove the extension and delete
-   research-profile receipts. Removing the extension alone does not delete server records.
+5. At session end clear any visible input/result and remove the extension from the study
+   profile as appropriate. Manage survey responses only through the separate study process.
 
 ## Guided tasks
 
@@ -89,7 +75,7 @@ classification label is supplied. The model may misclassify any scenario.
 | T4 | On a supported public page, select one public caption, then use selected text. Compare the extracted text before analyzing. | Extraction scope, missing text and unsupported-page behavior. |
 | T5 | Select related-source lookup using non-sensitive text. Open one returned source if available. | Publisher/link/date if supplied; no-results/unavailable is not evidence of truth. |
 | T6 | Submit spaces only; then let the facilitator demonstrate a disconnected backend. | Clear validation/service error, no fabricated prediction. |
-| T7 | Optionally opt in to saving a synthetic result without its text, rate usefulness, then withdraw it. | Separate consent choices, receipt, deletion confirmation; no penalty for skipping. |
+| T7 | Confirm that no survey, participant, usefulness-feedback or receipt controls appear in the extension or admin dashboard. | Survey collection remains separate from the screening product. |
 | T8 | Optional supervised media demonstration after release checks: use the approved synthetic image and short video, inspect extracted text. | OCR/transcription errors are distinct from classifier errors. No media-accuracy claim. |
 
 AFP-only tasks: inspect readiness/model identity; try viewer access to a protected write;

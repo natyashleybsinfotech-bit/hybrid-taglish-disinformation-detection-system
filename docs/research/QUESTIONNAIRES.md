@@ -37,7 +37,7 @@ confirmation and tasks attempted. Do not request name, student number, address o
 | B11 | Reliability | T6 | The interface made it clear when a result could not be produced. |
 | B12 | Reliability | T5 | The interface distinguished missing related sources from a completed prediction. |
 | B13 | Security (observable privacy) | T7 | I could tell what would be saved before choosing to save it. |
-| B14 | Security (observable privacy) | T7 or N/O | I could find and use the control to delete my saved research record. |
+| B14 | Security (observable privacy) | T7 or N/O | I could tell that survey responses are collected separately and are not displayed in the extension or admin dashboard. |
 
 Do not ask BSIT users to rate server hardening or code maintainability. Comments:
 “Which step was confusing?”, “What would you change?”, “Did anything make the result
@@ -61,7 +61,7 @@ role/experience categories. Do not combine this population with the BSIT block c
 | A09 | Reliability | MariaDB restart/restore evidence | The demonstrated persistence and restoration procedure recovered the test records. |
 | A10 | Reliability | Retrieval outage test | A retrieval outage does not change the classifier output. |
 | A11 | Security | Viewer and unauthenticated tests | Protected administrative operations reject unauthorized requests. |
-| A12 | Security | Consent/deletion demonstration | Research storage and withdrawal behavior follow the presented privacy notice. |
+| A12 | Security | Survey-separation demonstration | The extension and admin dashboard expose no participant response, receipt, feedback or export controls. |
 | A13 | Security | Deployment review | Runtime database privileges and secret isolation are appropriate for the documented single-server design. |
 | A14 | Maintainability | START_HERE and operations guide | The setup and diagnostic instructions are reproducible for the documented environment. |
 | A15 | Maintainability | Versioned migration and tests | The migration and test records make changes traceable. |

@@ -33,7 +33,7 @@ if not request_logger.handlers:
 request_logger.setLevel(logging.INFO)
 request_logger.propagate = False
 try:
-    from . import database, research_store
+    from . import database
     from .feature_display import describe
     from .fact_check import search_fact_checks
     from .media_processing import MediaProcessingError, extract_image_text, process_video, service_health
@@ -45,7 +45,6 @@ try:
     from .traffic_limits import TrafficLimits
 except ImportError:  # Supports the legacy test runner that adds src/ to sys.path.
     import database
-    import research_store
     from feature_display import describe
     from fact_check import search_fact_checks
     from media_processing import MediaProcessingError, extract_image_text, process_video, service_health
@@ -62,8 +61,6 @@ class ScreenRequest(BaseModel):
     page_url: str | None = Field(default=None, max_length=4_000)
     page_title: str | None = Field(default=None, max_length=500)
     context: dict[str, Any] | None = None
-    research_consent: bool = False
-    retain_text: bool = False
     retrieve_sources: bool = False
 
 
@@ -191,12 +188,6 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-@app.get("/privacy")
-def privacy_policy():
-    return {"consent_version": research_store.CONSENT_VERSION, "retention_days": config.RESEARCH_RETENTION_DAYS,
-            "default_storage": "none", "default_external_lookup": False}
-
-
 def _context_explanation(text: str, context: dict[str, Any] | None) -> dict[str, Any]:
     details = context if isinstance(context, dict) else {}
     return {
@@ -220,12 +211,8 @@ def _screen(
     page_title: str | None = None,
     context: dict[str, Any] | None = None,
     capture_candidate: bool = False,
-    research_consent: bool = False,
-    retain_text: bool = False,
     retrieve_sources: bool = False,
 ) -> dict[str, Any]:
-    if retain_text and not research_consent:
-        raise HTTPException(status_code=422, detail="Saving text requires explicit research consent.")
     started = time.perf_counter()
     analyzed_text = normalize_text(text)
     if not analyzed_text:
@@ -283,16 +270,7 @@ def _screen(
                 status_code=503,
                 detail="Screening completed, but the candidate could not be saved for required review.",
             ) from None
-    receipt = None
-    if research_consent:
-        try:
-            receipt = research_store.save(prediction, text=analyzed_text, input_type=input_type,
-                                          sources=retrieval["related_sources"], retain_text=retain_text)
-        except Exception:
-            raise HTTPException(status_code=503, detail="Research storage is unavailable. No receipt was created; retry without saving or try later.") from None
     return {
-        "research_receipt": receipt,
-        "storage_status": "saved_with_consent" if receipt else "not_saved",
         "timings_ms": {"inference": round(inference_ms, 3), "retrieval": round(retrieval_ms, 3)},
         **prediction,
         "analyzed_text": analyzed_text,
@@ -366,8 +344,6 @@ def analyze(request: ScreenRequest) -> dict[str, Any]:
         page_url=request.page_url,
         page_title=request.page_title,
         context=request.context,
-        research_consent=request.research_consent,
-        retain_text=request.retain_text,
         retrieve_sources=request.retrieve_sources,
     )
 
@@ -385,8 +361,6 @@ async def analyze_image(
     post_text: str | None = Form(default=None),
     context_json: str | None = Form(default=None),
     capture_candidate: bool = Form(default=False),
-    research_consent: bool = Form(default=False),
-    retain_text: bool = Form(default=False),
     retrieve_sources: bool = Form(default=False),
 ) -> dict[str, Any]:
     contents = await _read_upload(file, "image/")
@@ -408,7 +382,7 @@ async def analyze_image(
         page_title=page_title,
         context=post_context,
         capture_candidate=False,
-        research_consent=research_consent, retain_text=retain_text, retrieve_sources=retrieve_sources,
+        retrieve_sources=retrieve_sources,
     )
     related_coverage = result["context_explanation"].get("related_coverage")
     result["context_explanation"] = _context_explanation(readable_post_text or extraction["ocr_text"], post_context)
@@ -424,8 +398,6 @@ async def analyze_video(
     page_title: str | None = Form(default=None),
     post_text: str | None = Form(default=None),
     context_json: str | None = Form(default=None),
-    research_consent: bool = Form(default=False),
-    retain_text: bool = Form(default=False),
     retrieve_sources: bool = Form(default=False),
 ) -> dict[str, Any]:
     contents = await _read_upload(file, "video/")
@@ -449,7 +421,7 @@ async def analyze_video(
         page_url=page_url,
         page_title=page_title,
         context=post_context,
-        research_consent=research_consent, retain_text=retain_text, retrieve_sources=retrieve_sources,
+        retrieve_sources=retrieve_sources,
     )
     related_coverage = result["context_explanation"].get("related_coverage")
     result["context_explanation"] = _context_explanation(readable_post_text or extraction["analyzed_text"], post_context)
@@ -464,7 +436,7 @@ async def analyze_video(
 
 @app.post("/candidates", status_code=201)
 def submit_candidate(request: CandidateRequest) -> dict[str, Any]:
-    raise HTTPException(status_code=410, detail="Automatic candidate submission is retired. Use opt-in research storage on /analyze.")
+    raise HTTPException(status_code=410, detail="Automatic candidate submission is retired. Screening results are not added to the dataset.")
 
 
 def _token_signature(payload: str) -> str:
@@ -513,45 +485,6 @@ def current_admin(user: dict[str, str] = Depends(current_user)) -> str:
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="This account has view-only access.")
     return user["username"]
-
-
-class ResearchAction(BaseModel):
-    record_id: str = Field(pattern=r"^[a-f0-9]{32}$")
-    withdrawal_token: str = Field(min_length=20, max_length=100)
-    usefulness: int | None = Field(default=None, ge=1, le=5)
-
-
-@app.post("/research/feedback")
-def research_feedback(payload: ResearchAction):
-    if payload.usefulness is None:
-        raise HTTPException(status_code=422, detail="Select a usefulness rating from 1 to 5.")
-    return _research_action(payload, False)
-
-
-@app.post("/research/withdraw")
-def research_withdraw(payload: ResearchAction):
-    return _research_action(payload, True)
-
-
-def _research_action(payload, withdraw):
-    try:
-        research_store.change(payload.record_id, payload.withdrawal_token, usefulness=payload.usefulness, withdraw=withdraw)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Research receipt not found.") from None
-    except Exception:
-        raise HTTPException(status_code=503, detail="Research storage is unavailable.") from None
-    return {"status": "withdrawn" if withdraw else "feedback_saved"}
-
-
-@app.get("/admin-api/research-export")
-def research_export(_username: str = Depends(current_admin)):
-    rows = _database_or_503(research_store.export_rows)
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["record_id", "consent_version", "input_type", "usefulness", "label", "model_score", "training_run_id", "artifact_sha256", "features_json"])
-    for row in rows:
-        writer.writerow([row["record_id"], row["consent_version"], row["input_type"], row["usefulness"], row["internal_label"], row["model_score"], row["training_run_id"], row["artifact_sha256"], json.dumps(row["linguistic_indicators"])])
-    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="suriph-research.csv"'})
 
 
 @app.post("/admin-api/login")

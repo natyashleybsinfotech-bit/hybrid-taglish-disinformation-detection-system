@@ -63,30 +63,6 @@
       },
       "screenshot": "verification/ui/admin-login-narrow.png",
       "rendered": true
-    },
-    {
-      "view": "admin-research",
-      "width": 1280,
-      "height": 1000,
-      "layout": {
-        "width": 1280,
-        "clientWidth": 1280,
-        "scrollWidth": 1280
-      },
-      "screenshot": "verification/ui/admin-research.png",
-      "rendered": true
-    },
-    {
-      "view": "admin-research-narrow",
-      "width": 390,
-      "height": 1450,
-      "layout": {
-        "width": 390,
-        "clientWidth": 384,
-        "scrollWidth": 384
-      },
-      "screenshot": "verification/ui/admin-research-narrow.png",
-      "rendered": true
     }
   ]
 }

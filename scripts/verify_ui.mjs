@@ -10,7 +10,6 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const output=path.join(root,'tmp/ui'); await mkdir(output,{recursive:true});
 const screenshots=path.join(root,'docs/verification/ui');await mkdir(screenshots,{recursive:true});
 const result=JSON.parse(await readFile(path.join(root,'tmp/ui-real-result.json'),'utf8'));
-delete result.research_receipt;
 const browser=process.env.SURI_TEST_BROWSER || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const reports=[];
 async function capture(html, shot, name, width, height) {
@@ -45,12 +44,10 @@ for(const [name, project, component, width, height] of [
   ['popup-narrow','chrome-extension','<Popup />',320,900],
   ['admin-login','admin-dashboard','<Login onLogin={()=>{}} />',1280,900],
   ['admin-login-narrow','admin-dashboard','<Login onLogin={()=>{}} />',390,900],
-  ['admin-research','admin-dashboard','<MemoryRouter initialEntries={["/research"]}><Layout user={{role:"admin"}} onLogout={()=>{}}><Research /></Layout></MemoryRouter>',1280,1000],
-  ['admin-research-narrow','admin-dashboard','<MemoryRouter initialEntries={["/research"]}><Layout user={{role:"admin"}} onLogout={()=>{}}><Research /></Layout></MemoryRouter>',390,1450],
 ]) {
   const base=path.join(root,project), require=createRequire(path.join(base,'package.json'));
   const esbuild=createRequire(path.join(root,'chrome-extension/package.json'))('esbuild');
-  const source=`import React from 'react';import {renderToStaticMarkup} from 'react-dom/server';${project==='chrome-extension' ? "import Popup,{Result} from './src/Popup.jsx';" : "import Login from './src/pages/Login.jsx';import Research from './src/pages/Research.jsx';import {Layout} from './src/App.jsx';import {MemoryRouter} from 'react-router-dom';"} const result=${JSON.stringify(result)};export default renderToStaticMarkup(${component});`;
+  const source=`import React from 'react';import {renderToStaticMarkup} from 'react-dom/server';${project==='chrome-extension' ? "import Popup,{Result} from './src/Popup.jsx';" : "import Login from './src/pages/Login.jsx';"} const result=${JSON.stringify(result)};export default renderToStaticMarkup(${component});`;
   const built=await esbuild.build({stdin:{contents:source,resolveDir:base,loader:'jsx'},jsx:'automatic',bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env':'{}'},banner:{js:"import {createRequire} from 'node:module';const require=createRequire(import.meta.url);"}});
   const modulePath=path.join(output,name+'.mjs');await writeFile(modulePath,built.outputFiles[0].text);
   const {default:markup}=await import(pathToFileURL(modulePath));

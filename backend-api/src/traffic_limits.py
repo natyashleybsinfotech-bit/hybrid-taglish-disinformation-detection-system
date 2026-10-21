@@ -21,8 +21,7 @@ class TrafficLimits:
         path = scope["path"]
         screening = path in {"/analyze", "/predict", "/candidates", "/analyze/image", "/analyze/video"}
         login = path == "/admin-api/login"
-        research = path in {"/research/withdraw", "/research/feedback"}
-        if not (screening or login or research):
+        if not (screening or login):
             return await self.app(scope, receive, send)
         # Uvicorn resolves the client from the trusted reverse proxy. Never parse
         # an arbitrary X-Forwarded-For header here.

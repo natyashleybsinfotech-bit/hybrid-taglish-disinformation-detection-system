@@ -12,7 +12,7 @@
   "stale_result_cleared": "passed",
   "long_text_tail_preserved": "passed",
   "seven_feature_values_match_backend": "passed",
-  "consent_feedback_withdrawal": "passed",
+  "survey_controls_absent": "passed",
   "screenshots_private": true,
   "content_script_social_extraction": "covered by the separate installed-extension rehearsal",
   "limitations": [

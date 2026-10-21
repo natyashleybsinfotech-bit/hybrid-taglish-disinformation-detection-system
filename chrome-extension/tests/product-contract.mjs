@@ -13,6 +13,8 @@ for (const forbidden of ['tweetText', 'ytd-watch', 'reddit']) assert.ok(!content
 for (const forbidden of ['x.com', 'twimg.com', 'youtube.com', 'googlevideo.com', 'reddit.com', 'redd.it']) assert.ok(!background.includes(`'${forbidden}'`), `Unexpected media origin: ${forbidden}`);
 assert.match(content, /Fail closed[\s\S]{0,240}return '';/, 'Facebook extraction must fail closed without a recognized message node');
 assert.doesNotMatch(content, /cloneNode\(true\)/, 'Whole post/feed fallback must not be reachable');
+assert.match(content, /appendLookupChoice/, 'The in-page Facebook flow must expose source lookup before analysis');
+assert.match(content, /context_explanation/, 'The in-page result must render the backend context');
 assert.match(popup, /Potentially Misleading/);
 assert.match(popup, /No Misleading Information Detected/);
 assert.match(popup, /This score describes the model’s prediction\. It does not confirm whether the claim is true\./);
@@ -21,9 +23,10 @@ assert.match(popup, /suriphLanguage/);
 assert.match(popup, /consentToStore: true/);
 assert.match(popup, /candidateState === 'submitted'/);
 assert.match(popup, /candidateLock\.current/, 'Candidate submission must use a synchronous duplicate-request guard');
+assert.match(popup, /context_explanation/, 'The popup result must render the backend context');
 assert.doesNotMatch(popup, /participant|questionnaire|survey/i);
 
 console.log(JSON.stringify({
   facebook_only_manifest: 'passed', bounded_extraction: 'passed', bilingual_fixed_copy: 'passed',
-  cautious_labels: 'passed', explicit_candidate_consent: 'passed', duplicate_candidate_guard: 'passed', survey_ui_absent: 'passed',
+  cautious_labels: 'passed', in_page_lookup_control: 'passed', context_visible: 'passed', explicit_candidate_consent: 'passed', duplicate_candidate_guard: 'passed', survey_ui_absent: 'passed',
 }));

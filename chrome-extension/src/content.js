@@ -113,6 +113,14 @@ function collectPostMedia(post) {
   return { image_urls: [...new Set(images)].slice(0, 4), video_url: /^(https?:|blob:)/i.test(videoUrl || '') ? videoUrl : null, has_video: Boolean(activeVideo || post.querySelector('[data-video-id], [aria-label*="video" i]')) };
 }
 function setMessage(container, text, tone = 'muted') { container.textContent = text; container.dataset.tone = tone; }
+function appendLookupChoice(container) {
+  const label = document.createElement('label');
+  label.style.cssText = 'display:flex;gap:9px;align-items:flex-start;margin:12px 0;padding:10px;border:1px solid #99bdb5;border-radius:8px;background:#ecfdf5;color:#134e4a;font:600 13px/1.4 Arial;';
+  const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = retrievalEnabled; checkbox.style.cssText = 'width:17px;height:17px;margin-top:1px;accent-color:#0f766e;flex:none;';
+  const text = document.createElement('span'); text.textContent = tr('Search approved news sources and published fact-check reviews for this analysis.', 'Maghanap sa mga aprubadong news source at nailathalang fact-check para sa pagsusuring ito.');
+  checkbox.addEventListener('change', () => { retrievalEnabled = checkbox.checked; chrome.storage.local.set({ suriphRetrieveSources: retrievalEnabled }); });
+  label.append(checkbox, text); container.appendChild(label);
+}
 async function captureVisibleVideo(post) {
   const video = findBestVideo(post);
   if (!video || typeof video.captureStream !== 'function') throw new Error('This browser did not expose a capturable video stream. Use the video file upload instead.');
@@ -155,6 +163,17 @@ function renderRichResult(container, result) {
   const checkedTitle = document.createElement('b'); checkedTitle.textContent = tl ? 'Sinuring teksto' : 'Analyzed text';
   const checkedText = document.createElement('p'); checkedText.textContent = result.analyzed_text || ''; checkedText.style.cssText = 'max-height:150px;overflow:auto;margin:7px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;'; checked.append(checkedTitle, checkedText); container.appendChild(checked);
 
+  const context = result.context_explanation || {};
+  const contextBox = document.createElement('section'); contextBox.className = 'context-box';
+  const contextTitle = document.createElement('b'); contextTitle.textContent = tl ? 'Konteksto ng sinuring content' : 'Context of the analyzed content'; contextBox.appendChild(contextTitle);
+  const contextRows = [
+    [tl ? 'May-akda/source' : 'Author/source', context.author],
+    [tl ? 'Oras o petsa ng post' : 'Post time/date', context.timing],
+    [tl ? 'Sinuring bahagi' : 'Material checked', context.checked_material],
+  ];
+  for (const [name, value] of contextRows) if (value) { const row = document.createElement('p'); row.textContent = `${name}: ${value}`; row.style.cssText = 'margin:5px 0;'; contextBox.appendChild(row); }
+  const contextLimit = document.createElement('p'); contextLimit.textContent = tl ? 'Hindi hiwalay na napatunayan ng SuriPH ang may-akda, petsa, o bawat pahayag. Suriin ang orihinal na post at mga link sa ibaba.' : 'SuriPH has not independently verified the author, date, or each statement. Review the original post and the links below.'; contextLimit.style.cssText = 'margin:7px 0 0;color:#475569;font-size:12px;'; contextBox.appendChild(contextLimit); container.appendChild(contextBox);
+
   const heading = addText('strong', label, `display:block;margin:2px 0 4px;padding:14px 16px;border-radius:10px;background:${result.internal_label === 'Misleading' ? '#fef3c7' : '#d1fae5'};color:#143c35;font-size:18px;text-align:center;`);
   heading.setAttribute('role', 'status');
   addText('p', `${pct(selectedScore)}% ${tl ? 'score para sa prediction na ito' : 'score for this prediction'}`, 'margin:4px 0;font-size:18px;font-weight:800;');
@@ -170,9 +189,9 @@ function renderRichResult(container, result) {
 
   if (result.extraction?.transcript_text || result.extraction?.frame_ocr_text) { const extraction = document.createElement('details'); const title = document.createElement('summary'); title.textContent = tl ? 'Tekstong kinuha sa video' : 'Video text extraction'; extraction.appendChild(title); if (result.extraction.transcript_text) { const speech = document.createElement('p'); speech.textContent = `${tl ? 'Salita mula sa audio' : 'Speech transcript'}: ${result.extraction.transcript_text}`; extraction.appendChild(speech); } if (result.extraction.frame_ocr_text) { const frames = document.createElement('p'); frames.textContent = `${tl ? 'Teksto sa mga frame' : 'On-screen frame text'}: ${result.extraction.frame_ocr_text}`; extraction.appendChild(frames); } container.appendChild(extraction); }
 
-  const sourceBox = (title, note, items, status) => { const box = document.createElement('section'); box.className = 'sources'; box.style.cssText = 'padding:12px;border:1px solid #bae6fd;border-radius:10px;background:#f0f9ff;color:#334155;'; const head = document.createElement('b'); head.textContent = title; const help = document.createElement('span'); help.textContent = note; box.append(head, help); if (items.length) items.slice(0, 3).forEach((item) => { const href = safeUrl(item.url); if (!href) return; const link = document.createElement('a'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = item.title || item.claim || href; box.appendChild(link); }); else { const empty = document.createElement('span'); empty.textContent = status; box.appendChild(empty); } container.appendChild(box); };
-  const sourceStatus = result.retrieval_status === 'not_requested' ? (tl ? 'Hindi hiniling ang paghahanap.' : 'Related-source lookup was not requested.') : result.retrieval_status === 'no_results' ? (tl ? 'Walang tumugmang link. Hindi nito pinatutunayan ang prediction.' : 'No matching links were returned. Missing links do not validate the prediction.') : (tl ? 'Hindi magamit ang paghahanap. Hindi nagbago ang prediction.' : 'Related-source lookup is unavailable. The prediction is unchanged.');
-  sourceBox(tl ? 'Mga kaugnay na source' : 'Related sources', tl ? 'Kaugnay na babasahin lamang; hindi awtomatikong ebidensya.' : 'Related reading only; not automatically supporting or debunking evidence.', result.related_sources || [], sourceStatus);
+  const sourceBox = (title, note, items, status) => { const box = document.createElement('section'); box.className = 'sources'; box.style.cssText = 'padding:12px;border:1px solid #bae6fd;border-radius:10px;background:#f0f9ff;color:#334155;'; const head = document.createElement('b'); head.textContent = title; const help = document.createElement('span'); help.textContent = note; box.append(head, help); if (items.length) items.slice(0, 3).forEach((item) => { const href = safeUrl(item.url); if (!href) return; const article = document.createElement('article'); article.style.cssText = 'padding-top:8px;border-top:1px solid #bae6fd;'; const link = document.createElement('a'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = item.title || item.claim || href; article.appendChild(link); const meta = [item.source || item.publisher, item.date || item.review_date, item.rating ? `${tl ? 'Rating' : 'Published rating'}: ${item.rating}` : ''].filter(Boolean).join(' · '); if (meta) { const details = document.createElement('small'); details.textContent = meta; article.appendChild(details); } const summary = item.snippet || item.claim; if (summary && summary !== item.title) { const snippet = document.createElement('span'); snippet.textContent = summary; snippet.style.cssText = 'margin-top:3px;'; article.appendChild(snippet); } box.appendChild(article); }); else { const empty = document.createElement('span'); empty.textContent = status; box.appendChild(empty); } container.appendChild(box); };
+  const sourceStatus = result.retrieval_status === 'not_requested' ? (tl ? 'Hindi naka-on ang source lookup para sa request na ito. I-check ang source lookup bago suriin muli.' : 'Source lookup was off for this request. Turn it on before analyzing again.') : result.retrieval_status === 'no_results' ? (tl ? 'Walang tumugmang link. Hindi nito pinatutunayan ang prediction.' : 'No matching links were returned. Missing links do not validate the prediction.') : (tl ? 'Hindi magamit ang paghahanap. Hindi nagbago ang prediction.' : 'Related-source lookup is unavailable. The prediction is unchanged.');
+  sourceBox(tl ? 'Mga kaugnay na source mula sa aprubadong publisher' : 'Related sources from approved publishers', tl ? 'Kaugnay na babasahin lamang; hindi awtomatikong ebidensya.' : 'Related reading only; not automatically supporting or debunking evidence.', result.related_sources || [], sourceStatus);
   const factStatus = result.fact_check_status === 'not_requested' ? (tl ? 'Hindi hiniling ang fact-check lookup.' : 'Published fact-check lookup was not requested.') : result.fact_check_status === 'no_results' ? (tl ? 'Walang tumugmang nailathalang review.' : 'No matching published review was returned.') : (tl ? 'Hindi magamit ang fact-check lookup. Hindi nagbago ang prediction.' : 'Published fact-check lookup is unavailable. The prediction is unchanged.');
   sourceBox(tl ? 'Mga nailathalang fact-check' : 'Published fact-check reviews', tl ? 'Hiwalay ang mga ito sa prediction at hindi nila ito binabago.' : 'These are independent from the prediction and do not change it.', result.fact_check_matches || [], factStatus);
   if (result.media_status === 'unavailable') addText('p', `${tl ? 'Hindi magamit ang media' : 'Media unavailable'}: ${result.media_error || ''}`, 'color:#991b1b;');
@@ -183,6 +202,7 @@ function renderMediaChooser(post, button, message, result, media) {
   result.replaceChildren();
   const title = document.createElement('strong'); title.textContent = tr('What would you like SuriPH to check?', 'Ano ang gusto mong suriin ng SuriPH?'); title.style.cssText = 'display:block;font-size:18px;margin-bottom:8px;color:#0f172a'; result.appendChild(title);
   const note = document.createElement('span'); note.textContent = tr('This post contains media. Choose the media itself or the caption.', 'May media ang post na ito. Piliin ang media o ang caption.'); result.appendChild(note);
+  appendLookupChoice(result);
   const choices = document.createElement('div'); choices.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px;';
   const addChoice = (label, mode) => { const choice = document.createElement('button'); choice.type = 'button'; choice.textContent = label; choice.style.cssText = 'height:44px;border:0;border-radius:10px;background:#0ea5e9;color:#fff;font:700 14px Arial;cursor:pointer;'; choice.addEventListener('click', () => { result.replaceChildren(); button.dataset.choicePending = 'false'; analyzePost(post, button, message, result, mode); }); choices.appendChild(choice); };
   if (media.has_video) addChoice(tr('Check this video', 'Suriin ang video'), 'video');
@@ -216,7 +236,7 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto') {
     const body = document.createElement('p'); body.textContent = text; body.style.cssText = 'max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;';
     const confirm = document.createElement('button'); confirm.type = 'button'; confirm.textContent = interfaceLanguage === 'tl' ? 'Suriin ang tekstong ito' : 'Analyze this text'; confirm.style.cssText = 'width:100%;padding:10px;border:0;border-radius:8px;background:#0f766e;color:white;font-weight:700;cursor:pointer;';
     confirm.addEventListener('click', () => { button.dataset.previewConfirmed = 'true'; result.replaceChildren(); analyzePost(post, button, message, result, mediaChoice); });
-    preview.append(title, body, confirm); result.appendChild(preview); return;
+    preview.append(title, body); appendLookupChoice(preview); preview.appendChild(confirm); result.appendChild(preview); return;
   }
   if (mediaChoice === 'video' && media.has_video) {
     setMessage(message, media.video_url ? tr('SuriPH is retrieving the loaded video content...', 'Kinukuha ng SuriPH ang naka-load na video...') : tr('SuriPH is capturing the video playback...', 'Kinukuha ng SuriPH ang video playback...'), 'loading');

@@ -174,6 +174,7 @@ try {
   const expectedLabel = apiResult.internal_label === 'Misleading' ? 'Potentially Misleading' : 'No Misleading Information Detected';
   assert.equal(popupLabel, expectedLabel);
   assert.ok(Math.abs(popupScore - apiResult.displayed_class_score) < 0.00011);
+  assert.ok((await evaluate(popup, 'document.body.innerText')).includes('Context of the analyzed content'));
   const popupFeatures = await evaluate(popup, '[...document.querySelectorAll("[data-feature]")].map(n=>[n.dataset.feature,Number(n.dataset.value)])');
   assert.deepEqual(Object.fromEntries(popupFeatures), Object.fromEntries(apiResult.linguistic_indicators.map(item => [item.name, item.value])));
 
@@ -206,7 +207,7 @@ try {
     popup_opened_as_extension_window: !actionAvailable,
     actual_backend_connection: true,
     empty_input: 'passed', manual_text_prediction: 'passed', duplicate_click_single_request: 'passed',
-    stale_result_cleared: 'passed', long_text_tail_preserved: 'passed', seven_feature_values_match_backend: 'passed',
+    stale_result_cleared: 'passed', long_text_tail_preserved: 'passed', seven_feature_values_match_backend: 'passed', context_visible: 'passed',
     bilingual_switch_preserves_result_without_request: 'passed', narrow_width_no_horizontal_clipping: 'passed',
     survey_controls_absent: 'passed', screenshots_private: true,
     content_script_facebook_extraction: 'not rerun on the current build; actual Google Chrome/Facebook interaction remains manual',

@@ -12,6 +12,7 @@
   "stale_result_cleared": "passed",
   "long_text_tail_preserved": "passed",
   "seven_feature_values_match_backend": "passed",
+  "context_visible": "passed",
   "bilingual_switch_preserves_result_without_request": "passed",
   "narrow_width_no_horizontal_clipping": "passed",
   "survey_controls_absent": "passed",

@@ -24,8 +24,8 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | Media | Actual EasyOCR image smoke passed in 5.08 s; video OCR + Whisper smoke passed in 14.05 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
 | UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; English 390 px and Tagalog 320 px result layouts have no horizontal overflow | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
 | Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, focused caption extraction, reload toggle, persisted opt-in lookup, long/stale/duplicate behavior, live Serper/Google evidence, and absence of survey controls passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
-| Current popup regression | Updated unpacked build in isolated Edge: live API, duplicate/stale/long input, seven feature values, and language switch without another request passed | [Popup report](EXTENSION-POPUP-VERIFICATION.json) |
-| Actual Google Chrome/Facebook | Not passed: Chrome ignored automated unpacked loading and the visible Facebook-tab inspection was interrupted before interaction | [Chrome/Facebook status](CHROME-FACEBOOK-VERIFICATION.json) |
+| Current popup regression | Updated unpacked build in isolated Edge: live API, duplicate/stale/long input, seven feature values, restored context, and language switch without another request passed | [Popup report](EXTENSION-POPUP-VERIFICATION.json) |
+| Actual Google Chrome/Facebook | An actual Facebook analysis exposed that the in-page request left lookup off and omitted context. Both defects are corrected in the rebuilt extension; Chrome reload and hands-on retest remain pending | [Chrome/Facebook status](CHROME-FACEBOOK-VERIFICATION.json) |
 | Extension failure states | A stopped backend produced a clear unavailable message and no prediction; controlled popup checks covered timeout, no-results and provider-unavailable display without changing the classifier result | [Failure-state report](EXTENSION-FAILURE-VERIFICATION.json) |
 | Administrator browser flow | Actual isolated Chromium login, HttpOnly-cookie reload, absent participant view/export, logout, expired 401, first keyboard focus and narrow layout passed | [Admin browser report](ADMIN-BROWSER-VERIFICATION.json) |
 | Frontends | Dashboard lint/build and extension build passed; release extension build intentionally rejects missing HTTPS configuration | `npm run lint`, `npm run build`, `npm run build:release` |
@@ -47,6 +47,14 @@ and a technical UI that always foregrounded P(Misleading), even for a Non-Mislea
 selection. The fallback is removed and the UI now presents the selected-class score while
 retaining P(Misleading) in details. These changes do not correct the classifier's observed
 short-input bias or prove the user's complaint resolved for real Facebook posts.
+
+An actual Chrome/Facebook result then confirmed a separate source-display defect: the
+in-page flow had no visible way to opt into lookup, so the API correctly returned
+`not_requested`, and the redesigned result omitted the existing context object. The in-page
+preview now has an explicit approved-source/fact-check checkbox, and context is visible in
+both result surfaces. For the public post text used to report the issue, a live API check
+returned one approved-publisher result and no matching Google Fact Check review. The latter
+is a valid no-results response; the system does not fabricate additional reviews.
 
 ## Resource measurements and their limits
 

@@ -23,6 +23,7 @@ async function postMedia(path, url, payload) {
   if (path.includes('image')) form.append('capture_candidate', 'false');
   if (payload.page_url) form.append('page_url', payload.page_url); if (payload.page_title) form.append('page_title', payload.page_title);
   if (payload.text) form.append('post_text', payload.text); if (payload.context) form.append('context_json', JSON.stringify(payload.context));
+  form.append('retrieve_sources', String(payload.retrieve_sources === true));
   let response;
   try { response = await boundedFetch(`${API_BASE}/${path}`, { method: 'POST', body: form }); }
   catch (_) { throw new Error('SuriPH backend is unavailable. Check the configured API connection.'); }
@@ -32,6 +33,7 @@ async function postMediaBlob(path, blob, payload) {
   const form = new FormData(); form.append('file', blob, 'suriph-captured-video.webm');
   if (payload.page_url) form.append('page_url', payload.page_url); if (payload.page_title) form.append('page_title', payload.page_title);
   if (payload.text) form.append('post_text', payload.text); if (payload.context) form.append('context_json', JSON.stringify(payload.context));
+  form.append('retrieve_sources', String(payload.retrieve_sources === true));
   const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 300000);
   let response; try { response = await fetch(`${API_BASE}/${path}`, { method: 'POST', body: form, signal: controller.signal }); } catch (error) { if (error.name === 'AbortError') throw new Error('Video processing timed out after 5 minutes. Try a shorter video or upload the file through the popup.'); throw error; } finally { clearTimeout(timeout); }
   const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Media processing failed with status ${response.status}.`); return body;
@@ -49,7 +51,7 @@ async function analyzePayload(payload) {
       if (result.extraction?.ocr_text) extracted.push(result.extraction.ocr_text);
     }
     if (!extracted.length) throw new Error('No readable image text was extracted. No caption-only prediction was substituted.');
-    return postJson({ text: `${payload.text || ''}\n${extracted.join('\n')}`.trim(), page_url: payload.page_url, page_title: payload.page_title, context: payload.context });
+    return postJson({ text: `${payload.text || ''}\n${extracted.join('\n')}`.trim(), page_url: payload.page_url, page_title: payload.page_title, context: payload.context, retrieve_sources: payload.retrieve_sources === true });
   }
   return postJson(payload);
 }

@@ -46,6 +46,7 @@ def main():
     dockerfile = (ROOT / "backend-api/Dockerfile").read_text()
     assert '"--workers", "1"' in dockerfile
     assert "COPY src ./src" in dockerfile and "archive" not in dockerfile
+    assert "COPY models" not in dockerfile, "Research/alternative artifacts must not be bundled into the runtime image"
     retired = {"train_model", "training_worker", "embedding_extractor",
                "feature_extractor", "preprocessing", "data_loader", "taglish_filter", "mock_classifier"}
     for path in (ROOT / "backend-api/src").glob("*.py"):
@@ -65,7 +66,7 @@ def main():
     docker_available = shutil.which("docker") is not None
     result = {"static_checks_passed": True, "artifact_sha256": digest,
               "artifact_mounts": 5, "api_workers": 1, "retired_runtime_imports": 0,
-              "database_exposed": False, "docker_build_tested": False,
+              "database_exposed": False, "container_bundled_model_tree": False, "docker_build_tested": False,
               "compose_stack_tested": False, "tls_tested": False,
               "maintenance_timer_checked": True, "backup_retention_days": 7,
               "docker_available": docker_available,

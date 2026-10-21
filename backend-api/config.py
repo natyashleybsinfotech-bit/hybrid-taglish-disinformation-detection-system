@@ -110,6 +110,10 @@ DISCLAIMER = (
     "This is a model prediction and can be wrong. Its score is not calibrated certainty or proof that a claim is true or false. "
     "Related links are not automatically supporting or debunking evidence. Check original sources, dates and context."
 )
+MODEL_SCOPE_NOTICE = (
+    "The model was verified against its saved article-like test set. Brief or out-of-distribution text can receive "
+    "unreliable, extreme scores; review the exact analyzed text and independent sources."
+)
 
 _artifact_dir = Path(_env("SURI_MODEL_ARTIFACT_DIR", "models/TRAINING RESULTS"))
 MODEL_ARTIFACT_DIR = (_artifact_dir if _artifact_dir.is_absolute() else BASE_DIR / _artifact_dir).resolve()
@@ -121,41 +125,9 @@ _model_bundle_path = Path(_model_bundle_text)
 MODEL_BUNDLE_PATH = (
     _model_bundle_path if _model_bundle_path.is_absolute() else BASE_DIR / _model_bundle_path
 )
-MODEL_STORAGE_DIR = Path(_env("SURI_MODEL_STORAGE_DIR", str(BASE_DIR / "models"))).resolve()
 MODEL_REQUIRED = _env("SURI_MODEL_REQUIRED", "true").lower() in {"1", "true", "yes", "on"}
 MODEL_WARMUP = _env("SURI_MODEL_WARMUP", "true" if APP_ENV == "production" else "false").lower() == "true"
 TRAINING_ENABLED = False  # This deployment serves only the pinned, already-trained model_4.
-MODEL_PATH = MODEL_BUNDLE_PATH
-RAW_DATA_PATH = BASE_DIR / "data" / "raw" / "corpus.csv"
-PROCESSED_DATA_PATH = BASE_DIR / "data" / "processed" / "features.npz"
-CLEAN_CSV_PATH = BASE_DIR / "data" / "processed" / "clean.csv"
-DISTILBERT_SAVE_PATH = BASE_DIR / "models" / "distilbert_embedder"
-DISTILBERT_MODEL_NAME = "distilbert-base-multilingual-cased"
-MAX_SEQ_LENGTH = 128
-BATCH_SIZE = 32
-TRAIN_RATIO = 0.70
-VAL_RATIO = 0.15
-TEST_RATIO = 0.15
-RANDOM_SEED = 42
-FILIPINO_PARTICLES = [
-    "ba", "kasi", "naman", "nga", "pa", "na", "daw", "raw", "lang", "po",
-    "ate", "kuya", "pala", "eh", "talaga", "sobra", "grabe", "ay", "hay",
-    "nako", "sana", "kung", "bakit", "hindi", "pero", "at", "ng", "ang",
-    "mga", "yung", "ito", "iyon", "siya", "kami", "tayo", "nila", "ko",
-    "mo", "niya", "natin", "namin", "ninyo", "din", "rin", "man", "dito",
-    "diyan", "doon", "ano", "sino", "saan", "kailan", "paano", "gaano",
-    "oo", "opo", "huwag", "wag",
-]
-URGENCY_PHRASES = [
-    "share agad", "now na", "bago matanggal", "breaking", "grabe ito",
-    "pakishare", "i-share na", "urgent", "bilisan", "asap", "huwag palampasin",
-]
-EMOTIONAL_WORDS = [
-    "galit", "takot", "kawawa", "nakakalungkot", "nakakatakot", "nakakainis",
-    "nakakagulat", "nakakaawa", "nakakatuwa", "nakakaloka", "baliw", "gago",
-    "mahal", "masakit", "nasaktan", "iyak", "luha", "saya", "masaya",
-    "malungkot", "nagagalit", "natatakot", "naiinis", "nagulat", "nagulantang",
-]
 
 
 def validate_runtime_config() -> None:

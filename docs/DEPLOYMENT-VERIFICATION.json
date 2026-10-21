@@ -5,6 +5,7 @@
   "api_workers": 1,
   "retired_runtime_imports": 0,
   "database_exposed": false,
+  "container_bundled_model_tree": false,
   "docker_build_tested": false,
   "compose_stack_tested": false,
   "tls_tested": false,

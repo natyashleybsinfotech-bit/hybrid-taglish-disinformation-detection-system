@@ -15,7 +15,6 @@ RUN python -m pip install --upgrade pip && python -m pip install -r requirements
 
 COPY config.py ./config.py
 COPY src ./src
-COPY models ./models
 
 RUN useradd --create-home --uid 10001 suriph && \
     mkdir -p /app/data/runtime-sqlite /app/data/runtime-media /app/data/runtime-models && \

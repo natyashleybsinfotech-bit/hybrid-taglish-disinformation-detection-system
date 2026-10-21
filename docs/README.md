@@ -4,7 +4,7 @@
 | --- | --- |
 | Install and run locally | [START_HERE](../START_HERE.md) |
 | Completed checks and remaining release gates | [Release readiness](RELEASE-READINESS.md) |
-| Model contract, artifacts, threshold and parity | [Hybrid integration](HYBRID-INTEGRATION.md), [598-record result](HYBRID-VERIFICATION.json) |
+| Model contract, artifacts, threshold, parity and observed scope bias | [Hybrid integration](HYBRID-INTEGRATION.md), [598-record result](HYBRID-VERIFICATION.json), [short-input diagnostic](MODEL-SANITY-DIAGNOSTIC.json) |
 | VPS, Compose, database, HTTPS, backups and restore | [Deployment guide](DEPLOYMENT.md) |
 | Participant consent and tasks | [Participant guide](research/PARTICIPANT-GUIDE.md) |
 | Draft questionnaires and expert review | [Questionnaires](research/QUESTIONNAIRES.md), [pilot and traceability](research/PILOT-AND-TRACEABILITY.md) |

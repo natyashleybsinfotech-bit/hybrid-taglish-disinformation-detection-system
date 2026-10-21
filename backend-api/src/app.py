@@ -240,11 +240,18 @@ def _screen(
     retrieval_started = time.perf_counter()
     excluded_domain = urlparse(page_url).netloc if page_url else None
     explanation = _context_explanation(analyzed_text, context)
-    try:
-        retrieval = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain) if retrieve_sources else {"retrieval_status": "not_requested", "related_sources": []}
-    except Exception:
-        retrieval = {"retrieval_status": "unavailable", "related_sources": []}
-    fact_checks = {"status": "admin_review_only", "matches": [], "signal": None}
+    if retrieve_sources:
+        try:
+            retrieval = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain)
+        except Exception:
+            retrieval = {"retrieval_status": "unavailable", "related_sources": []}
+        try:
+            fact_checks = search_fact_checks(analyzed_text)
+        except Exception:
+            fact_checks = {"status": "unavailable", "matches": [], "signal": None}
+    else:
+        retrieval = {"retrieval_status": "not_requested", "related_sources": []}
+        fact_checks = {"status": "not_requested", "matches": [], "signal": None}
     linguistic_indicators = describe(prediction["linguistic_indicators"])
     prediction["linguistic_indicators"] = linguistic_indicators
     retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
@@ -306,6 +313,7 @@ def _screen(
         "candidate_sample_id": candidate_id,
         "topic_suggestion": topic_suggestion.to_dict(),
         "evidence_status": "missing" if capture_candidate else "not_captured",
+        "model_scope_notice": config.MODEL_SCOPE_NOTICE,
         "disclaimer": config.DISCLAIMER,
     }
 
@@ -928,20 +936,6 @@ def admin_approve_dataset_version(version_id: int, username: str = Depends(curre
         return {"status": "approved"}
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
-
-
-def _approved_artifact_path(value: str) -> Path:
-    candidate = Path(value)
-    if not candidate.is_absolute():
-        candidate = config.MODEL_STORAGE_DIR / candidate
-    candidate = candidate.resolve()
-    try:
-        candidate.relative_to(config.MODEL_STORAGE_DIR)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Model artifacts must be inside SURI_MODEL_STORAGE_DIR.") from None
-    if not candidate.is_file():
-        raise HTTPException(status_code=422, detail="Model artifact does not exist.")
-    return candidate
 
 
 @app.get("/admin-api/model-versions")

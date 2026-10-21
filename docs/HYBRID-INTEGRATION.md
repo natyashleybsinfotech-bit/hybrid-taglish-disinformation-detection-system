@@ -164,16 +164,19 @@ describe it as calibrated confidence. A score below 0.65 predicts Non-Misleading
 even if it exceeds 0.5.
 
 The public context panel contains a supplied-text excerpt and explicit scope, not
-invented claim-by-claim explanations. Retrieved links remain related reading;
-retrieval failure does not change the prediction. Fact-check ratings are available
-for researcher review but never generate classifier labels/scores.
+invented claim-by-claim explanations. When the user enables lookup, Serper related
+reading and Google Fact Check published-review matches are returned in separate
+sections. Neither provider generates or changes classifier labels/scores, and a
+provider failure does not change the prediction.
 
 Empty/whitespace inputs return 422. Text has an explicit **1,000,000-character API
 limit**; oversize input is rejected rather than silently clipped. The extension no
 longer clips post text to 20,000 characters or reuses a cached post prediction on a
 new screening action. It no longer silently substitutes caption-only screening
-when selected media fails. The popup no longer saves input/results locally; only explicit research receipts persist.
-Clicking Analyze performs a new request.
+when selected media fails. The popup no longer saves input/results locally; only
+explicit research receipts and the user's lookup preference persist. The same
+preference controls lookup from the in-page S button. Clicking Analyze performs a
+new request.
 
 From the project root in another terminal:
 

@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-21",
+  "purpose": "Post-integration diagnostic only; no training, threshold change or tuning was performed.",
+  "active_classifier": "model_4.joblib",
+  "training_run_id": "20261011T235112Z",
+  "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+  "saved_test_prediction_distribution": {
+    "Non-Misleading": 322,
+    "Misleading": 276
+  },
+  "live_saved_examples_checked": {
+    "Non-Misleading": 4,
+    "Misleading": 4,
+    "label_mismatches": 0
+  },
+  "short_general_statement_probe": {
+    "records": 10,
+    "Misleading_predictions": 10,
+    "Non-Misleading_predictions": 0,
+    "score_range": [
+      0.902293,
+      1.0
+    ],
+    "representative_or_accuracy_measurement": false
+  },
+  "conclusion": "The integration reproduces saved model_4 behavior, but this small targeted probe exposes severe short/out-of-distribution bias toward Misleading. Do not treat parity as evidence of generalization or factual accuracy. Retraining or a formally approved input-scope restriction is required before claims of reliable short-post screening."
+}

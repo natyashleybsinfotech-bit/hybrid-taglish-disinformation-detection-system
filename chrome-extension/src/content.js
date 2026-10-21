@@ -1,7 +1,14 @@
 // Inject controls proactively; page content is read only after a user click.
 const POST_SELECTORS = ['article', '[data-testid="tweetText"]', '[role="article"]', 'ytd-watch-metadata'];
+const POST_TEXT_SELECTORS = [
+  '[data-ad-comet-preview="message"]', '[data-ad-preview="message"]',
+  '[data-ad-rendering-role="story_message"]', '[data-testid="post_message"]',
+  '[data-testid="tweetText"]', '[data-testid="post-content"]', '[slot="text-body"]',
+  'ytd-watch-metadata #title', 'ytd-watch-metadata #description-inline-expander',
+];
 const CONTROL_ATTRIBUTE = 'data-suriph-control';
 let extensionEnabled = true;
+let retrievalEnabled = false;
 let activeResultHost = null;
 
 function rootsFrom(root = document) {
@@ -31,9 +38,24 @@ function findPosts() {
     .filter((post) => !unique.some((other) => other !== post && other.contains(post) && other.matches('article, [role="article"]')));
 }
 function collectPostText(post) {
-  const parts = [post.innerText || post.textContent || ''];
-  for (const root of rootsFrom(post)) if (root !== post && root.host?.id !== 'suriph-control-host') parts.push(root.innerText || root.textContent || '');
-  return normalize([...new Set(parts.map(normalize).filter(Boolean))].join(' '));
+  const parts = [];
+  const add = (node) => {
+    if (!node || node.closest?.('#suriph-control-host, button, [role="button"], nav, form')) return;
+    const text = normalize(node.innerText || node.textContent || '');
+    if (text) parts.push(text);
+  };
+  for (const selector of POST_TEXT_SELECTORS) {
+    if (post.matches?.(selector)) add(post);
+    post.querySelectorAll?.(selector).forEach(add);
+  }
+  const selected = [...new Set(parts)];
+  if (selected.length) return normalize(selected.join(' '));
+
+  // Generic fallback: copy the post and remove controls, navigation and nested
+  // article/comment containers so UI labels are not classified as post text.
+  const copy = post.cloneNode(true);
+  copy.querySelectorAll('#suriph-control-host, button, [role="button"], nav, form, footer, [role="article"] [role="article"]').forEach(node => node.remove());
+  return normalize(copy.textContent || '');
 }
 function postForSelection() {
   const selection = window.getSelection();
@@ -67,7 +89,7 @@ function collectPostContext(post) {
     published_text: publishedText,
     freshness,
     visible_links: [...new Set(links)].slice(0, 8),
-    extraction_scope: 'Post text, caption, visible surrounding context, and any readable image or video text',
+    extraction_scope: 'Detected post caption/text and any explicitly selected readable image or video text',
   };
 }
 function findBestVideo(post) {
@@ -129,6 +151,9 @@ function renderRichResult(container, result) {
   scoreLine.textContent = `Misleading-class model score: ${score.toFixed(2)}% (threshold: ${(result.decision_threshold * 100).toFixed(0)}%)`;
   scoreLine.style.cssText = 'margin-bottom:4px;font-weight:700;';
   container.appendChild(scoreLine);
+  if (result.model_scope_notice) {
+    const scopeNotice = document.createElement('div'); scopeNotice.textContent = result.model_scope_notice; scopeNotice.style.cssText = 'margin:8px 0;padding:10px 12px;border:1px solid #f59e0b;border-radius:8px;background:#fffbeb;color:#78350f;font-size:12px;line-height:1.45;'; container.appendChild(scopeNotice);
+  }
   const sources = document.createElement('div');
   sources.className = 'sources';
   sources.style.cssText = 'margin:4px 0 6px;padding:12px;border:1px solid #bae6fd;border-radius:10px;background:#f0f9ff;color:#334155;';
@@ -139,19 +164,42 @@ function renderRichResult(container, result) {
     result.related_sources.slice(0, 3).forEach((item) => { const source = document.createElement('a'); source.href = item.url; source.target = '_blank'; source.rel = 'noreferrer'; source.textContent = item.title || item.url; sources.appendChild(source); });
   } else {
     const sourceStatus = document.createElement('span');
-    sourceStatus.textContent = result.retrieval_status === 'unavailable'
-      ? 'Related-source lookup is unavailable; the prediction is unchanged.'
-      : 'No related links are available. This is not evidence for or against the prediction.';
+    sourceStatus.textContent = result.retrieval_status === 'not_requested'
+      ? 'Related-source lookup is off. Enable it in the SuriPH popup.'
+      : result.retrieval_status === 'no_results'
+        ? 'Serper returned no matching links from the allowed publishers.'
+        : 'Related-source lookup is unavailable; the prediction is unchanged.';
     sources.appendChild(sourceStatus);
   }
   container.appendChild(sources);
+
+  const factChecks = document.createElement('div');
+  factChecks.className = 'sources';
+  factChecks.style.cssText = 'margin:4px 0 6px;padding:12px;border:1px solid #c4b5fd;border-radius:10px;background:#f5f3ff;color:#334155;';
+  const factTitle = document.createElement('b');
+  factTitle.textContent = 'Published fact-check reviews — independent from the prediction';
+  factChecks.appendChild(factTitle);
+  if (result.fact_check_matches?.length) {
+    result.fact_check_matches.slice(0, 3).forEach((item) => {
+      const source = document.createElement('a'); source.href = item.url; source.target = '_blank'; source.rel = 'noreferrer'; source.textContent = `${item.title || item.claim}${item.rating ? ` — rating: ${item.rating}` : ''}`; factChecks.appendChild(source);
+    });
+  } else {
+    const factStatus = document.createElement('span');
+    factStatus.textContent = result.fact_check_status === 'not_requested'
+      ? 'Fact-check lookup is off. Enable it in the SuriPH popup.'
+      : result.fact_check_status === 'no_results'
+        ? 'Google Fact Check returned no matching published review.'
+        : 'Google Fact Check lookup is unavailable; the prediction is unchanged.';
+    factChecks.appendChild(factStatus);
+  }
+  container.appendChild(factChecks);
 
   const signals = document.createElement('details'); signals.style.cssText = 'padding:12px;margin:12px 0;border:1px solid #cbd5e1;border-radius:10px;';
   const signalsTitle = document.createElement('summary'); signalsTitle.textContent = 'Seven measured text signals'; signals.appendChild(signalsTitle);
   for (const item of result.linguistic_indicators || []) {
     const row = document.createElement('p'); row.textContent = `${item.display_name || item.name}: ${Number(item.value).toFixed(4)} ratio. ${item.definition || ''}`; signals.appendChild(row);
   }
-  const scope = document.createElement('p'); scope.textContent = 'Text signals are not feature contributions or proof of falsehood. Zero denominators produce 0. This page analysis is not saved. Use the popup for optional research storage or related-source lookup.'; signals.appendChild(scope); container.appendChild(signals);
+  const scope = document.createElement('p'); scope.textContent = 'Text signals are not feature contributions or proof of falsehood. Zero denominators produce 0. This page analysis is not saved. Related-source lookup follows the setting in the popup.'; signals.appendChild(scope); container.appendChild(signals);
   if (result.context_explanation) {
     const context = result.context_explanation;
     const explanation = document.createElement('section');
@@ -242,56 +290,6 @@ function renderRichResult(container, result) {
   }
 }
 
-function renderResult(container, result) {
-  const label = result.public_label || 'Screening complete';
-  const score = Number(result.model_score) * 100;
-  container.replaceChildren();
-  container.style.color = '#0f172a'; container.style.marginTop = '8px';
-  const brand = document.createElement('div'); brand.textContent = 'SuriPH'; brand.style.cssText = 'margin-bottom:10px;color:#0f766e;font-size:20px;font-weight:800;letter-spacing:-.02em;'; container.appendChild(brand);
-  const heading = document.createElement('strong'); heading.textContent = label; heading.style.cssText = 'display:block;margin:0 -2px 8px;padding:14px 16px;border-radius:10px;background:#10b981;color:#052e24;font-size:16px;text-align:center;'; container.appendChild(heading);
-  const scoreLine = document.createElement('p'); scoreLine.textContent = `Misleading-class model score: ${score.toFixed(2)}% (threshold: ${(result.decision_threshold * 100).toFixed(0)}%)`; scoreLine.style.cssText = 'margin-bottom:4px;font-weight:700;'; container.appendChild(scoreLine);
-  if (result.context_explanation) {
-    const explanation = document.createElement('section'); explanation.style.cssText = 'display:grid;gap:8px;margin-bottom:14px;padding:14px;border:1px solid #99f6e4;border-radius:12px;background:#f0fdfa;color:#134e4a;';
-    const title = document.createElement('strong'); title.textContent = 'Context overview'; title.style.cssText = 'font-size:16px;color:#0f766e;'; explanation.appendChild(title);
-    const overviewLabel = document.createElement('b'); overviewLabel.textContent = 'Supplied text excerpt'; explanation.appendChild(overviewLabel);
-    const overview = document.createElement('p'); overview.textContent = result.context_explanation.overview || 'There was not enough readable content to produce a clear overview.'; overview.style.cssText = 'margin:0;line-height:1.55;'; explanation.appendChild(overview);
-    if (result.context_explanation.main_points?.length) { const pointsTitle = document.createElement('b'); pointsTitle.textContent = 'Separate claims identified'; explanation.appendChild(pointsTitle); const list = document.createElement('ul'); list.style.cssText = 'display:grid;gap:5px;margin:0;padding-left:20px;'; result.context_explanation.main_points.forEach((point) => { const item = document.createElement('li'); item.textContent = point; list.appendChild(item); }); explanation.appendChild(list); }
-    const timing = document.createElement('small'); timing.textContent = `Source: ${result.context_explanation.author} | Posted: ${result.context_explanation.timing} | ${result.context_explanation.freshness}`; timing.style.cssText = 'color:#475569;line-height:1.45;'; explanation.appendChild(timing); container.appendChild(explanation);
-  }
-  if (result.context_explanation) {
-    const explanationCard = container.querySelector('section'); const timingLine = explanationCard?.querySelector('small');
-    if (timingLine) timingLine.textContent = `Source: ${result.context_explanation.author} | Posted: ${result.context_explanation.timing}`;
-    const addContextLine = (text) => { if (!text || !explanationCard) return; const line = document.createElement('p'); line.textContent = text; line.style.cssText = 'margin:0;color:#334155;line-height:1.45;'; explanationCard.appendChild(line); };
-    addContextLine(result.context_explanation.recency_explanation); addContextLine(result.context_explanation.assessment_scope); addContextLine(result.context_explanation.related_coverage);
-  }
-  if (!result.context_explanation && (result.page_title || result.page_url)) {
-    const context = document.createElement('span'); context.textContent = `Context: ${result.page_title || result.page_url}`; context.title = result.page_url || '';
-    container.appendChild(context);
-  }
-  if (!result.context_explanation && result.context && Object.values(result.context).some(Boolean)) {
-    const contextBox = document.createElement('div'); contextBox.className = 'context-box'; contextBox.style.cssText = 'display:grid;gap:4px;margin-top:8px;padding:10px;border:1px solid #dbe4ee;border-radius:10px;background:#f7fafc;font-size:12px;color:#334155;';
-    const contextTitle = document.createElement('span'); contextTitle.textContent = 'Post context'; contextBox.appendChild(contextTitle);
-    [['Who posted it', result.context.author], ['When it was posted', result.context.published_text || result.context.published_at], ['How recent it is', result.context.freshness], ['What was checked', result.context.extraction_scope]].forEach(([name, value]) => {
-      if (!value) return; const line = document.createElement('div'); const label = document.createElement('b'); label.textContent = `${name}: `; const val = document.createElement('span'); val.textContent = value; line.append(label, val); contextBox.appendChild(line);
-    });
-    if (result.context.visible_links?.length) { const links = document.createElement('div'); const label = document.createElement('b'); label.textContent = 'Post links: '; links.appendChild(label); links.append(document.createTextNode(`${result.context.visible_links.length} visible link(s)`)); contextBox.appendChild(links); }
-    container.appendChild(contextBox);
-  }
-  if (result.retrieval_status === 'no_results') { const status = document.createElement('span'); status.textContent = 'No related links are available for this result.'; container.appendChild(status); }
-  if (result.media_status === 'unavailable') { const mediaNotice = document.createElement('span'); mediaNotice.textContent = `Media: ${result.media_error || 'unavailable'} Text screening is still shown.`; mediaNotice.dataset.tone = 'error'; container.appendChild(mediaNotice); }
-  if (result.analyzed_text) {
-    const details = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'View the content checked by SuriPH';
-    const text = document.createElement('div'); text.textContent = result.analyzed_text; details.append(summary, text); container.appendChild(details);
-  }
-  container.dataset.tone = result.internal_label === 'Misleading' ? 'warn' : 'safe';
-  if (result.related_sources?.length) {
-    const sources = document.createElement('div'); sources.className = 'sources'; sources.style.color = '#334155';
-    const title = document.createElement('span'); title.textContent = 'RELATED READING — NOT VERIFIED EVIDENCE'; sources.appendChild(title);
-    result.related_sources.slice(0, 3).forEach((item) => { const source = document.createElement('a'); source.href = item.url; source.target = '_blank'; source.rel = 'noreferrer'; source.textContent = item.title || item.url; sources.appendChild(source); });
-    container.appendChild(sources);
-  }
-  if (result.disclaimer) { const disclaimer = document.createElement('div'); disclaimer.textContent = result.disclaimer; disclaimer.style.cssText = 'margin-top:12px;padding:11px 12px;border:1px solid #f59e0b;border-left:4px solid #f59e0b;border-radius:8px;background:#fffbeb;color:#78350f;font-size:11px;line-height:1.45;font-weight:600;'; container.appendChild(disclaimer); }
-}
 function renderMediaChooser(post, button, message, result, media) {
   result.replaceChildren();
   const title = document.createElement('strong'); title.textContent = 'What would you like SuriPH to check?'; title.style.cssText = 'display:block;font-size:18px;margin-bottom:8px;color:#0f172a'; result.appendChild(title);
@@ -324,12 +322,12 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto') {
   if (!text && mediaChoice === 'text') { clearTimeout(hardTimeout); clearInterval(progressTimer); button.disabled = false; button.textContent = 'Check with SuriPH'; setMessage(message, 'No readable post text found.', 'error'); return; }
   if (mediaChoice === 'video' && media.has_video) {
     setMessage(message, media.video_url ? 'SuriPH is retrieving the loaded video content...' : 'SuriPH is capturing the video playback...', 'loading');
-    obtainVideoBlob(post, media.video_url).then((blob) => { if (timedOut) return null; clearInterval(progressTimer); const playedVideo = findBestVideo(post); try { playedVideo?.pause(); if (playedVideo) { playedVideo.loop = false; playedVideo.autoplay = false; if (Number.isFinite(playedVideo.duration)) playedVideo.currentTime = Math.max(0, playedVideo.duration - 0.1); } } catch (_) {} setMessage(message, 'Video captured. SuriPH is now extracting speech and on-screen text...', 'loading'); return blob.arrayBuffer(); }).then((arrayBuffer) => { if (!arrayBuffer || timedOut) return; const videoBase64 = arrayBufferToBase64(arrayBuffer); chrome.runtime.sendMessage({ type: 'SURIPH_ANALYZE_CAPTURE', videoBase64, payload: { text, page_url: location.href, page_title: document.title, context: collectPostContext(post) } }, (response) => {
+    obtainVideoBlob(post, media.video_url).then((blob) => { if (timedOut) return null; clearInterval(progressTimer); const playedVideo = findBestVideo(post); try { playedVideo?.pause(); if (playedVideo) { playedVideo.loop = false; playedVideo.autoplay = false; if (Number.isFinite(playedVideo.duration)) playedVideo.currentTime = Math.max(0, playedVideo.duration - 0.1); } } catch (_) {} setMessage(message, 'Video captured. SuriPH is now extracting speech and on-screen text...', 'loading'); return blob.arrayBuffer(); }).then((arrayBuffer) => { if (!arrayBuffer || timedOut) return; const videoBase64 = arrayBufferToBase64(arrayBuffer); chrome.runtime.sendMessage({ type: 'SURIPH_ANALYZE_CAPTURE', videoBase64, payload: { text, page_url: location.href, page_title: document.title, context: collectPostContext(post), retrieve_sources: retrievalEnabled } }, (response) => {
       if (timedOut) return; clearInterval(progressTimer); clearTimeout(hardTimeout); const runtimeError = chrome.runtime.lastError; button.disabled = false; button.textContent = 'Check again'; if (runtimeError || !response?.ok) { setMessage(message, response?.error || 'The in-page video could not be processed.', 'error'); return; } setMessage(message, '');  button.dataset.recheck = 'true'; renderRichResult(result, response.result);
     }); }).catch((error) => { if (timedOut) return; clearInterval(progressTimer); clearTimeout(hardTimeout); button.disabled = false; button.textContent = 'Check again'; setMessage(message, error.message, 'error'); });
     return;
   }
-  chrome.runtime.sendMessage({ type: 'SURIPH_ANALYZE_TEXT', payload: { text, page_url: location.href, page_title: document.title, context: collectPostContext(post), media: selectedMedia } }, (response) => {
+  chrome.runtime.sendMessage({ type: 'SURIPH_ANALYZE_TEXT', payload: { text, page_url: location.href, page_title: document.title, context: collectPostContext(post), media: selectedMedia, retrieve_sources: retrievalEnabled } }, (response) => {
     clearInterval(progressTimer);
     if (timedOut) return; clearTimeout(hardTimeout); const runtimeError = chrome.runtime.lastError; button.disabled = false; button.textContent = 'Check again';
     if (runtimeError || !response?.ok) { setMessage(message, response?.error || 'SuriPH backend is unavailable.', 'error'); return; }
@@ -350,7 +348,14 @@ function injectControl(post) {
 }
 function scanForControls() { if (extensionEnabled) for (const post of findPosts()) injectControl(post); }
 function removeControls() { document.querySelectorAll('#suriph-control-host').forEach((host) => host.remove()); document.querySelectorAll(`[${CONTROL_ATTRIBUTE}]`).forEach((post) => post.removeAttribute(CONTROL_ATTRIBUTE)); }
-chrome.storage.local.get({ suriphEnabled: true }, (settings) => { extensionEnabled = settings.suriphEnabled !== false; scanForControls(); });
+chrome.storage.local.get({ suriphEnabled: true, suriphRetrieveSources: false }, (settings) => {
+  extensionEnabled = settings.suriphEnabled !== false;
+  retrievalEnabled = settings.suriphRetrieveSources === true;
+  scanForControls();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.suriphRetrieveSources) retrievalEnabled = changes.suriphRetrieveSources.newValue === true;
+});
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === 'SURIPH_EXTRACT') {
     if (message.mode === 'selection') {

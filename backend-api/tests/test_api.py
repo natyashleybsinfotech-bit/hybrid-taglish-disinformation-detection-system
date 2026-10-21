@@ -39,13 +39,13 @@ class ApiTests(unittest.TestCase):
             "retrieve_related_sources",
             return_value={"retrieval_status": "disabled", "related_sources": []},
         )
-        self.retrieval_patcher.start()
+        self.retrieval_mock = self.retrieval_patcher.start()
         self.fact_check_patcher = patch.object(
             application,
             "search_fact_checks",
             return_value={"status": "no_results", "matches": [], "signal": None},
         )
-        self.fact_check_patcher.start()
+        self.fact_check_mock = self.fact_check_patcher.start()
         self.candidate_patcher = patch.object(application.database, "create_candidate", return_value=42)
         self.candidate_mock = self.candidate_patcher.start()
         self.audit_patcher = patch.object(application.database, "log_audit", return_value=1)
@@ -110,6 +110,35 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.json()["internal_label"], baseline["internal_label"])
         self.assertEqual(response.json()["retrieval_status"], "unavailable")
 
+    def test_lookup_calls_both_providers_without_changing_prediction(self):
+        self.retrieval_mock.return_value = {
+            "retrieval_status": "available",
+            "related_sources": [{"title": "Related report", "url": "https://example.org/report"}],
+        }
+        self.fact_check_mock.return_value = {
+            "status": "available",
+            "matches": [{"title": "Published review", "url": "https://example.org/review", "rating": "False"}],
+            "signal": None,
+        }
+        response = self.client.post("/analyze", json={"retrieve_sources": True, "text": "A supplied claim"})
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["public_label"], "Prediction: Non-Misleading")
+        self.assertEqual(body["retrieval_status"], "available")
+        self.assertEqual(body["fact_check_status"], "available")
+        self.assertEqual(len(body["related_sources"]), 1)
+        self.assertEqual(len(body["fact_check_matches"]), 1)
+        self.retrieval_mock.assert_called_once()
+        self.fact_check_mock.assert_called_once_with("A supplied claim")
+
+    def test_lookup_is_opt_in(self):
+        response = self.client.post("/analyze", json={"text": "A supplied claim"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["retrieval_status"], "not_requested")
+        self.assertEqual(response.json()["fact_check_status"], "not_requested")
+        self.retrieval_mock.assert_not_called()
+        self.fact_check_mock.assert_not_called()
+
     def test_long_text_is_passed_completely_to_classifier(self):
         text = "Taglish test input. " * 2000 + "TAIL_MARKER"
         self.client.post("/analyze", json={"text": text})
@@ -173,6 +202,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn(first.json()["public_label"], {
             "Prediction: Misleading", "Prediction: Non-Misleading"
         })
+        self.assertIn("out-of-distribution", first.json()["model_scope_notice"])
         self.candidate_mock.assert_not_called()
 
     def test_google_fact_check_cannot_overwrite_public_verdict(self):
@@ -189,13 +219,14 @@ class ApiTests(unittest.TestCase):
             "matches": [{"url": signal["source_url"], "rating": "False"}],
             "signal": signal,
         }):
-            response = self.client.post("/analyze", json={"text": "A closely matching claim"})
+            response = self.client.post("/analyze", json={"text": "A closely matching claim", "retrieve_sources": True})
         self.fact_check_patcher.start()
         body = response.json()
         self.assertEqual(body["public_label"], "Prediction: Non-Misleading")
         self.assertEqual(body["decision_source"], "screening_model")
         self.assertIsNone(body["decision_basis"])
-        self.assertEqual(body["fact_check_status"], "admin_review_only")
+        self.assertEqual(body["fact_check_status"], "available")
+        self.assertEqual(body["fact_check_matches"][0]["rating"], "False")
 
     def test_context_does_not_fabricate_individual_fact_checks(self):
         payload = {

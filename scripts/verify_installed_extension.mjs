@@ -153,6 +153,7 @@ try {
   let popup = await reopenPopup(port, extensionId, social.client); clients.push(popup);
   await waitFor(popup, 'document.body.innerText.includes("Server retention:")', 20000);
   await screenshot(popup, 'popup-installed-empty');
+  await evaluate(popup, `(() => { const input=[...document.querySelectorAll('label')].find(node=>node.textContent.includes('Search related reading'))?.querySelector('input'); if(!input.checked) input.click(); return input.checked; })()`);
 
   await clickText(popup, 'Analyze text');
   await waitFor(popup, 'Boolean(document.querySelector("[role=alert]"))');
@@ -174,6 +175,7 @@ try {
   popup.close();
   await waitForPopupToClose(port, extensionId);
   popup = await reopenPopup(port, extensionId, social.client); clients.push(popup);
+  assert.equal(await evaluate(popup, `[...document.querySelectorAll('label')].find(node=>node.textContent.includes('Search related reading'))?.querySelector('input').checked`), true, 'Lookup preference did not persist');
   await clickText(popup, 'Page tools off');
   await waitFor(social.client, 'Boolean(document.querySelector("#suriph-control-host"))');
 
@@ -203,11 +205,11 @@ try {
   await waitFor(popup, 'document.querySelectorAll("[data-feature]").length===7', 180000);
   assert.ok((await evaluate(popup, 'document.querySelector(".input-preview")?.textContent || ""')).endsWith('UNIQUE_TAIL_73129'));
 
-  await setControl(popup, '#screen-text', 'PAGASA official weather advisory Philippines');
-  await evaluate(popup, `(() => { const input=[...document.querySelectorAll('label')].find(node=>node.textContent.includes('Search related sources'))?.querySelector('input'); if(!input.checked) input.click(); return input.checked; })()`);
+  await setControl(popup, '#screen-text', 'Philippines typhoon weather advisory');
   await clickText(popup, 'Analyze text');
   await waitFor(popup, 'document.querySelectorAll("[data-feature]").length===7', 180000);
-  const sourceLinks = await evaluate(popup, 'document.querySelectorAll("article.source a").length');
+  const sourceLinks = await evaluate(popup, `(() => { const heading=[...document.querySelectorAll('h3')].find(node=>node.textContent.includes('Related reading')); return heading?.parentElement.querySelectorAll('a').length || 0; })()`);
+  const factCheckLinks = await evaluate(popup, `(() => { const heading=[...document.querySelectorAll('h3')].find(node=>node.textContent.includes('Published fact-check reviews')); return heading?.parentElement.querySelectorAll('a').length || 0; })()`);
 
   await evaluate(popup, `(() => { const label=[...document.querySelectorAll('label')].find(node=>node.textContent.includes('voluntarily consent')); const input=label?.querySelector('input'); if(!input.checked) input.click(); return input.checked; })()`);
   await setControl(popup, '#screen-text', 'Synthetic consent rehearsal record; no participant content.');
@@ -263,9 +265,9 @@ try {
     passed: true, browser: path.basename(CHROME).toLowerCase().includes('msedge') ? 'Microsoft Edge' : 'Google Chrome', isolated_profile: true, unpacked_extension_loaded: true,
     extension_id_observed: true, popup_opened_from_action: true, actual_backend: true,
     manual_text: 'passed', empty_input: 'passed', selected_text: 'passed', supported_caption_fixture: 'passed',
-    page_tools_reload_toggle: 'passed', repeated_submission_single_request: 'passed', stale_result_cleared: 'passed',
+    page_tools_reload_toggle: 'passed', lookup_preference_persistence: 'passed', repeated_submission_single_request: 'passed', stale_result_cleared: 'passed',
     long_input_complete_tail: 'passed', seven_feature_values_match_backend: 'passed',
-    live_evidence_links_returned: sourceLinks, consent_feedback_withdrawal: 'passed',
+    live_evidence_links_returned: sourceLinks, live_fact_check_links_returned: factCheckLinks, consent_feedback_withdrawal: 'passed',
     admin_login_logout: 'passed', admin_session_reload_persistence: sessionPersisted ? 'passed' : 'failed',
     admin_export: 'passed', viewer_export_status: viewerStatus, expired_session_status: expiredStatus,
     screenshots_private: true, screenshot_directory: path.relative(ROOT, SHOTS).replaceAll('\\', '/'),

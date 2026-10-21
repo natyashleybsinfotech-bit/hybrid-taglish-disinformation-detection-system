@@ -12,15 +12,16 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | --- | --- | --- |
 | Raw-text hybrid parity | 598/598 labels; no probability mismatches at atol=rtol=1e-5 | [HYBRID-VERIFICATION.json](HYBRID-VERIFICATION.json) |
 | Model identity | Only model_4; run 20261011T235112Z; pinned SHA-256; threshold 0.65; CPU | [Integration contract](HYBRID-INTEGRATION.md) |
-| Backend regression suite | 71 tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
+| Backend regression suite | 70 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
+| Model scope sanity probe | Saved examples produced both classes as recorded, but 10/10 short general statements were predicted Misleading with scores from 0.902293 to 1.0 | [Diagnostic report](MODEL-SANITY-DIAGNOSTIC.json) |
 | Live API and extension transport | Actual fresh inference, empty/long input, separate consented records, real fetch through extension client/background | [HTTP report](HYBRID-HTTP-VERIFICATION.json) |
 | MariaDB | Empty/idempotent v1–v5 migration, actual provision command, DML-only writes, denied DDL, rollback, restart, outage, isolated SQL restore and withdrawal | [MariaDB report](MARIADB-VERIFICATION.json) |
 | Existing local database | Private logical backup made; schema v5 applied; existing candidate count preserved | Local operator execution; ignored backup under `backups/pre-schema5-*.sql.gz` |
-| Evidence providers | Actual Serper request: 2 links, 2692 ms. Actual Google Fact Check request: 3 reviews, 690 ms | [Provider report](PROVIDER-VERIFICATION.json) |
+| Evidence providers | Current live provider check: Serper returned 3 links and Google Fact Check returned 3 reviews; an installed-extension run displayed 2 related links and 3 fact-check links | [Provider report](PROVIDER-VERIFICATION.json), [installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
 | Provider edge cases | Mocked success/empty/timeout, malformed or oversized response rejection, redirect rejection, missing-key behavior | `test_services.py`, `test_participant.py`; these fixtures are not live evidence |
 | Media | Actual EasyOCR image smoke passed in 13.4 s; video OCR + Whisper smoke passed in 21.4 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
 | UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; narrow viewport overflow checked | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
-| Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, synthetic supported-origin selection/caption, live toggle, long/stale/duplicate behavior, live evidence and consent/withdrawal passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
+| Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, focused caption extraction, reload toggle, persisted opt-in lookup, long/stale/duplicate behavior, live Serper/Google evidence and consent/withdrawal passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
 | Extension failure states | A stopped backend produced a clear unavailable message and no prediction; controlled popup checks covered timeout, no-results and provider-unavailable display without changing the classifier result | [Failure-state report](EXTENSION-FAILURE-VERIFICATION.json) |
 | Administrator browser flow | Actual isolated Chrome login, HttpOnly-cookie reload, export, logout, viewer 403, expired 401, first keyboard focus and narrow layout passed | [Admin browser report](ADMIN-BROWSER-VERIFICATION.json) |
 | Frontends | Dashboard lint/build and extension build passed; release extension build intentionally rejects missing HTTPS configuration | `npm run lint`, `npm run build`, `npm run build:release` |
@@ -32,6 +33,13 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 The full raw-text pipeline—not saved embeddings or cached answers—produces the parity
 report. The original maximum absolute difference was 3.1492805406818647e-6. Reference
 records were used only for integration checks. No model was trained or tuned.
+
+Parity proves that serving reproduces the saved artifact; it does not prove that the
+artifact generalizes. A targeted live probe of ten brief ordinary English/Filipino/
+Taglish statements produced ten Misleading predictions, including several saturated
+scores. This is a material model-quality limitation, not a loader or fallback-model
+defect. The UI now warns about brief/out-of-distribution inputs and the extension extracts
+focused post caption text, but those changes do not correct the classifier itself.
 
 ## Resource measurements and their limits
 
@@ -93,6 +101,7 @@ store actual responses only under private, ignored `research-data/` or approved 
 
 - [x] Required artifact hashes, exact preprocessing/features, threshold and parity verified.
 - [x] Failure paths return errors; no reachable alternate classifier or random label.
+- [ ] Model owner resolves the observed short-input Misleading bias through a new reviewed training run, or formally restricts and validates the supported input scope.
 - [x] No default raw-input storage; consent, deletion, feedback and access checks tested.
 - [x] Native MariaDB migration, least-privilege provisioning, restart and logical restore passed.
 - [x] Live providers and synthetic media processing checked; model and retrieval timings separated.

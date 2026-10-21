@@ -32,11 +32,13 @@ duration, not bodies, raw text or credentials; the server/network may process co
 information. The extension no longer stores previous input or results on disk.
 
 Related-source search is a separate, unchecked choice. When selected, up to 500 cleaned
-characters are sent as a search query to Serper/Google. Their processing is outside the
-study's database. Opening a retrieved link contacts that publisher. Links do not establish
-that the classifier is correct. [Serper provider](https://serper.dev/) supplies search results;
-the [Google Fact Check Tools API](https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search)
-is restricted to researcher evidence review.
+characters are sent as a search query to Serper and Google Fact Check. The choice persists
+on the device and also applies to the in-page S button until switched off. Provider
+processing is outside the study's database. Opening a retrieved link contacts that
+publisher. Serper links and published fact-check ratings are independent context; neither
+establishes that the classifier is correct or changes its prediction. [Serper](https://serper.dev/)
+supplies related search results, and the [Google Fact Check Tools API](https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search)
+supplies matching published reviews when available.
 
 Saving for research is optional and unchecked. If selected, the server saves a random
 record ID, consent version, input type, prediction, model identity, seven measurements,

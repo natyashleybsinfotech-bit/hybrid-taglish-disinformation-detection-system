@@ -4,7 +4,7 @@
     "credential_present": true,
     "status": "available",
     "results": 3,
-    "latency_ms": 1804.463,
+    "latency_ms": 1751.452,
     "live_request_attempted": true
   },
   "google_fact_check": {
@@ -12,7 +12,7 @@
     "credential_present": true,
     "status": "available",
     "results": 3,
-    "latency_ms": 786.555,
+    "latency_ms": 717.576,
     "live_request_attempted": true
   }
 }

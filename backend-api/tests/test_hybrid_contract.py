@@ -33,6 +33,9 @@ class HybridContractTests(unittest.TestCase):
         predictions = runtime.predict_many(["one input", "second input"])
         self.assertEqual([p.predicted_class for p in predictions], [0, 1])
         self.assertEqual([p.model_score for p in predictions], [.64, .65])
+        self.assertEqual([p.public_label for p in predictions], ["No Misleading Information Detected", "Potentially Misleading"])
+        self.assertEqual([p.to_dict()["displayed_class_score"] for p in predictions], [.36, .65])
+        self.assertEqual([p.to_dict()["misleading_probability"] for p in predictions], [.64, .65])
         runtime._pipeline.infer.assert_called_once_with(["one input", "second input"])
 
     def test_failure_clears_readiness_and_never_returns_a_label(self):

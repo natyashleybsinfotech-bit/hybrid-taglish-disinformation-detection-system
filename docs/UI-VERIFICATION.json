@@ -1,6 +1,7 @@
 {
   "actual_component_rendering": true,
   "actual_api_feature_values_matched": true,
+  "bilingual_narrow_layout": true,
   "installed_extension_e2e": false,
   "browser": "headless Chrome",
   "views": [
@@ -17,7 +18,7 @@
       "rendered": true
     },
     {
-      "view": "popup-result",
+      "view": "popup-result-en",
       "width": 390,
       "height": 1450,
       "layout": {
@@ -25,7 +26,19 @@
         "clientWidth": 375,
         "scrollWidth": 375
       },
-      "screenshot": "verification/ui/popup-result.png",
+      "screenshot": "verification/ui/popup-result-en.png",
+      "rendered": true
+    },
+    {
+      "view": "popup-result-tl-narrow",
+      "width": 320,
+      "height": 1450,
+      "layout": {
+        "width": 320,
+        "clientWidth": 305,
+        "scrollWidth": 305
+      },
+      "screenshot": "verification/ui/popup-result-tl-narrow.png",
       "rendered": true
     },
     {

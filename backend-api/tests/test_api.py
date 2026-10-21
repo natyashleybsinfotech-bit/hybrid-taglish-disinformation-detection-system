@@ -26,7 +26,7 @@ class ApiTests(unittest.TestCase):
             "classify",
             return_value=Prediction(
                 internal_label="Non-Misleading",
-                public_label="Prediction: Non-Misleading",
+                public_label="No Misleading Information Detected",
                 confidence=0.84,
                 model_status="ready",
                 model_name="Test model",
@@ -123,7 +123,7 @@ class ApiTests(unittest.TestCase):
         response = self.client.post("/analyze", json={"retrieve_sources": True, "text": "A supplied claim"})
         body = response.json()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(body["public_label"], "Prediction: Non-Misleading")
+        self.assertEqual(body["public_label"], "No Misleading Information Detected")
         self.assertEqual(body["retrieval_status"], "available")
         self.assertEqual(body["fact_check_status"], "available")
         self.assertEqual(len(body["related_sources"]), 1)
@@ -200,7 +200,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn("fact_check_matches", first.json())
         self.assertEqual(first.json()["page_url"], None)
         self.assertIn(first.json()["public_label"], {
-            "Prediction: Misleading", "Prediction: Non-Misleading"
+            "Potentially Misleading", "No Misleading Information Detected"
         })
         self.assertIn("out-of-distribution", first.json()["model_scope_notice"])
         self.candidate_mock.assert_not_called()
@@ -222,7 +222,7 @@ class ApiTests(unittest.TestCase):
             response = self.client.post("/analyze", json={"text": "A closely matching claim", "retrieve_sources": True})
         self.fact_check_patcher.start()
         body = response.json()
-        self.assertEqual(body["public_label"], "Prediction: Non-Misleading")
+        self.assertEqual(body["public_label"], "No Misleading Information Detected")
         self.assertEqual(body["decision_source"], "screening_model")
         self.assertIsNone(body["decision_basis"])
         self.assertEqual(body["fact_check_status"], "available")
@@ -270,7 +270,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.json()["analyzed_text"], "OCR sample text")
         self.assertIn("context_explanation", response.json())
         self.assertIn(response.json()["public_label"], {
-            "Prediction: Misleading", "Prediction: Non-Misleading"
+            "Potentially Misleading", "No Misleading Information Detected"
         })
         self.candidate_mock.assert_not_called()
 

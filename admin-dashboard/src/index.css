@@ -367,7 +367,7 @@ td {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Participant-study accessibility and narrow-screen layout. */
+/* Shared accessibility and narrow-screen layout. */
 :focus-visible { outline: 3px solid #0e7490; outline-offset: 3px; }
 .login-shell { grid-template-columns: minmax(0, 1fr); }
 .login-layout, .login-layout > *, .login-form, .field-label, .field-label input { min-width: 0; max-width: 100%; }

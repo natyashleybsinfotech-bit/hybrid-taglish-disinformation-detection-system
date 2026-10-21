@@ -3,8 +3,8 @@
 **Implemented and locally tested; deployment prepared; not publicly deployed.**
 See [the release evidence and GO/NO-GO gate](docs/RELEASE-READINESS.md) before inviting participants.
 The [documentation index](docs/README.md) maps research references, setup and deployment.
-The selected hybrid model is verified. An isolated Edge Chromium extension rehearsal
-passed; Linux containers, production HTTPS and a manual Chrome/assistive-tech study
+The selected hybrid model is verified. An earlier isolated Edge Chromium extension rehearsal
+passed; Linux containers, production HTTPS and a manual Google Chrome/Facebook study
 session still need completion.
 
 ## This prepared Windows workstation
@@ -28,8 +28,8 @@ In a second terminal, from the project root:
 
 ```powershell
 cd admin-dashboard
-npm ci
-npm run dev -- --host 127.0.0.1
+npm.cmd ci
+npm.cmd run dev -- --host 127.0.0.1
 ```
 
 Open `http://127.0.0.1:5173` (use the same host spelling as the API for local cookies).
@@ -40,14 +40,14 @@ In a third terminal:
 
 ```powershell
 cd chrome-extension
-npm ci
-npm run build
+npm.cmd ci
+npm.cmd run build
 ```
 
 Open `chrome://extensions`, enable Developer mode, **Load unpacked**, select
 `chrome-extension/dist`. Reload existing installs and supported pages after a build.
-Manual text works from the popup; selection/caption extraction requires a supported
-social page. Media extraction is experimental and has only synthetic smoke evidence.
+Manual text works from the popup; selection/caption extraction is supported only on
+Facebook. Media extraction is experimental and has only synthetic smoke evidence.
 No Chrome Web Store publication has occurred.
 
 Check the API:
@@ -58,9 +58,10 @@ Invoke-RestMethod http://127.0.0.1:8000/analyze -Method Post -ContentType applic
 ```
 
 The default request saves nothing and does not query an external evidence provider.
-The popup has one unchecked choice for external source lookup. Participant surveys and
-responses are handled separately from the extension and administrator dashboard; the
-screening API does not save them.
+The popup has one unchecked choice for external source lookup. A separate explicit-consent
+action can submit the analyzed text to the private human-review queue; it does not add the
+text to a dataset. Participant surveys and responses are handled separately from the
+extension and administrator dashboard; the screening API does not save them.
 
 ## Reproducible local Compose rehearsal (Docker required)
 
@@ -97,6 +98,7 @@ From the project root (local model artifacts and test records required):
 ```powershell
 .\.venv\Scripts\python.exe -B -m unittest discover -s backend-api/tests -p 'test_*.py' -v
 .\.venv\Scripts\python.exe -B backend-api/scripts/verify_hybrid.py
+.\.venv\Scripts\python.exe -B backend-api/scripts/diagnose_prediction_path.py
 .\.venv\Scripts\python.exe -B backend-api/scripts/verify_http.py
 .\.venv\Scripts\python.exe scripts/verify_mariadb_local.py
 .\.venv\Scripts\python.exe scripts/verify_providers.py
@@ -115,7 +117,7 @@ printed. UI checks use installed headless Chrome, real React components and the 
 test result. The installed-extension script uses an isolated Edge Chromium profile and a
 synthetic supported-origin fixture; it does not test current third-party DOMs or accounts.
 All isolated test data are synthetic and ignored by Git. Do not use participant records
-as test fixtures. Run `npm run lint` and `npm run build` in the dashboard, and `npm run build`
+as test fixtures. Run `npm.cmd run lint` and `npm.cmd run build` in the dashboard, and `npm.cmd run build`
 in the extension after UI edits.
 
 ## Research and launch materials

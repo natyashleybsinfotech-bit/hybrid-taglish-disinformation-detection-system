@@ -92,7 +92,7 @@ export default function Candidates() {
 
   return <div>
     <h1>Candidate and evidence review</h1>
-    <p style={{ color: 'var(--text-secondary)' }}>Every completed text, image, and video screening enters this queue. Auto-topics and model labels remain suggestions until human review.</p>
+    <p style={{ color: 'var(--text-secondary)' }}>Only content that a user explicitly consents to submit enters this private queue. Auto-topics and model labels remain suggestions until human review; nothing enters a dataset automatically.</p>
     {error && <p style={{ color: 'var(--danger)', marginTop: 12 }}>{error}</p>}
 
     <section className="card" style={{ marginTop: 20 }}><h2>Candidate intake</h2>

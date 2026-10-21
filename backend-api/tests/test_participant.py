@@ -22,7 +22,7 @@ class ParticipantTests(unittest.TestCase):
         for item in self.patches: item.start()
         self.assertEqual(database.migrate()['status'], 'available')
         self.client = TestClient(application.app)
-        self.prediction = Prediction('Non-Misleading', 'Prediction: Non-Misleading', .6, 'ready', 'test', 'test', model_score=.4,
+        self.prediction = Prediction('Non-Misleading', 'No Misleading Information Detected', .6, 'ready', 'test', 'test', model_score=.4,
                                     linguistic_indicators=[{'name': 'capitalization_ratio', 'value': .125}])
         self.patches.append(patch.object(application, 'classify', return_value=self.prediction)); self.patches[-1].start()
     def tearDown(self):
@@ -55,9 +55,13 @@ class ParticipantTests(unittest.TestCase):
         self.assertIn('Uppercase',body['linguistic_indicators'][0]['definition'])
     def test_cookie_origin_is_checked(self):
         self.assertEqual(self.client.post('/admin-api/login',headers={'Origin':'https://evil.invalid'},json={'username':'x','password':'y'}).status_code,403)
-    def test_removed_agreement_and_candidate_capture_routes(self):
+    def test_agreement_route_removed_and_candidate_requires_explicit_consent(self):
         self.assertEqual(self.client.get('/admin-api/annotation-agreement').status_code,404)
-        self.assertEqual(self.client.post('/candidates',json={'text':'x'}).status_code,410)
+        self.assertEqual(self.client.post('/candidates',json={'text':'x'}).status_code,422)
+        response = self.client.post('/candidates',json={'text':'consented public example','consent_to_store':True})
+        self.assertEqual(response.status_code,201)
+        self.assertEqual(response.json()['status'],'submitted_for_human_review')
+        self.assertEqual(len(database.list_candidates()),1)
 
 class ProviderTests(unittest.TestCase):
     def test_success_empty_error_timeout_unsafe_link_and_dates(self):

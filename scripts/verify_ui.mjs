@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const output=path.join(root,'tmp/ui'); await mkdir(output,{recursive:true});
 const screenshots=path.join(root,'docs/verification/ui');await mkdir(screenshots,{recursive:true});
-const result=JSON.parse(await readFile(path.join(root,'tmp/ui-real-result.json'),'utf8'));
+const result=JSON.parse((await readFile(path.join(root,'tmp/ui-real-result.json'),'utf8')).replace(/^\uFEFF/,''));
 const browser=process.env.SURI_TEST_BROWSER || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const reports=[];
 async function capture(html, shot, name, width, height) {
@@ -40,7 +40,8 @@ async function capture(html, shot, name, width, height) {
 }
 for(const [name, project, component, width, height] of [
   ['popup-empty','chrome-extension','<Popup />',390,900],
-  ['popup-result','chrome-extension','<main className="popup-shell"><Result result={result}/></main>',390,1450],
+  ['popup-result-en','chrome-extension','<main className="popup-shell"><Result result={result} language="en" consent={false} setConsent={()=>{}} candidateState="idle" onSubmitCandidate={()=>{}} /></main>',390,1450],
+  ['popup-result-tl-narrow','chrome-extension','<main className="popup-shell"><Result result={result} language="tl" consent={false} setConsent={()=>{}} candidateState="idle" onSubmitCandidate={()=>{}} /></main>',320,1450],
   ['popup-narrow','chrome-extension','<Popup />',320,900],
   ['admin-login','admin-dashboard','<Login onLogin={()=>{}} />',1280,900],
   ['admin-login-narrow','admin-dashboard','<Login onLogin={()=>{}} />',390,900],
@@ -51,16 +52,16 @@ for(const [name, project, component, width, height] of [
   const built=await esbuild.build({stdin:{contents:source,resolveDir:base,loader:'jsx'},jsx:'automatic',bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env':'{}'},banner:{js:"import {createRequire} from 'node:module';const require=createRequire(import.meta.url);"}});
   const modulePath=path.join(output,name+'.mjs');await writeFile(modulePath,built.outputFiles[0].text);
   const {default:markup}=await import(pathToFileURL(modulePath));
-  if(name==='popup-result') for(const item of result.linguistic_indicators) {assert.ok(markup.includes(`data-value="${item.value}"`));assert.ok(markup.includes(item.display_name));}
+  if(name.startsWith('popup-result')) for(const item of result.linguistic_indicators) {assert.ok(markup.includes(`data-value="${item.value}"`));assert.ok(markup.includes(name.includes('-tl-') ? item.display_name_tagalog : item.display_name));}
   const assets=path.join(base,'dist/assets'), cssFile=(await readdir(assets)).find(file=>file.endsWith('.css'));
   const css=await readFile(path.join(assets,cssFile),'utf8');
   const html=path.join(output,name+'.html');
-  const expanded=name==='popup-result' ? markup.replaceAll('<details ', '<details open ') : markup;
-  await writeFile(html,`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SuriPH local rendering check</title><style>${css}${name==='popup-result'?'.popup-shell{max-height:none}':''}</style><body>${expanded}</body></html>`);
+  const expanded=name.startsWith('popup-result') ? markup.replaceAll('<details ', '<details open ') : markup;
+  await writeFile(html,`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SuriPH local rendering check</title><style>${css}${name.startsWith('popup-result')?'.popup-shell{max-height:none}':''}</style><body>${expanded}</body></html>`);
   const shot=path.join(screenshots,name+'.png');
   const layout=await capture(html,shot,name,width,height);
   const png=await readFile(shot);assert.ok(png.length>10000);
   reports.push({view:name,width,height,layout,screenshot:`verification/ui/${name}.png`,rendered:true});
 }
-await writeFile(path.join(root,'docs/UI-VERIFICATION.json'),JSON.stringify({actual_component_rendering:true,actual_api_feature_values_matched:true,installed_extension_e2e:false,browser:'headless Chrome',views:reports},null,2));
+await writeFile(path.join(root,'docs/UI-VERIFICATION.json'),JSON.stringify({actual_component_rendering:true,actual_api_feature_values_matched:true,bilingual_narrow_layout:true,installed_extension_e2e:false,browser:'headless Chrome',views:reports},null,2));
 console.log(JSON.stringify(reports));

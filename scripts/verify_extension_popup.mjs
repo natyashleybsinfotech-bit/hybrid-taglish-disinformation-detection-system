@@ -122,7 +122,7 @@ try {
     await waitFor(popup, 'Boolean(document.querySelector("[role=alert]"))', 15000);
     assert.match(await evaluate(popup, 'document.querySelector("[role=alert]").textContent'), /service is unavailable/i);
 
-    const actualFixture = JSON.parse(await readFile(path.join(ROOT, 'tmp', 'ui-real-result.json'), 'utf8'));
+    const actualFixture = JSON.parse((await readFile(path.join(ROOT, 'tmp', 'ui-real-result.json'), 'utf8')).replace(/^\uFEFF/, ''));
     for (const [retrievalStatus, expectedText] of [
       ['no_results', 'No matching links were returned'],
       ['unavailable', 'Related-source lookup is unavailable'],
@@ -171,10 +171,20 @@ try {
   const popupLabel = await evaluate(popup, `document.querySelector('[aria-label="Analysis result"] h2').textContent`);
   const popupScore = Number((await evaluate(popup, 'document.querySelector(".score strong").textContent')).replace(/[<>%]/g, '')) / 100;
   const apiResult = await fetch('http://127.0.0.1:8000/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: shortText }) }).then(response => response.json());
-  assert.equal(popupLabel, apiResult.internal_label);
-  assert.ok(Math.abs(popupScore - apiResult.model_score) < 0.00011);
+  const expectedLabel = apiResult.internal_label === 'Misleading' ? 'Potentially Misleading' : 'No Misleading Information Detected';
+  assert.equal(popupLabel, expectedLabel);
+  assert.ok(Math.abs(popupScore - apiResult.displayed_class_score) < 0.00011);
   const popupFeatures = await evaluate(popup, '[...document.querySelectorAll("[data-feature]")].map(n=>[n.dataset.feature,Number(n.dataset.value)])');
   assert.deepEqual(Object.fromEntries(popupFeatures), Object.fromEntries(apiResult.linguistic_indicators.map(item => [item.name, item.value])));
+
+  const resultBeforeLanguageSwitch = await evaluate(popup, `JSON.stringify({label:document.querySelector('[aria-label="Analysis result"] h2').textContent,score:document.querySelector('.score strong').textContent,text:document.querySelector('.input-preview').textContent,features:[...document.querySelectorAll('[data-feature]')].map(node=>node.dataset.value)})`);
+  await clickText(popup, 'Tagalog');
+  await waitFor(popup, `document.body.innerText.includes('Mga katangian ng teksto')`);
+  const resultAfterLanguageSwitch = await evaluate(popup, `JSON.stringify({label:document.querySelector('[aria-label="Analysis result"] h2').textContent,score:document.querySelector('.score strong').textContent,text:document.querySelector('.input-preview').textContent,features:[...document.querySelectorAll('[data-feature]')].map(node=>node.dataset.value)})`);
+  assert.equal(resultAfterLanguageSwitch, resultBeforeLanguageSwitch);
+  assert.equal(analyzeRequests, 1, 'Language switching must not make another inference request');
+  assert.ok((await evaluate(popup, 'document.body.scrollWidth <= document.body.clientWidth')));
+  await clickText(popup, 'English');
 
   await setValue(popup, '#screen-text', 'changed input clears old result');
   assert.equal(await evaluate(popup, `Boolean(document.querySelector('[aria-label="Analysis result"]'))`), false);
@@ -197,8 +207,9 @@ try {
     actual_backend_connection: true,
     empty_input: 'passed', manual_text_prediction: 'passed', duplicate_click_single_request: 'passed',
     stale_result_cleared: 'passed', long_text_tail_preserved: 'passed', seven_feature_values_match_backend: 'passed',
+    bilingual_switch_preserves_result_without_request: 'passed', narrow_width_no_horizontal_clipping: 'passed',
     survey_controls_absent: 'passed', screenshots_private: true,
-    content_script_social_extraction: 'covered by the separate installed-extension rehearsal',
+    content_script_facebook_extraction: 'not rerun on the current build; actual Google Chrome/Facebook interaction remains manual',
     limitations: ['No real social account or participant content was used.', 'Keyboard and screen-reader testing remains manual.'],
   };
   await writeFile(path.join(ROOT, 'docs', 'EXTENSION-POPUP-VERIFICATION.json'), JSON.stringify(report, null, 2) + '\n');

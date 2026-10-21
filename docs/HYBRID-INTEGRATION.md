@@ -154,14 +154,17 @@ threshold, readiness, package versions and load/inference error when present.
 
 ## Response and extension behavior
 
-`internal_label` retains the existing label strings; `public_label` now says
-`Prediction: Misleading` or `Prediction: Non-Misleading`. `model_score` is the
+`internal_label` retains the canonical `Misleading` and `Non-Misleading` strings;
+`public_label` uses the cautious labels `Potentially Misleading` and
+`No Misleading Information Detected`. `model_score` and `misleading_probability` are the
 unrounded class-1/Misleading score, with `predicted_class`, `decision_threshold`,
 `training_run_id`, `artifact_sha256`, `device`, chunk/token counts and the actual
 seven measured features. The legacy `confidence` field is retained for old clients
-as the selected class's probability, but the new UI uses `model_score` and does not
-describe it as calibrated confidence. A score below 0.65 predicts Non-Misleading,
-even if it exceeds 0.5.
+as the selected class's probability. `displayed_class_score` explicitly returns the
+score for the displayed class; the UI uses that field and keeps P(Misleading) in an
+expandable technical section. Neither is described as calibrated certainty. A
+Misleading score below 0.65 predicts Non-Misleading, even when the selected-class
+score is below 0.5.
 
 The public context panel contains a supplied-text excerpt and explicit scope, not
 invented claim-by-claim explanations. When the user enables lookup, Serper related
@@ -174,16 +177,23 @@ limit**; oversize input is rejected rather than silently clipped. The extension 
 longer clips post text to 20,000 characters or reuses a cached post prediction on a
 new screening action. It no longer silently substitutes caption-only screening
 when selected media fails. The popup no longer saves input/results or research
-receipts locally; only the page-tools and lookup preferences persist. Survey and
+receipts locally; only page-tools, lookup and interface-language preferences persist.
+The active manifest and media allowlist are Facebook-only. Recognized Facebook caption
+containers or exact user selections are used; the content script fails closed instead
+of classifying a whole feed/article container. Fixed English/Tagalog supporting text can
+be switched without another request, while both classification labels remain English.
+Survey and
 participant collection are separate from the extension and admin dashboard. The same
 lookup preference controls the in-page S button. Clicking Analyze performs a new request.
+An optional candidate submission requires an explicit consent checkbox and stores only
+the analyzed text/page metadata in the private review queue; ordinary screening is not stored.
 
 From the project root in another terminal:
 
 ```powershell
 Set-Location chrome-extension
-npm ci
-npm run build
+npm.cmd ci
+npm.cmd run build
 ```
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and
@@ -213,7 +223,7 @@ the extension's actual client and background handler against it. It also tests
 empty input, fresh text, persistence and a 1,611-content-token input across four chunks.
 No live development/production records are created by this HTTP harness.
 
-Recorded results: **70 backend tests passed**, the live HTTP and extension transport
+Recorded results: **69 backend tests passed**, the live HTTP and extension transport
 checks passed, both frontend builds passed, and dashboard lint and dependency checks
 passed. The HTTP aggregate report is
 [HYBRID-HTTP-VERIFICATION.json](HYBRID-HTTP-VERIFICATION.json).
@@ -225,8 +235,8 @@ already present in Git history.
 
 ## Limits and remaining release checks
 
-- Actual component rendering was checked in headless Chrome, including exact narrow
-  viewports. Installed-extension host permissions, real social-page extraction and
+- Actual English and Tagalog component rendering was checked in headless Chrome,
+  including a 320-pixel result viewport. Installed-extension host permissions, real Facebook extraction and
   browser video capture still require hands-on QA. See UI-VERIFICATION.json.
 - Actual CUDA inference was not exercised on this CPU workstation. Run the same
   comparison on the intended deployment hardware and retain its report.

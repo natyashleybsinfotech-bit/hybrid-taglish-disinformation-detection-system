@@ -12,9 +12,11 @@
   "stale_result_cleared": "passed",
   "long_text_tail_preserved": "passed",
   "seven_feature_values_match_backend": "passed",
+  "bilingual_switch_preserves_result_without_request": "passed",
+  "narrow_width_no_horizontal_clipping": "passed",
   "survey_controls_absent": "passed",
   "screenshots_private": true,
-  "content_script_social_extraction": "covered by the separate installed-extension rehearsal",
+  "content_script_facebook_extraction": "not rerun on the current build; actual Google Chrome/Facebook interaction remains manual",
   "limitations": [
     "No real social account or participant content was used.",
     "Keyboard and screen-reader testing remains manual."

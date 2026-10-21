@@ -4,7 +4,7 @@ Start with [START_HERE.md](START_HERE.md) and the [release evidence](docs/RELEAS
 Use the [documentation index](docs/README.md) to find the paper, training references,
 setup, research materials and [project layout](docs/PROJECT-STRUCTURE.md).
 
-SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Chrome extension, and an administrator dashboard. It screens text and text extracted from images or videos, reports model predictions and scores, and can attach related reporting and published fact-check evidence.
+SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Facebook-only Google Chrome extension, and an administrator dashboard. It screens manual or user-selected Facebook text and text extracted from images or videos, reports model predictions and scores, and can attach related reporting and published fact-check search results.
 
 The classifier is loaded from a versioned model bundle. The API never falls back to random, hash-based, or mock verdicts. If the bundle is missing or incompatible, screening returns an error and the readiness endpoint fails.
 
@@ -15,8 +15,10 @@ The classifier is loaded from a versioned model bundle. The API never falls back
 - `admin-dashboard`: role-controlled system health/performance views and researcher-only dataset governance.
 - `docker-compose.yml`: production-shaped API and dashboard deployment.
 
-Screening stores no input, prediction, survey response or participant record. Survey
-collection is separate from the extension and administrator dashboard. Existing curated candidate workflows remain available. The system suggests one of the paper's eight topic
+Screening stores no input or prediction by default. A separate checkbox and button let a
+user explicitly consent to store the analyzed text and page metadata in the private candidate
+review queue; it never enters a dataset automatically. Survey collection is separate from
+the extension and administrator dashboard. Existing curated candidate workflows remain available. The system suggests one of the paper's eight topic
 domains and retains the model result as a proposed label. A researcher must confirm a
 matching evidence URL before approval. Candidate Samples reports counts per topic and
 exports the filtered review queue as UTF-8 CSV or Excel. Datasets and Models shows
@@ -34,11 +36,16 @@ from training run `20261011T235112Z`, using frozen multilingual DistilBERT, the 
 saved linguistic features and Logistic Regression with threshold **0.65**.
 The exact raw-text pipeline reproduced all **598** reference test labels and all
 probabilities within the declared tolerance (maximum difference **3.15e-6**).
+This is serving parity with the saved Colab output, not 100% classification accuracy.
+Against the saved ground truth, model_4 was correct on **560/598 (93.65%)** with
+Macro-F1 **0.9364**.
 
 Read [the integration guide](docs/HYBRID-INTEGRATION.md) for the artifact layout,
 exact preprocessing, dependencies, API fields, verification evidence and limitations.
 The old `hybrid_model.pkl`/schema-1 loader is retired. Renaming another model does
-not make it compatible. Registration, activation and retraining are disabled.
+not make it compatible. Dataset/model review records remain in the restricted dashboard;
+the incompatible historical retraining worker, model registration and runtime switching
+remain disabled so they cannot replace model_4.
 
 `/health` and `/ready` report the classifier identity, SHA-256, actual CPU/CUDA device,
 threshold and readiness. A load/inference failure returns 503 for prediction and
@@ -74,8 +81,8 @@ In a second terminal:
 
 ```powershell
 Set-Location .\admin-dashboard
-npm ci
-npm run dev
+npm.cmd ci
+npm.cmd run dev
 ```
 
 The dataset review workflows remain available, but this deployment cannot queue
@@ -86,8 +93,8 @@ Build and load the extension:
 
 ```powershell
 Set-Location .\chrome-extension
-npm ci
-npm run build
+npm.cmd ci
+npm.cmd run build
 ```
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`.
@@ -116,13 +123,13 @@ Set-Location .\backend-api
 ..\.venv\Scripts\python.exe -B -m unittest discover -s tests -p 'test_*.py' -v
 
 Set-Location ..\admin-dashboard
-npm ci
-npm run lint
-npm run build
+npm.cmd ci
+npm.cmd run lint
+npm.cmd run build
 
 Set-Location ..\chrome-extension
-npm ci
-npm run build
+npm.cmd ci
+npm.cmd run build
 
 Set-Location ..
 docker compose --env-file .env.production config --quiet

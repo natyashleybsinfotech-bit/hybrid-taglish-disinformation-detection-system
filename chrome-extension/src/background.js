@@ -14,7 +14,7 @@ async function postJson(payload) {
 async function postMedia(path, url, payload) {
   let mediaResponse;
   const parsed = new URL(url); const host = parsed.hostname.toLowerCase();
-  if (parsed.protocol !== 'https:' || !['facebook.com','fbcdn.net','fbsbx.com','x.com','twimg.com','youtube.com','googlevideo.com','reddit.com','redd.it'].some(domain => host === domain || host.endsWith(`.${domain}`))) throw new Error('This media origin is not supported. Use a local file through the popup.');
+  if (parsed.protocol !== 'https:' || !['facebook.com','fbcdn.net','fbsbx.com'].some(domain => host === domain || host.endsWith(`.${domain}`))) throw new Error('This Facebook media origin is not supported. Use a local file through the popup.');
   try { mediaResponse = await boundedFetch(url); } catch (_) { throw new Error('Post media could not be fetched. The platform may be protecting or expiring this media URL.'); }
   if (!mediaResponse.ok) throw new Error(`Post media fetch failed (${mediaResponse.status}).`);
   const blob = await mediaResponse.blob(); if (!blob.size) throw new Error('The post media was empty.');

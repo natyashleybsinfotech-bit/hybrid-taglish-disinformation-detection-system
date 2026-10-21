@@ -1,0 +1,78 @@
+{
+  "purpose": "Read-only integration diagnostic; no training, tuning, threshold change, or raw-text logging.",
+  "dataset": {
+    "full": 4000,
+    "train": 2800,
+    "validation": 602,
+    "test": 598
+  },
+  "saved_test_result": {
+    "ground_truth": {
+      "Non-Misleading": 300,
+      "Misleading": 298
+    },
+    "predictions": {
+      "Non-Misleading": 322,
+      "Misleading": 276
+    },
+    "confusion": {
+      "TN": 292,
+      "FP": 8,
+      "FN": 30,
+      "TP": 268
+    },
+    "correct": 560,
+    "accuracy": 0.9364548494983278,
+    "macro_f1": 0.9363523309096207
+  },
+  "model": {
+    "classifier": "model_4.joblib",
+    "training_run_id": "20261011T235112Z",
+    "sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+    "device": "cpu",
+    "decision_threshold": 0.65,
+    "label_mapping": {
+      "Non-Misleading": 0,
+      "Misleading": 1
+    }
+  },
+  "path_checks": [
+    {
+      "record_id": "d4e6c688dcf5c738d26e089a7ce1f7ed637727dc18df9b823a64c2f9adc91d16",
+      "ground_truth": "Non-Misleading",
+      "reference_prediction": 0,
+      "direct_prediction": 0,
+      "api_prediction": 0,
+      "reference_p_misleading": 0.002777538673918144,
+      "direct_p_misleading": 0.0027775230076689168,
+      "api_p_misleading": 0.0027775230076689168,
+      "direct_reference_absolute_error": 1.566624922713991e-08,
+      "api_direct_absolute_error": 0.0,
+      "api_analyzed_expected_prepared_text": true,
+      "api_feature_count": 7,
+      "public_label": "No Misleading Information Detected",
+      "displayed_class_score": 0.9972224769923311
+    },
+    {
+      "record_id": "5e0de53d9e7a7b275ab02aa5bc117a7392b5edac546129b9ab6b84619205f5af",
+      "ground_truth": "Misleading",
+      "reference_prediction": 1,
+      "direct_prediction": 1,
+      "api_prediction": 1,
+      "reference_p_misleading": 0.6851843473578005,
+      "direct_p_misleading": 0.6851827377715005,
+      "api_p_misleading": 0.6851827377715005,
+      "direct_reference_absolute_error": 1.609586300022059e-06,
+      "api_direct_absolute_error": 0.0,
+      "api_analyzed_expected_prepared_text": true,
+      "api_feature_count": 7,
+      "public_label": "Potentially Misleading",
+      "displayed_class_score": 0.6851827377715005
+    }
+  ],
+  "interpretation": {
+    "reference_parity": "Matching saved probabilities proves reproduction of the recorded model_4 pipeline; it is not classification accuracy.",
+    "accuracy": "560/598 compares predictions with saved ground-truth labels.",
+    "remaining_hypothesis": "Repeated Misleading outputs for short Facebook-style inputs can be model domain shift or dataset-source bias after extraction and path defects are excluded."
+  }
+}

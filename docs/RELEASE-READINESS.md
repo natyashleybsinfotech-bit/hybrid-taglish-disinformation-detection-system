@@ -1,4 +1,4 @@
-# Release evidence and GO/NO-GO — October 21, 2026
+# Release evidence and GO/NO-GO — October 22, 2026
 
 **Implemented:** the fixed hybrid runtime, feature display, separate optional evidence
 lookup, MariaDB schema v5, administration and deployment scripts. Participant survey
@@ -12,6 +12,7 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | Check | Actual result | Evidence |
 | --- | --- | --- |
 | Raw-text hybrid parity | 598/598 labels; no probability mismatches at atol=rtol=1e-5 | [HYBRID-VERIFICATION.json](HYBRID-VERIFICATION.json) |
+| Saved test classification result | 300/298 ground truth, 322/276 predictions, TN=292, FP=8, FN=30, TP=268; 560/598 correct; accuracy 0.93645; Macro-F1 0.93635 | [Prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json) |
 | Model identity | Only model_4; run 20261011T235112Z; pinned SHA-256; threshold 0.65; CPU | [Integration contract](HYBRID-INTEGRATION.md) |
 | Backend regression suite | 69 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
 | Model scope sanity probe | Saved examples produced both classes as recorded, but 10/10 short general statements were predicted Misleading with scores from 0.902293 to 1.0 | [Diagnostic report](MODEL-SANITY-DIAGNOSTIC.json) |
@@ -20,15 +21,17 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | Existing local database | Private logical backup made; schema v5 applied; existing candidate count preserved | Local operator execution; ignored backup under `backups/pre-schema5-*.sql.gz` |
 | Evidence providers | Current live provider check: Serper returned 3 links and Google Fact Check returned 3 reviews; an installed-extension run displayed 2 related links and 3 fact-check links | [Provider report](PROVIDER-VERIFICATION.json), [installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
 | Provider edge cases | Mocked success/empty/timeout, malformed or oversized response rejection, redirect rejection, missing-key behavior | `test_services.py`, `test_participant.py`; these fixtures are not live evidence |
-| Media | Actual EasyOCR image smoke passed in 13.4 s; video OCR + Whisper smoke passed in 21.4 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
-| UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; narrow viewport overflow checked | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
+| Media | Actual EasyOCR image smoke passed in 5.08 s; video OCR + Whisper smoke passed in 14.05 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
+| UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; English 390 px and Tagalog 320 px result layouts have no horizontal overflow | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
 | Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, focused caption extraction, reload toggle, persisted opt-in lookup, long/stale/duplicate behavior, live Serper/Google evidence, and absence of survey controls passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
+| Current popup regression | Updated unpacked build in isolated Edge: live API, duplicate/stale/long input, seven feature values, and language switch without another request passed | [Popup report](EXTENSION-POPUP-VERIFICATION.json) |
+| Actual Google Chrome/Facebook | Not passed: Chrome ignored automated unpacked loading and the visible Facebook-tab inspection was interrupted before interaction | [Chrome/Facebook status](CHROME-FACEBOOK-VERIFICATION.json) |
 | Extension failure states | A stopped backend produced a clear unavailable message and no prediction; controlled popup checks covered timeout, no-results and provider-unavailable display without changing the classifier result | [Failure-state report](EXTENSION-FAILURE-VERIFICATION.json) |
 | Administrator browser flow | Actual isolated Chromium login, HttpOnly-cookie reload, absent participant view/export, logout, expired 401, first keyboard focus and narrow layout passed | [Admin browser report](ADMIN-BROWSER-VERIFICATION.json) |
 | Frontends | Dashboard lint/build and extension build passed; release extension build intentionally rejects missing HTTPS configuration | `npm run lint`, `npm run build`, `npm run build:release` |
 | Dependencies | Runtime/model primary versions pinned; pip check passed; npm lockfiles retained | requirements files and package-lock files |
 | Cleanup and deployment paths | SHA-256-preserving moves; retired runtime imports absent; five read-only artifact mounts; database not exposed; single worker | [Structure](PROJECT-STRUCTURE.md), [static deployment checks](DEPLOYMENT-VERIFICATION.json) |
-| Privacy and access | No screening/survey storage; external search remains opt-in; participant routes/export removed; login JSON exposes no bearer token; origin/role tests | `test_participant.py`, installed extension and admin browser reports |
+| Privacy and access | Default screening is not stored; consent is mandatory for optional private candidate submission; no survey storage/UI; external search remains opt-in; login JSON exposes no bearer token | `test_participant.py`, installed extension and admin browser reports |
 | Backup expiry | Completed expired dumps are removed; recent dumps, partial files and unrelated files are preserved | `test_backup_retention_only_removes_expired_completed_dumps` |
 
 The full raw-text pipeline—not saved embeddings or cached answers—produces the parity
@@ -39,8 +42,11 @@ Parity proves that serving reproduces the saved artifact; it does not prove that
 artifact generalizes. A targeted live probe of ten brief ordinary English/Filipino/
 Taglish statements produced ten Misleading predictions, including several saturated
 scores. This is a material model-quality limitation, not a loader or fallback-model
-defect. The UI now warns about brief/out-of-distribution inputs and the extension extracts
-focused post caption text, but those changes do not correct the classifier itself.
+defect. Confirmed product defects were the overly broad full-container extraction fallback
+and a technical UI that always foregrounded P(Misleading), even for a Non-Misleading
+selection. The fallback is removed and the UI now presents the selected-class score while
+retaining P(Misleading) in details. These changes do not correct the classifier's observed
+short-input bias or prove the user's complaint resolved for real Facebook posts.
 
 ## Resource measurements and their limits
 
@@ -67,17 +73,18 @@ Windows workstation observation, not a Docker/Linux capacity result or SLA.
 
 ## What visual checks do and do not establish
 
-Screenshots cover popup input/result, 320-pixel popup layout and desktop/narrow admin login.
+Screenshots cover popup input, English result, 320-pixel Tagalog result and desktop/narrow admin login.
 Headless Chrome rendering uses the actual
 React components and an actual synthetic API result. It checks exact viewport width,
 horizontal overflow and seven unscaled feature values. The misleading prediction in a
 synthetic screenshot is the model's actual output, not an approved factual judgement.
 
-The installed-extension harness loaded the unpacked build in an isolated Microsoft Edge
+An earlier installed-extension harness loaded the unpacked build in an isolated Microsoft Edge
 Chromium profile and exercised a synthetic article on a manifest-supported facebook.com
-origin. It did not use an account or participant content. Google Chrome 156 ignored the
-command-line unpacked-extension flag on this machine, so manual Chrome installation,
-current third-party DOM behavior and screen-reader testing remain hands-on checks. The
+origin. It did not use an account or participant content. On October 22, Google Chrome
+again ignored the command-line unpacked-extension flag; the observed open Facebook tab
+was not interacted with before browser automation was interrupted. Manual Chrome installation,
+current Facebook DOM behavior and screen-reader testing therefore remain hands-on checks. The
 earlier narrow screenshot harness was repaired to use explicit device emulation. The
 timeout/no-results/provider-failure popup states used controlled transport responses;
 the corresponding backend provider branches are separately covered by automated tests.
@@ -103,7 +110,7 @@ store actual responses only under private, ignored `research-data/` or approved 
 - [x] Required artifact hashes, exact preprocessing/features, threshold and parity verified.
 - [x] Failure paths return errors; no reachable alternate classifier or random label.
 - [ ] Model owner resolves the observed short-input Misleading bias through a new reviewed training run, or formally restricts and validates the supported input scope.
-- [x] No screening or survey storage path is exposed; participant UI/routes/export are removed.
+- [x] Default screening and survey flows store nothing; participant UI/routes/export are removed; optional candidate storage requires explicit consent and human review.
 - [x] Native MariaDB migration, least-privilege provisioning, restart and logical restore passed.
 - [x] Live providers and synthetic media processing checked; model and retrieval timings separated.
 - [x] Frontend builds and inspected headless component layouts passed.
@@ -112,7 +119,7 @@ store actual responses only under private, ignored `research-data/` or approved 
 - [ ] Docker/Compose installed on a test host; exact images build and stack reaches healthy state.
 - [ ] Linux container migration/backup-wrapper/restore and full-stack memory/load checks passed.
 - [ ] Manual Google Chrome install, current social-page DOM, full keyboard and assistive-tech rehearsal passed.
-- [ ] Final supported social-page/media matrix and participant task scope signed off.
+- [ ] Final Facebook text/image/video support matrix and participant task scope signed off.
 - [ ] Institutional/adviser approvals, study contact, consent language and questionnaire review completed.
 - [ ] Linux retention timer execution, off-server backup access and withdrawal-after-restore process verified.
 - [ ] For public service: chosen server/domain, DNS, HTTPS, production cookies/CORS, generated credentials and monitoring verified.
@@ -121,8 +128,9 @@ store actual responses only under private, ignored `research-data/` or approved 
 
 1. Use a Docker-capable local/Linux test host. Follow `START_HERE.md` local Compose steps;
    no purchase or public endpoint is required for this gate. Docker is absent here.
-2. Complete one manual Google Chrome supervised rehearsal and record results using the
-   pilot form. Test supported pages against their current DOM and permissions, then run
+2. In `chrome://extensions`, reload the unpacked `chrome-extension/dist`, reload Facebook,
+   and complete one supervised rehearsal. Test manual input, selected text, caption,
+   image OCR and video speech/frame OCR against the current Facebook DOM, then run
    keyboard-only and screen-reader checks. The isolated Edge Chromium rehearsal passed.
 3. Have the study team finish contact/approval fields, review the draft instruments and
    decide participant scope/retention before recruitment. This cannot be fabricated by code.

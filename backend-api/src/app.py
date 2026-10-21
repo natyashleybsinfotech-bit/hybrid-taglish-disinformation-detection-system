@@ -65,7 +65,7 @@ class ScreenRequest(BaseModel):
 
 
 class CandidateRequest(ScreenRequest):
-    pass
+    consent_to_store: Literal[True]
 
 
 class LoginRequest(BaseModel):
@@ -261,9 +261,9 @@ def _screen(
                 topic_confidence=topic_suggestion.confidence,
             )
             database.log_audit(
-                "CANDIDATE_AUTO_CAPTURED",
-                f"Candidate sample {candidate_id} captured from {input_type} screening.",
-                "screening-system",
+                "CANDIDATE_SUBMITTED_WITH_CONSENT",
+                f"Candidate sample {candidate_id} submitted from {input_type} for human review.",
+                "candidate-submission",
             )
         except Exception:
             raise HTTPException(
@@ -436,7 +436,23 @@ async def analyze_video(
 
 @app.post("/candidates", status_code=201)
 def submit_candidate(request: CandidateRequest) -> dict[str, Any]:
-    raise HTTPException(status_code=410, detail="Automatic candidate submission is retired. Screening results are not added to the dataset.")
+    result = _screen(
+        request.text,
+        input_type="consented_candidate",
+        extraction_status="provided",
+        page_url=request.page_url,
+        page_title=request.page_title,
+        context=request.context,
+        capture_candidate=True,
+        retrieve_sources=False,
+    )
+    return {
+        "status": "submitted_for_human_review",
+        "candidate_sample_id": result["candidate_sample_id"],
+        "internal_label": result["internal_label"],
+        "model_score": result["model_score"],
+        "training_run_id": result["training_run_id"],
+    }
 
 
 def _token_signature(payload: str) -> str:

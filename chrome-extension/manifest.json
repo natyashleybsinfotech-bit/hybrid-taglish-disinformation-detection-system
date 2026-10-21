@@ -1,20 +1,14 @@
 {
   "manifest_version": 3,
   "name": "SuriPH",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*",
     "*://*.facebook.com/*",
     "*://*.fbcdn.net/*",
-    "*://*.fbsbx.com/*",
-    "*://*.x.com/*",
-    "*://*.twimg.com/*",
-    "*://*.youtube.com/*",
-    "*://*.googlevideo.com/*",
-    "*://*.reddit.com/*",
-    "*://*.redd.it/*"
+    "*://*.fbsbx.com/*"
   ],
   "action": {
     "default_popup": "index.html"
@@ -24,13 +18,7 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://*.facebook.com/*", 
-        "*://*.x.com/*", 
-        "*://*.twitter.com/*",
-        "*://*.reddit.com/*",
-        "*://*.youtube.com/*"
-      ],
+      "matches": ["*://*.facebook.com/*"],
       "js": ["src/content.js"]
     }
   ]

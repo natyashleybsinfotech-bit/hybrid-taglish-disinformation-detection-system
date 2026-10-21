@@ -55,7 +55,14 @@ class Prediction:
     linguistic_indicators: list = field(default_factory=list)
 
     def to_dict(self):
-        return asdict(self) | {"score_class": "Misleading", "score_description": "Model score for the Misleading class; not calibrated certainty or a verified factual verdict."}
+        displayed_score = self.model_score if self.predicted_class == 1 else 1 - self.model_score
+        return asdict(self) | {
+            "score_class": "Misleading",
+            "misleading_probability": self.model_score,
+            "displayed_class_score": displayed_score,
+            "displayed_score_class": self.internal_label,
+            "score_description": "Model score for the selected prediction; not calibrated certainty or a verified factual verdict.",
+        }
 
 
 class ModelRuntime:
@@ -174,8 +181,9 @@ class ModelRuntime:
                 for score, values, chunk_count, token_count in zip(scores, features, chunks, tokens):
                     label = int(score >= threshold)
                     name = "Misleading" if label else "Non-Misleading"
+                    display_label = "Potentially Misleading" if label else "No Misleading Information Detected"
                     results.append(Prediction(
-                        internal_label=name, public_label=f"Prediction: {name}",
+                        internal_label=name, public_label=display_label,
                         confidence=float(score if label else 1 - score), model_status="ready",
                         model_name=MODEL_NAME, model_version=RUN_ID, model_score=float(score),
                         predicted_class=label, decision_threshold=threshold, device=self._device,

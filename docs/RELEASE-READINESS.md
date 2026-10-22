@@ -14,17 +14,19 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | Raw-text hybrid parity | 598/598 labels; no probability mismatches at atol=rtol=1e-5 | [HYBRID-VERIFICATION.json](HYBRID-VERIFICATION.json) |
 | Saved test classification result | 300/298 ground truth, 322/276 predictions, TN=292, FP=8, FN=30, TP=268; 560/598 correct; accuracy 0.93645; Macro-F1 0.93635 | [Prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json) |
 | Model identity | Only model_4; run 20261011T235112Z; pinned SHA-256; threshold 0.65; CPU | [Integration contract](HYBRID-INTEGRATION.md) |
-| Backend regression suite | 69 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
+| Backend regression suite | 72 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
 | Model scope sanity probe | Saved examples produced both classes as recorded, but 10/10 short general statements were predicted Misleading with scores from 0.902293 to 1.0 | [Diagnostic report](MODEL-SANITY-DIAGNOSTIC.json) |
+| Reported news-style path | Identical reconstructed input produced the same 0.9994187908527474 score through direct model_4 and API; the unpacked UI displayed 99.94% and preserved the text. The screenshot's complete 99.79% input was not recoverable | [News-style diagnostic](NEWS-STYLE-DIAGNOSTIC.json) |
 | Live API and extension transport | Actual fresh inference, empty/long input and real fetch through extension client/background | [HTTP report](HYBRID-HTTP-VERIFICATION.json) |
 | MariaDB | Empty/idempotent v1–v5 migration, actual provision command, DML-only writes, denied DDL, rollback, restart, outage, isolated SQL restore and withdrawal | [MariaDB report](MARIADB-VERIFICATION.json) |
 | Existing local database | Private logical backup made; schema v5 applied; existing candidate count preserved | Local operator execution; ignored backup under `backups/pre-schema5-*.sql.gz` |
-| Evidence providers | Current live provider check: Serper returned 3 links and Google Fact Check returned 3 reviews; an installed-extension run displayed 2 related links and 3 fact-check links | [Provider report](PROVIDER-VERIFICATION.json), [installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
+| Evidence providers | Public screening uses Serper only; a current live source-only request returned 3 approved-publisher links and explicitly performed no classification. Google Fact Check remains available only to administrator evidence review | [Provider report](PROVIDER-VERIFICATION.json), current API/extension connection checks |
 | Provider edge cases | Mocked success/empty/timeout, malformed or oversized response rejection, redirect rejection, missing-key behavior | `test_services.py`, `test_participant.py`; these fixtures are not live evidence |
 | Media | Actual EasyOCR image smoke passed in 5.08 s; video OCR + Whisper smoke passed in 14.05 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
 | UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; English 390 px and Tagalog 320 px result layouts have no horizontal overflow | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
-| Installed extension | Actual unpacked build in isolated Microsoft Edge Chromium: action popup, focused caption extraction, reload toggle, persisted opt-in lookup, long/stale/duplicate behavior, live Serper/Google evidence, and absence of survey controls passed | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
-| Current popup regression | Updated unpacked build in isolated Edge: live API, duplicate/stale/long input, seven feature values, restored context, and language switch without another request passed | [Popup report](EXTENSION-POPUP-VERIFICATION.json) |
+| Installed extension | Earlier unpacked build in isolated Microsoft Edge Chromium covered the action popup, focused caption extraction, reload toggle, persisted lookup, long/stale/duplicate behavior and absence of survey controls | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
+| Current popup regression | Version 1.3.0 unpacked build in isolated Edge: live API, duplicate/stale/long input, seven feature values, exact eight-part order, one reminder, restored context, language switch and source-only lookup without reclassification passed | [Popup report](EXTENSION-POPUP-VERIFICATION.json) |
+| Current Facebook modal regression | The real content script on a synthetic HTTPS facebook.com fixture passed bounded caption extraction, author/timestamp/acquisition/link context, exact eight-part visual order, source-only lookup stability and bilingual stability | [Facebook modal report](FACEBOOK-MODAL-VERIFICATION.json) |
 | Actual Google Chrome/Facebook | An actual Facebook analysis exposed that the in-page request left lookup off and omitted context. Both defects are corrected in the rebuilt extension; Chrome reload and hands-on retest remain pending | [Chrome/Facebook status](CHROME-FACEBOOK-VERIFICATION.json) |
 | Extension failure states | A stopped backend produced a clear unavailable message and no prediction; controlled popup checks covered timeout, no-results and provider-unavailable display without changing the classifier result | [Failure-state report](EXTENSION-FAILURE-VERIFICATION.json) |
 | Administrator browser flow | Actual isolated Chromium login, HttpOnly-cookie reload, absent participant view/export, logout, expired 401, first keyboard focus and narrow layout passed | [Admin browser report](ADMIN-BROWSER-VERIFICATION.json) |
@@ -50,11 +52,12 @@ short-input bias or prove the user's complaint resolved for real Facebook posts.
 
 An actual Chrome/Facebook result then confirmed a separate source-display defect: the
 in-page flow had no visible way to opt into lookup, so the API correctly returned
-`not_requested`, and the redesigned result omitted the existing context object. The in-page
-preview now has an explicit approved-source/fact-check checkbox, and context is visible in
-both result surfaces. For the public post text used to report the issue, a live API check
-returned one approved-publisher result and no matching Google Fact Check review. The latter
-is a valid no-results response; the system does not fabricate additional reviews.
+`not_requested`, and the redesigned result omitted the required selected-post context.
+Version 1.3.0 exposes the persisted Serper choice before analysis, renders bounded post
+metadata in both result surfaces, and adds `POST /related-sources` for lookup after a
+prediction. That endpoint never calls the classifier. Google Fact Check is no longer a
+public result section; it remains an administrator evidence-review tool. A current live
+Serper request returned three approved-publisher results with real titles, URLs and snippets.
 
 ## Resource measurements and their limits
 
@@ -87,15 +90,14 @@ React components and an actual synthetic API result. It checks exact viewport wi
 horizontal overflow and seven unscaled feature values. The misleading prediction in a
 synthetic screenshot is the model's actual output, not an approved factual judgement.
 
-An earlier installed-extension harness loaded the unpacked build in an isolated Microsoft Edge
-Chromium profile and exercised a synthetic article on a manifest-supported facebook.com
-origin. It did not use an account or participant content. On October 22, Google Chrome
-again ignored the command-line unpacked-extension flag; the observed open Facebook tab
-was not interacted with before browser automation was interrupted. Manual Chrome installation,
-current Facebook DOM behavior and screen-reader testing therefore remain hands-on checks. The
-earlier narrow screenshot harness was repaired to use explicit device emulation. The
-timeout/no-results/provider-failure popup states used controlled transport responses;
-the corresponding backend provider branches are separately covered by automated tests.
+The current content-script harness loaded version 1.3.0 in an isolated Microsoft Edge
+Chromium profile and exercised the real modal on a synthetic article served from a local
+HTTPS, manifest-supported facebook.com origin. It used no account or participant content.
+Google Chrome ignored command-line unpacked-extension loading in the isolated run, so
+manual Chrome installation and the current live Facebook DOM remain hands-on checks.
+Keyboard and screen-reader testing also remain manual. The timeout/no-results/provider-
+failure popup states use controlled transport responses; the corresponding backend provider
+branches are separately covered by automated tests.
 
 ## Research delivery
 

@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-22",
+  "purpose": "Read-only diagnosis of the reported high Misleading score; no training, tuning or threshold change.",
+  "active_classifier": "model_4.joblib",
+  "training_run_id": "20261011T235112Z",
+  "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+  "threshold": 0.65,
+  "reported_screenshot": {
+    "displayed_label": "Potentially Misleading",
+    "displayed_score_rounded": 0.9979,
+    "full_exact_input_available_for_replay": false,
+    "note": "The screenshot displayed only part of the scrollable analyzed text, so its complete byte-identical input could not be recovered honestly."
+  },
+  "same_input_comparison": {
+    "input_description": "Reconstructed public news-style text visible in the screenshot; stored only in ignored local runtime files.",
+    "text_sha256": "bdef185132a229e69e1b24e8109e62e75d933e96fe5f12187481dd1404327caa",
+    "direct_model_4": {
+      "internal_label": "Misleading",
+      "model_score": 0.9994187908527474,
+      "displayed_class_score": 0.9994187908527474,
+      "chunks": 1,
+      "content_tokens": 153
+    },
+    "live_api": {
+      "internal_label": "Misleading",
+      "model_score": 0.9994187908527474,
+      "displayed_class_score": 0.9994187908527474,
+      "analyzed_text_matches_submitted_text": true
+    },
+    "unpacked_extension_ui": {
+      "public_label": "Potentially Misleading",
+      "displayed_score": "99.94%",
+      "analyzed_text_matches_submitted_text": true
+    },
+    "direct_api_absolute_score_difference": 0.0,
+    "ui_matches_api_after_two_decimal_percent_rounding": true
+  },
+  "conclusion": "Direct inference, API and UI agree for identical reconstructed input, with the saved class mapping and 0.65 threshold. The high score is produced by model_4 itself. The 99.94% replay must not be presented as an exact reproduction of the screenshot's 99.79% because the screenshot did not expose the complete original input. Existing saved-record parity and short-statement probes indicate a genuine model generalization or dataset-bias limitation; no interface or retrieval change can correct it."
+}

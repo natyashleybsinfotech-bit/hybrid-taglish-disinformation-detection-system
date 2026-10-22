@@ -21,11 +21,19 @@ async function request(path, options) {
   }
 }
 
-export function analyzeText({ text, pageUrl, pageTitle, retrieveSources = false }) {
+export function analyzeText({ text, pageUrl, pageTitle, context = null, retrieveSources = false }) {
   return request('/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, page_url: pageUrl || null, page_title: pageTitle || null, retrieve_sources: retrieveSources }),
+    body: JSON.stringify({ text, page_url: pageUrl || null, page_title: pageTitle || null, context, retrieve_sources: retrieveSources }),
+  });
+}
+
+export function lookupRelatedSources({ text, pageUrl }) {
+  return request('/related-sources', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, page_url: pageUrl || null }),
   });
 }
 
@@ -34,6 +42,8 @@ export function analyzeMedia(kind, file, page = {}) {
   form.append('file', file);
   if (page.url) form.append('page_url', page.url);
   if (page.title) form.append('page_title', page.title);
+  if (page.postText) form.append('post_text', page.postText);
+  if (page.context) form.append('context_json', JSON.stringify(page.context));
   form.append('retrieve_sources', String(page.retrieveSources || false));
   return request(`/analyze/${kind}`, { method: 'POST', body: form });
 }

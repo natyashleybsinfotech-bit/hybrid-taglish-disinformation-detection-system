@@ -11,6 +11,12 @@ async function postJson(payload) {
   catch (_) { throw new Error('SuriPH backend is unavailable. Check the configured API connection.'); }
   const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Screening failed with status ${response.status}.`); return body;
 }
+async function postRelatedSources(payload) {
+  let response;
+  try { response = await boundedFetch(`${API_BASE}/related-sources`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: payload.text, page_url: payload.page_url || null }) }); }
+  catch (_) { throw new Error('Related-source lookup is unavailable. The prediction is unchanged.'); }
+  const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Source lookup failed with status ${response.status}.`); return body;
+}
 async function postMedia(path, url, payload) {
   let mediaResponse;
   const parsed = new URL(url); const host = parsed.hostname.toLowerCase();
@@ -56,6 +62,12 @@ async function analyzePayload(payload) {
   return postJson(payload);
 }
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'SURIPH_LOOKUP_SOURCES') {
+    postRelatedSources(message.payload || {})
+      .then((body) => sendResponse({ ok: true, result: body }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || 'Related-source lookup failed.' }));
+    return true;
+  }
   if (message?.type === 'SURIPH_ANALYZE_CAPTURE') {
     let bytes = null;
     try { if (message.videoBase64) { const binary = atob(message.videoBase64); bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0)); } } catch (_) { bytes = null; }

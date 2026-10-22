@@ -68,6 +68,11 @@ class CandidateRequest(ScreenRequest):
     consent_to_store: Literal[True]
 
 
+class SourceLookupRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=config.MAX_TEXT_CHARACTERS)
+    page_url: str | None = Field(default=None, max_length=4_000)
+
+
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=1, max_length=500)
@@ -188,17 +193,59 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _context_explanation(text: str, context: dict[str, Any] | None) -> dict[str, Any]:
+def _derived_recency(published_at: Any) -> str:
+    if not isinstance(published_at, str) or not published_at.strip():
+        return "Could not determine"
+    try:
+        parsed = datetime.fromisoformat(published_at.strip().replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return "Could not determine"
+        elapsed = datetime.now(timezone.utc) - parsed.astimezone(timezone.utc)
+        if elapsed.total_seconds() < 0:
+            return "Could not determine"
+        minutes = int(elapsed.total_seconds() // 60)
+        if minutes < 1:
+            return "Posted less than a minute ago"
+        if minutes < 60:
+            return f"Posted about {minutes} minute{'s' if minutes != 1 else ''} ago"
+        hours = minutes // 60
+        if hours < 48:
+            return f"Posted about {hours} hour{'s' if hours != 1 else ''} ago"
+        days = hours // 24
+        return f"Posted about {days} day{'s' if days != 1 else ''} ago"
+    except (TypeError, ValueError):
+        return "Could not determine"
+
+
+def _context_explanation(
+    text: str,
+    context: dict[str, Any] | None,
+    *,
+    input_type: str = "text",
+) -> dict[str, Any]:
     details = context if isinstance(context, dict) else {}
+    default_checked = {
+        "text": "Manually entered text",
+        "image": "Image OCR from an uploaded file",
+        "video": "Video audio transcript and video-frame OCR from an uploaded file",
+        "consented_candidate": "Submitted text",
+    }.get(input_type, "The supplied text")
+    visible_links = []
+    for value in details.get("visible_links", []):
+        if isinstance(value, str) and urlparse(value).scheme in {"http", "https"}:
+            visible_links.append(value)
     return {
         "overview": text[:320] + ("…" if len(text) > 320 else ""),
         "main_points": [], "separate_statements": [],
-        "author": details.get("author") or "Not supplied",
-        "timing": details.get("published_text") or details.get("published_at") or "Not supplied",
-        "freshness": "Not independently verified",
-        "recency_explanation": "Posting dates and event context have not been independently verified.",
+        "author": details.get("author") or "Not available",
+        "timing": details.get("published_at") or details.get("published_text") or "Not available",
+        "recency": _derived_recency(details.get("published_at")),
+        "freshness": _derived_recency(details.get("published_at")),
+        "recency_explanation": "Recency is calculated only when the selected post exposes a complete timestamp.",
         "assessment_scope": "One hybrid-model prediction was computed from the complete supplied text. Individual claims were not fact-checked.",
-        "checked_material": details.get("extraction_scope") or "The supplied text",
+        "checked_material": details.get("extraction_scope") or default_checked,
+        "original_post_url": details.get("original_post_url") or None,
+        "relevant_links": list(dict.fromkeys(visible_links))[:8],
     }
 
 
@@ -226,16 +273,13 @@ def _screen(
     inference_ms = (time.perf_counter() - started) * 1000
     retrieval_started = time.perf_counter()
     excluded_domain = urlparse(page_url).netloc if page_url else None
-    explanation = _context_explanation(analyzed_text, context)
+    explanation = _context_explanation(analyzed_text, context, input_type=input_type)
     if retrieve_sources:
         try:
             retrieval = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain)
         except Exception:
             retrieval = {"retrieval_status": "unavailable", "related_sources": []}
-        try:
-            fact_checks = search_fact_checks(analyzed_text)
-        except Exception:
-            fact_checks = {"status": "unavailable", "matches": [], "signal": None}
+        fact_checks = {"status": "admin_only", "matches": [], "signal": None}
     else:
         retrieval = {"retrieval_status": "not_requested", "related_sources": []}
         fact_checks = {"status": "not_requested", "matches": [], "signal": None}
@@ -293,6 +337,23 @@ def _screen(
         "evidence_status": "missing" if capture_candidate else "not_captured",
         "model_scope_notice": config.MODEL_SCOPE_NOTICE,
         "disclaimer": config.DISCLAIMER,
+    }
+
+
+@app.post("/related-sources")
+def related_sources(request: SourceLookupRequest) -> dict[str, Any]:
+    analyzed_text = normalize_text(request.text)
+    if not analyzed_text:
+        raise HTTPException(status_code=422, detail="No usable text was provided for source lookup.")
+    excluded_domain = urlparse(request.page_url).netloc if request.page_url else None
+    try:
+        result = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain)
+    except Exception:
+        result = {"retrieval_status": "unavailable", "related_sources": []}
+    return {
+        "retrieval_status": result["retrieval_status"],
+        "related_sources": result["related_sources"],
+        "classification_performed": False,
     }
 
 
@@ -385,7 +446,12 @@ async def analyze_image(
         retrieve_sources=retrieve_sources,
     )
     related_coverage = result["context_explanation"].get("related_coverage")
-    result["context_explanation"] = _context_explanation(readable_post_text or extraction["ocr_text"], post_context)
+    post_context["extraction_scope"] = (
+        "Facebook post caption and image OCR" if readable_post_text else "Image OCR"
+    )
+    result["context_explanation"] = _context_explanation(
+        readable_post_text or extraction["ocr_text"], post_context, input_type="image"
+    )
     result["context_explanation"]["related_coverage"] = related_coverage
     result["extraction"] = {"ocr_text": extraction["ocr_text"]}
     return result
@@ -424,7 +490,17 @@ async def analyze_video(
         retrieve_sources=retrieve_sources,
     )
     related_coverage = result["context_explanation"].get("related_coverage")
-    result["context_explanation"] = _context_explanation(readable_post_text or extraction["analyzed_text"], post_context)
+    acquired = []
+    if readable_post_text:
+        acquired.append("Facebook post caption")
+    if extraction["transcript_text"]:
+        acquired.append("video audio transcript")
+    if extraction["frame_ocr_text"]:
+        acquired.append("video-frame OCR")
+    post_context["extraction_scope"] = ", ".join(acquired) or "Video extraction"
+    result["context_explanation"] = _context_explanation(
+        readable_post_text or extraction["analyzed_text"], post_context, input_type="video"
+    )
     result["context_explanation"]["related_coverage"] = related_coverage
     result["extraction"] = {
         "transcript_text": extraction["transcript_text"],

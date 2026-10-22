@@ -13,11 +13,22 @@
   "long_text_tail_preserved": "passed",
   "seven_feature_values_match_backend": "passed",
   "context_visible": "passed",
+  "exact_eight_part_order": "passed",
+  "one_bottom_reminder": "passed",
+  "source_only_lookup_without_reclassification": "passed",
+  "diagnostic_text_path_comparison": {
+    "text_sha256": "bdef185132a229e69e1b24e8109e62e75d933e96fe5f12187481dd1404327caa",
+    "api_label": "Misleading",
+    "api_model_score": 0.9994187908527474,
+    "ui_label": "Potentially Misleading",
+    "ui_displayed_percent": "99.94%",
+    "ui_analyzed_text_matches": true
+  },
   "bilingual_switch_preserves_result_without_request": "passed",
   "narrow_width_no_horizontal_clipping": "passed",
   "survey_controls_absent": "passed",
   "screenshots_private": true,
-  "content_script_facebook_extraction": "not rerun on the current build; actual Google Chrome/Facebook interaction remains manual",
+  "content_script_facebook_extraction": "covered separately by FACEBOOK-MODAL-VERIFICATION.json on a synthetic HTTPS facebook.com fixture; actual Google Chrome/Facebook interaction remains manual",
   "limitations": [
     "No real social account or participant content was used.",
     "Keyboard and screen-reader testing remains manual."

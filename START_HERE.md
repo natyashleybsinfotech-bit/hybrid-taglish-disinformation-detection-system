@@ -107,6 +107,8 @@ From the project root (local model artifacts and test records required):
 node scripts/verify_ui.mjs
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify_live_stack.ps1
 $env:SURI_TEST_BROWSER='C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+node scripts/verify_extension_popup.mjs
+node scripts/verify_facebook_modal.mjs
 node scripts/verify_installed_extension.mjs
 node scripts/verify_admin_browser.mjs
 ```

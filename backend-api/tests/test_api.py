@@ -110,7 +110,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.json()["internal_label"], baseline["internal_label"])
         self.assertEqual(response.json()["retrieval_status"], "unavailable")
 
-    def test_lookup_calls_both_providers_without_changing_prediction(self):
+    def test_public_lookup_calls_serper_without_exposing_admin_fact_checks(self):
         self.retrieval_mock.return_value = {
             "retrieval_status": "available",
             "related_sources": [{"title": "Related report", "url": "https://example.org/report"}],
@@ -125,11 +125,31 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(body["public_label"], "No Misleading Information Detected")
         self.assertEqual(body["retrieval_status"], "available")
-        self.assertEqual(body["fact_check_status"], "available")
+        self.assertEqual(body["fact_check_status"], "admin_only")
         self.assertEqual(len(body["related_sources"]), 1)
-        self.assertEqual(len(body["fact_check_matches"]), 1)
+        self.assertEqual(body["fact_check_matches"], [])
         self.retrieval_mock.assert_called_once()
-        self.fact_check_mock.assert_called_once_with("A supplied claim")
+        self.fact_check_mock.assert_not_called()
+
+    def test_source_lookup_endpoint_does_not_run_classification(self):
+        self.retrieval_mock.return_value = {
+            "retrieval_status": "available",
+            "related_sources": [{"title": "Related report", "url": "https://example.org/report"}],
+        }
+        application.classify.reset_mock()
+        response = self.client.post("/related-sources", json={"text": "A supplied claim"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["retrieval_status"], "available")
+        self.assertFalse(response.json()["classification_performed"])
+        application.classify.assert_not_called()
+        self.retrieval_mock.assert_called_once_with("A supplied claim", excluded_domain=None)
+
+    def test_empty_source_lookup_does_not_run_classification_or_retrieval(self):
+        application.classify.reset_mock()
+        response = self.client.post("/related-sources", json={"text": "  \n\t "})
+        self.assertEqual(response.status_code, 422)
+        application.classify.assert_not_called()
+        self.retrieval_mock.assert_not_called()
 
     def test_lookup_is_opt_in(self):
         response = self.client.post("/analyze", json={"text": "A supplied claim"})
@@ -205,7 +225,7 @@ class ApiTests(unittest.TestCase):
         self.assertIn("out-of-distribution", first.json()["model_scope_notice"])
         self.candidate_mock.assert_not_called()
 
-    def test_google_fact_check_cannot_overwrite_public_verdict(self):
+    def test_google_fact_check_is_not_called_by_public_screening(self):
         self.fact_check_patcher.stop()
         signal = {
             "internal_label": "Misleading",
@@ -225,8 +245,8 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(body["public_label"], "No Misleading Information Detected")
         self.assertEqual(body["decision_source"], "screening_model")
         self.assertIsNone(body["decision_basis"])
-        self.assertEqual(body["fact_check_status"], "available")
-        self.assertEqual(body["fact_check_matches"][0]["rating"], "False")
+        self.assertEqual(body["fact_check_status"], "admin_only")
+        self.assertEqual(body["fact_check_matches"], [])
 
     def test_context_does_not_fabricate_individual_fact_checks(self):
         payload = {
@@ -242,7 +262,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         explanation = response.json()["context_explanation"]
         self.assertEqual(explanation["author"], "Example News")
-        self.assertIn("not been independently verified", explanation["recency_explanation"])
+        self.assertIn("complete timestamp", explanation["recency_explanation"])
         self.assertEqual(explanation["separate_statements"], [])
         self.assertIn("Individual claims were not fact-checked", explanation["assessment_scope"])
         self.assertEqual(explanation["checked_material"], "Post text and readable image text")
@@ -259,6 +279,24 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(explanation["main_points"]), 0)
         self.assertIn("DOLE approves P60 wage hike", explanation["overview"])
 
+    def test_post_context_uses_only_reliable_metadata_and_filtered_links(self):
+        explanation = application._context_explanation("Selected post caption", {
+            "author": "Example News",
+            "published_at": "2026-10-22T06:00:00+08:00",
+            "published_text": "2h",
+            "original_post_url": "https://www.facebook.com/example/posts/123",
+            "visible_links": ["https://example.org/report", "javascript:alert(1)", "https://example.org/report"],
+            "extraction_scope": "Selected Facebook text",
+        })
+        self.assertEqual(explanation["author"], "Example News")
+        self.assertTrue(explanation["recency"].startswith("Posted about "))
+        self.assertEqual(explanation["original_post_url"], "https://www.facebook.com/example/posts/123")
+        self.assertEqual(explanation["relevant_links"], ["https://example.org/report"])
+        self.assertEqual(explanation["checked_material"], "Selected Facebook text")
+        ambiguous = application._context_explanation("Selected post caption", {"published_text": "2h"})
+        self.assertEqual(ambiguous["timing"], "2h")
+        self.assertEqual(ambiguous["recency"], "Could not determine")
+
     def test_image_text_reaches_same_screening_contract(self):
         extraction = {"extraction_status": "completed", "ocr_text": "OCR sample text"}
         with patch.object(application, "extract_image_text", return_value=extraction):
@@ -268,6 +306,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["input_type"], "image")
         self.assertEqual(response.json()["analyzed_text"], "OCR sample text")
+        self.assertEqual(response.json()["context_explanation"]["checked_material"], "Image OCR")
         self.assertIn("context_explanation", response.json())
         self.assertIn(response.json()["public_label"], {
             "Potentially Misleading", "No Misleading Information Detected"
@@ -286,6 +325,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["input_type"], "video")
         self.assertIn("context_explanation", response.json())
+        self.assertEqual(response.json()["context_explanation"]["checked_material"], "video audio transcript, video-frame OCR")
         self.assertEqual(response.json()["extraction"]["sampled_frames"], 1)
         self.candidate_mock.assert_not_called()
 

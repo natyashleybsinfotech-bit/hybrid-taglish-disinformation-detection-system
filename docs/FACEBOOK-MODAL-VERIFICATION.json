@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "browser": "Microsoft Edge (isolated off-screen profile)",
+  "unpacked_extension_loaded": true,
+  "manifest_supported_facebook_origin": true,
+  "bounded_caption_extraction": "passed",
+  "exact_eight_part_visual_order": "passed",
+  "post_author_timestamp_scope_and_links": "passed",
+  "source_only_lookup_preserves_prediction": "passed",
+  "bilingual_switch_preserves_label_score_and_text": "passed",
+  "one_bottom_reminder": "passed",
+  "actual_facebook_account_tested": false,
+  "fixture_note": "Local HTTPS facebook.com fixture; no real account, post, message, or participant data was used.",
+  "screenshot_private": true
+}

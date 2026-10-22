@@ -166,11 +166,13 @@ expandable technical section. Neither is described as calibrated certainty. A
 Misleading score below 0.65 predicts Non-Misleading, even when the selected-class
 score is below 0.5.
 
-The public context panel contains a supplied-text excerpt and explicit scope, not
-invented claim-by-claim explanations. When the user enables lookup, Serper related
-reading and Google Fact Check published-review matches are returned in separate
-sections. Neither provider generates or changes classifier labels/scores, and a
-provider failure does not change the prediction.
+The post-context panel contains only metadata and acquisition details obtained from the
+selected Facebook post, or identifies manual input as manually entered. It does not
+invent claim-by-claim explanations. Public lookup uses Serper only and returns related
+reading from approved publishers. Google Fact Check is available only through the
+administrator evidence-review endpoint. Neither provider generates or changes classifier
+labels or scores, and a provider failure does not change the prediction. `POST
+/related-sources` supports a later source lookup and never invokes classification.
 
 Empty/whitespace inputs return 422. Text has an explicit **1,000,000-character API
 limit**; oversize input is rejected rather than silently clipped. The extension no
@@ -223,7 +225,7 @@ the extension's actual client and background handler against it. It also tests
 empty input, fresh text, persistence and a 1,611-content-token input across four chunks.
 No live development/production records are created by this HTTP harness.
 
-Recorded results: **69 backend tests passed**, the live HTTP and extension transport
+Recorded results: **72 backend tests passed**, the live HTTP and extension transport
 checks passed, both frontend builds passed, and dashboard lint and dependency checks
 passed. The HTTP aggregate report is
 [HYBRID-HTTP-VERIFICATION.json](HYBRID-HTTP-VERIFICATION.json).

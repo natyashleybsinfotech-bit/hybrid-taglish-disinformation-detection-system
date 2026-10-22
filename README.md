@@ -4,7 +4,7 @@ Start with [START_HERE.md](START_HERE.md) and the [release evidence](docs/RELEAS
 Use the [documentation index](docs/README.md) to find the paper, training references,
 setup, research materials and [project layout](docs/PROJECT-STRUCTURE.md).
 
-SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Facebook-only Google Chrome extension, and an administrator dashboard. It screens manual or user-selected Facebook text and text extracted from images or videos, reports model predictions and scores, and can attach related reporting and published fact-check search results.
+SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Facebook-only Google Chrome extension, and an administrator dashboard. It screens manual or user-selected Facebook text and text extracted from images or videos, reports model predictions and scores, and can attach related reporting from approved publishers. Public screening uses Serper for related sources; Google Fact Check Tools remains an administrator evidence-review tool.
 
 The classifier is loaded from a versioned model bundle. The API never falls back to random, hash-based, or mock verdicts. If the bundle is missing or incompatible, screening returns an error and the readiness endpoint fails.
 
@@ -98,6 +98,8 @@ npm.cmd run build
 ```
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`.
+After every rebuild, click **Reload** on SuriPH in `chrome://extensions` and refresh every
+open Facebook tab so the version 1.3.0 content script replaces the old one.
 
 ## Production deployment
 

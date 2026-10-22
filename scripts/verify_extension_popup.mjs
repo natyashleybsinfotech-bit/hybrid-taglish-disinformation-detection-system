@@ -15,6 +15,7 @@ const PROFILE = path.join(RUN, 'profile');
 const SHOTS = path.join(RUN, 'screenshots');
 await Promise.all([mkdir(PROFILE, { recursive: true }), mkdir(SHOTS, { recursive: true })]);
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+const displayPercent = value => value > .99995 && value < 1 ? '>99.99%' : value > 0 && value < .00005 ? '<0.01%' : `${(value * 100).toFixed(2)}%`;
 const keepAlive = setInterval(() => {}, 1000);
 const failureMode = process.env.SURI_EXPECT_UNAVAILABLE === '1';
 
@@ -224,33 +225,46 @@ try {
   await waitFor(popup, `Boolean(document.querySelector('[aria-label="Analysis result"]'))`);
   assert.equal(await evaluate(popup, `document.querySelector('.input-preview').textContent.endsWith(${JSON.stringify(tail)})`), true);
 
-  let diagnostic = null;
+  let diagnostics = null;
   if (process.env.SURI_DIAGNOSTIC_TEXT_FILE) {
-    const diagnosticText = (await readFile(process.env.SURI_DIAGNOSTIC_TEXT_FILE, 'utf8')).replace(/^\uFEFF/, '').trim();
-    await clickText(popup, 'Check again');
-    await waitFor(popup, 'Boolean(document.querySelector("#screen-text"))');
-    await evaluate(popup, `(() => { const input=document.querySelector('fieldset.choices input[type=checkbox]'); if(input?.checked) input.click(); return true; })()`);
-    await setValue(popup, '#screen-text', diagnosticText);
-    await clickText(popup, 'Analyze text');
-    await waitFor(popup, `Boolean(document.querySelector('[aria-label="Analysis result"]'))`);
-    const diagnosticUi = {
-      label: await evaluate(popup, `document.querySelector('[aria-label="Analysis result"] h2').textContent`),
-      displayedPercent: await evaluate(popup, `document.querySelector('.score strong').textContent`),
-      analyzedTextMatches: await evaluate(popup, `document.querySelector('.input-preview').textContent===${JSON.stringify(diagnosticText)}`),
-    };
-    const diagnosticApi = await fetch('http://127.0.0.1:8000/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: diagnosticText }) }).then(response => response.json());
-    const diagnosticExpectedLabel = diagnosticApi.internal_label === 'Misleading' ? 'Potentially Misleading' : 'No Misleading Information Detected';
-    assert.equal(diagnosticUi.label, diagnosticExpectedLabel);
-    assert.equal(diagnosticUi.displayedPercent, `${(diagnosticApi.displayed_class_score * 100).toFixed(2)}%`);
-    assert.equal(diagnosticUi.analyzedTextMatches, true);
-    diagnostic = {
-      text_sha256: createHash('sha256').update(diagnosticText).digest('hex'),
-      api_label: diagnosticApi.internal_label,
-      api_model_score: diagnosticApi.model_score,
-      ui_label: diagnosticUi.label,
-      ui_displayed_percent: diagnosticUi.displayedPercent,
-      ui_analyzed_text_matches: true,
-    };
+    const rawDiagnostic = (await readFile(process.env.SURI_DIAGNOSTIC_TEXT_FILE, 'utf8')).replace(/^\uFEFF/, '').trim();
+    let diagnosticInputs;
+    try {
+      const parsed = JSON.parse(rawDiagnostic);
+      diagnosticInputs = parsed.exact_inputs || parsed;
+      assert.equal(typeof diagnosticInputs, 'object');
+      assert.equal(Array.isArray(diagnosticInputs), false);
+    } catch {
+      diagnosticInputs = { diagnostic_text: rawDiagnostic };
+    }
+    diagnostics = {};
+    for (const [diagnosticKey, diagnosticText] of Object.entries(diagnosticInputs)) {
+      assert.equal(typeof diagnosticText, 'string');
+      await clickText(popup, 'Check again');
+      await waitFor(popup, 'Boolean(document.querySelector("#screen-text"))');
+      await evaluate(popup, `(() => { const input=document.querySelector('fieldset.choices input[type=checkbox]'); if(input?.checked) input.click(); return true; })()`);
+      await setValue(popup, '#screen-text', diagnosticText);
+      await clickText(popup, 'Analyze text');
+      await waitFor(popup, `Boolean(document.querySelector('[aria-label="Analysis result"]'))`);
+      const diagnosticUi = {
+        label: await evaluate(popup, `document.querySelector('[aria-label="Analysis result"] h2').textContent`),
+        displayedPercent: await evaluate(popup, `document.querySelector('.score strong').textContent`),
+        analyzedTextMatches: await evaluate(popup, `document.querySelector('.input-preview').textContent===${JSON.stringify(diagnosticText)}`),
+      };
+      const diagnosticApi = await fetch('http://127.0.0.1:8000/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: diagnosticText }) }).then(response => response.json());
+      const diagnosticExpectedLabel = diagnosticApi.internal_label === 'Misleading' ? 'Potentially Misleading' : 'No Misleading Information Detected';
+      assert.equal(diagnosticUi.label, diagnosticExpectedLabel);
+      assert.equal(diagnosticUi.displayedPercent, displayPercent(diagnosticApi.displayed_class_score));
+      assert.equal(diagnosticUi.analyzedTextMatches, true);
+      diagnostics[diagnosticKey] = {
+        text_sha256: createHash('sha256').update(diagnosticText).digest('hex'),
+        api_label: diagnosticApi.internal_label,
+        api_model_score: diagnosticApi.model_score,
+        ui_label: diagnosticUi.label,
+        ui_displayed_percent: diagnosticUi.displayedPercent,
+        ui_analyzed_text_matches: true,
+      };
+    }
   }
 
   await screenshot(popup, 'popup-installed-result');
@@ -266,7 +280,7 @@ try {
     empty_input: 'passed', manual_text_prediction: 'passed', duplicate_click_single_request: 'passed',
     stale_result_cleared: 'passed', long_text_tail_preserved: 'passed', seven_feature_values_match_backend: 'passed', context_visible: 'passed', exact_eight_part_order: 'passed', one_bottom_reminder: 'passed',
     source_only_lookup_without_reclassification: 'passed',
-    diagnostic_text_path_comparison: diagnostic,
+    diagnostic_text_path_comparisons: diagnostics,
     bilingual_switch_preserves_result_without_request: 'passed', narrow_width_no_horizontal_clipping: 'passed',
     survey_controls_absent: 'passed', screenshots_private: true,
     content_script_facebook_extraction: 'covered separately by FACEBOOK-MODAL-VERIFICATION.json on a synthetic HTTPS facebook.com fixture; actual Google Chrome/Facebook interaction remains manual',

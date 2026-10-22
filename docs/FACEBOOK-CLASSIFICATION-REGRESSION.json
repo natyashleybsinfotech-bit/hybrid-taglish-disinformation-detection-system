@@ -1,0 +1,1603 @@
+{
+  "purpose": "Read-only Facebook-only regression investigation; no training, threshold change, label reversal, model switch, or retrieval comparison.",
+  "commit_boundary": {
+    "facebook_only_commit": "0491d42",
+    "immediate_parent": "bff79ca",
+    "working_tree_reset_or_checkout_performed": false,
+    "pre_and_current_hybrid_pipeline_git_blob": "b384d6211bdaeea961c1e3077f12308746e07568",
+    "current_hybrid_pipeline_git_blob": "b384d6211bdaeea961c1e3077f12308746e07568",
+    "core_pipeline_git_blob_identical": true,
+    "model_runtime_git_blob_changed": true,
+    "model_runtime_diff_scope": "Prediction serialization and public-label wording changed; the threshold decision still uses score >= the pinned bundle threshold, and the core HybridPipeline is unchanged."
+  },
+  "artifact_identity": {
+    "expected_training_run": "20261011T235112Z",
+    "pre_runtime_expected_model_4_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+    "pre_runtime_expected_threshold": 0.65,
+    "pre_encoder_inventory": {
+      "models/contextual_encoder/config.json": "7f13faae81a4420192f29d9fe5cd1dc7b80fa12229687c5edc7aaacfc2ac0eb9",
+      "models/contextual_encoder/model.safetensors": "45620facecba512b46c58430d27e20af43952eda9c1be56e023d0bbcfdcf10cb",
+      "models/contextual_encoder/special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+      "models/contextual_encoder/tokenizer.json": "bf1b59b7b11c95f194f51708d918eea378e09d05f84c0e1656dc5180e8117088",
+      "models/contextual_encoder/tokenizer_config.json": "91955163d30880d1ef0928cfdd729baaf413401dc4456f3ab1a48b3eec2ec624",
+      "models/contextual_encoder/vocab.txt": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
+    },
+    "current_component_hashes": {
+      "model_4_joblib": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "classifier_state": "1e9a165a06e4269753a6ded04f4fb90d278af36e0a3f282a4988a5beea1982f3",
+      "context_scaler_state": "f1db4967ca523920ecfc52d1330e0eaae0e6e67710d732380ca1b35ca3ae3428",
+      "linguistic_scaler_state": "7ff9052bb62d78db37c8137addf26163b07edd5842674317fbfc00ef7628fed1",
+      "feature_config_file": "5907e4b63d61451a16865117c69fe546501df884d429b3989c3f7b2710afd648",
+      "feature_config_in_bundle": "bd4ba0d6e055ba14f6ddb660f0cd7304f67ddb976106dbf800210f1aabb38348",
+      "tagalog_tokenizer": "fb915498d76e32e6283c2a77ecd05f48cfd983b33a91bda4cc7dde241c7a9403",
+      "contextual_encoder": {
+        "config.json": "7f13faae81a4420192f29d9fe5cd1dc7b80fa12229687c5edc7aaacfc2ac0eb9",
+        "model.safetensors": "45620facecba512b46c58430d27e20af43952eda9c1be56e023d0bbcfdcf10cb",
+        "tokenizer.json": "bf1b59b7b11c95f194f51708d918eea378e09d05f84c0e1656dc5180e8117088",
+        "tokenizer_config.json": "91955163d30880d1ef0928cfdd729baaf413401dc4456f3ab1a48b3eec2ec624",
+        "special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+        "vocab.txt": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
+      },
+      "run_manifest": "6c234dd569dd2ef1f8d75066c959e5fdf1db38b57380f02f48613bd1c9a0af8e",
+      "training_notebook": "16c7a6a3ad202990e7640f1daaa94ef865b903fd1320847eefd71d1f8c78fd89"
+    },
+    "pre_encoder_inventory_matches_current_files": true,
+    "pre_model_hash_matches_current_model_file": true,
+    "feature_config_file_matches_bundle": true,
+    "bundle_model_name": "Hybrid DistilBERT + linguistic + LR",
+    "bundle_threshold": 0.65,
+    "classifier_classes": [
+      0,
+      1
+    ],
+    "label_mapping": {
+      "Non-Misleading": 0,
+      "Misleading": 1
+    }
+  },
+  "exact_inputs": {
+    "hydration_statement": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration.",
+    "batasan_caption": "Barangay Batasan Hills, Quezon City bago mag-2 AM kanina, Oct. 12. Naaresto ng Batasan Police sa ikinasa nilang hot pursuit operation ang 38-anyos na suspek na isang miyembro ng Quezon City Task Force Disiplina. Naging ugat umano ng krimen ang pagsita ng suspek sa mga biktima na nasa labas pa kahit disoras na ng gabi. Sasampahan siya ng reklamong three counts ng murder. via James Agustin GMA News COURTESY QCPD STATION 6",
+    "long_complete_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. TAIL_MARKER",
+    "caption_plus_menu_reactions": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Post menu Like Comment Share 123 reactions",
+    "caption_plus_ocr_noise": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. @@@ 111 !!! llI| unreadable",
+    "caption_plus_unrelated_audio": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. BREAKING share agad, may ibang video na tumutugtog at hindi ito bahagi ng post."
+  },
+  "paths": {
+    "training_notebook_replay": {
+      "path": "training_notebook_replay",
+      "records": {
+        "hydration_statement": {
+          "input_sha256": "b83ddbf447be85fa01c95b5755501373c90320afc7a5da22b80e9452c645cca9",
+          "input_characters": 82,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration.",
+          "prepared_text_sha256": "b83ddbf447be85fa01c95b5755501373c90320afc7a5da22b80e9452c645cca9",
+          "content_tokens": 21,
+          "chunks": 1,
+          "embedding_sha256": "47b7919505228d7e60c196f7656d52d33b9ee4c5ceb92a7adc4f5630685a4158",
+          "linguistic_features": [
+            0.5,
+            0.0,
+            0.0,
+            0.028985507786273956,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "69696811963c6cb2b948a383f3b46c2b5c4bbca5265f9a24b6946361dcaee52c",
+          "scaled_context_sha256": "55dd16fb7362e57e04f3430e3155b6835c06a4aae13b00f59e862bd13ed360ea",
+          "scaled_linguistic": [
+            1.5356190204620361,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            -0.7761180400848389,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "3dbda27dd712bc17138359ec072fbdf712d32fc5fe4286af3c5cb4fc37836fab",
+          "hybrid_vector_sha256": "2a422486904f7bfe4aace975ddf2f8efda1b97c3f6af098ec71154c0f953841b",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 11.487976613572146,
+            "linguistic_features_total": -1.7124776096449912,
+            "linguistic_features": [
+              -0.913108585697534,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              -0.20961802296114537,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 10.545904275011448
+          },
+          "probability_columns": [
+            2.6300290436043205e-05,
+            0.999973699709564
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.999973699709564,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "batasan_caption": {
+          "input_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
+          "input_characters": 423,
+          "prepared_text": "Barangay Batasan Hills, Quezon City bago mag-2 AM kanina, Oct. 12. Naaresto ng Batasan Police sa ikinasa nilang hot pursuit operation ang 38-anyos na suspek na isang miyembro ng Quezon City Task Force Disiplina. Naging ugat umano ng krimen ang pagsita ng suspek sa mga biktima na nasa labas pa kahit disoras na ng gabi. Sasampahan siya ng reklamong three counts ng murder. via James Agustin GMA News COURTESY QCPD STATION 6",
+          "prepared_text_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
+          "content_tokens": 129,
+          "chunks": 1,
+          "embedding_sha256": "ec8d02dc02164c33a2546e766d02108e8da10d0b7ccf03e745853947ff69eddc",
+          "linguistic_features": [
+            0.2063492089509964,
+            0.06329113990068436,
+            0.0,
+            0.1275964379310608,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "730137187891987b263e6858583a0344642b815efae4ce271f4829379b6f3805",
+          "scaled_context_sha256": "6aef3329556b36eae4d33ec3b2a5612cb6e722023fedbd49ae13b21936db9192",
+          "scaled_linguistic": [
+            -0.5316882133483887,
+            1.04216468334198,
+            -0.46937108039855957,
+            2.628980875015259,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "b3fdd5781e0876d8ae8a7af3f6298b2c8b8b720620d3ad7c2fb80d8dcad00710",
+          "hybrid_vector_sha256": "b85902d516b4b076bba664b2fd6cd939aa4476875479a24e4302966e11afdade",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 4.03761864905275,
+            "linguistic_features_total": 1.300230239149812,
+            "linguistic_features": [
+              0.3161520312352749,
+              0.3606951251798201,
+              -0.01507474918983041,
+              0.7100489164806952,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 6.108254159286856
+          },
+          "probability_columns": [
+            0.0022194938161713695,
+            0.9977805061838286
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9977805061838286,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "long_complete_text": {
+          "input_sha256": "b140b73262873d575b2f3e785c4505afc82de9489029e9e57d87b4bcecbf0ede",
+          "input_characters": 7481,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. TAIL_MARKER",
+          "prepared_text_sha256": "b140b73262873d575b2f3e785c4505afc82de9489029e9e57d87b4bcecbf0ede",
+          "content_tokens": 1897,
+          "chunks": 4,
+          "embedding_sha256": "24ca63066d396f95d89150957319c2a2a459286f8a01f7748405ccac66860afb",
+          "linguistic_features": [
+            0.5,
+            0.0,
+            0.0,
+            0.030546624213457108,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "bff861e64beffb14b718478a71a8ba25de8fe8553ed5547bb8201fb9ddaf25a2",
+          "scaled_context_sha256": "39c66ac8fc5b655e54e27d4a53f3ef7126a82b3290bc1b6066757fccb726dfca",
+          "scaled_linguistic": [
+            1.5356190204620361,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            -0.7222116589546204,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "558f7d7a7beb13ccc0614ee089a0bbe240e00f37089c4a5a37f7613ffdd08588",
+          "hybrid_vector_sha256": "cadfa77f70bf8a243ec8a21ac79af0cc59728237fce1e1d0661f3e7db23d182d",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 6.257545697345041,
+            "linguistic_features_total": -1.6979182920490863,
+            "linguistic_features": [
+              -0.913108585697534,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              -0.1950587053652405,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 5.330032676380249
+          },
+          "probability_columns": [
+            0.004820561354480057,
+            0.9951794386455199
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9951794386455199,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_menu_reactions": {
+          "input_sha256": "dc1a73d2f00466e9bef76b42e07f26475ec6380323f0fc3b23072f8678da6ead",
+          "input_characters": 125,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Post menu Like Comment Share 123 reactions",
+          "prepared_text_sha256": "dc1a73d2f00466e9bef76b42e07f26475ec6380323f0fc3b23072f8678da6ead",
+          "content_tokens": 29,
+          "chunks": 1,
+          "embedding_sha256": "f7e9e029ee799a9160c43dfcc579aae9c58685061fab63c0fb1a5eae2d13c209",
+          "linguistic_features": [
+            0.3333333432674408,
+            0.0,
+            0.0,
+            0.05882352963089943,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "6e116352f399e102caec9e774d63188eb3236d4633aeb7e44b5604147d234eeb",
+          "scaled_context_sha256": "01be4ffb36b0e981ce3bb38175b6a6c21144c258603b0aa14a7f2b2d7e5a4929",
+          "scaled_linguistic": [
+            0.36228257417678833,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            0.2542080283164978,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "9e01694ad0f4ff0d3e7e7c4d8483d9e586155accd707c13b6cd9be913178cc1a",
+          "hybrid_vector_sha256": "175264cf6e70ea3c014232ceb9bebe4f68d3647b5c6c1af79704a3ed5990551b",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 9.65443623138931,
+            "linguistic_features_total": -0.7365133480505409,
+            "linguistic_features": [
+              -0.21542018203831392,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              0.06865783497408497,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 9.688328154423063
+          },
+          "probability_columns": [
+            6.199913308746474e-05,
+            0.9999380008669125
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9999380008669125,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_ocr_noise": {
+          "input_sha256": "5a3b8e5d97ec05fa2172456eb94dc54ff7e917f2b72d09afd0f727fdd6f14073",
+          "input_characters": 110,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. @@@ 111 !!! llI| unreadable",
+          "prepared_text_sha256": "5a3b8e5d97ec05fa2172456eb94dc54ff7e917f2b72d09afd0f727fdd6f14073",
+          "content_tokens": 34,
+          "chunks": 1,
+          "embedding_sha256": "f81fb3af8c872ddc28430ab6ccef0da5661776cbab26d22000feb6b4aed7ce59",
+          "linguistic_features": [
+            0.4615384638309479,
+            0.0,
+            0.027272727340459824,
+            0.03658536449074745,
+            0.08181817829608917,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "506043095e0dcdfa3295b13500de670b988d86aab6e2efb54e67b2e35ec96ed1",
+          "scaled_context_sha256": "18fff6c307e400fa8c81d6b1695c6a2fb3bf762a2d350394e75ab34f4b8e5221",
+          "scaled_linguistic": [
+            1.264849066734314,
+            -1.4535754919052124,
+            21.81613540649414,
+            -0.5136901140213013,
+            30.543949127197266,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "a4945df8183e3c7efcaef5fae899987ac2a136004e26b3a731f127918580ec79",
+          "hybrid_vector_sha256": "ef1aac08d2d1b800ec0c0301a278ea81f1cfdbb6030abe909aefea3bcd3d3bbf",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 18.083569198525737,
+            "linguistic_features_total": 6.880782087802485,
+            "linguistic_features": [
+              -0.7521035667421704,
+              -0.5030851672403335,
+              0.700666878038205,
+              -0.13874011497537148,
+              7.506153776385011,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 25.734756557412517
+          },
+          "probability_columns": [
+            6.660894058541089e-12,
+            0.9999999999933391
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9999999999933391,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_unrelated_audio": {
+          "input_sha256": "19f4908b4bf86b763644f9728c40fdf02cb06352218f0ff6d34ab9a5d9580837",
+          "input_characters": 162,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. BREAKING share agad, may ibang video na tumutugtog at hindi ito bahagi ng post.",
+          "prepared_text_sha256": "19f4908b4bf86b763644f9728c40fdf02cb06352218f0ff6d34ab9a5d9580837",
+          "content_tokens": 44,
+          "chunks": 1,
+          "embedding_sha256": "13e79c174624ad7039974dbdb1624e4a30f6f3b5736f7e582b7513d3fab06b8d",
+          "linguistic_features": [
+            0.3478260934352875,
+            0.03333333507180214,
+            0.0,
+            0.07518796622753143,
+            0.0,
+            0.0,
+            0.06666667014360428
+          ],
+          "linguistic_sha256": "058a8c023fd587e1f6523b2a68b6a0a29cb32af55a517806cbec79f18210274f",
+          "scaled_context_sha256": "ba0d4f5bdd7a9817e8d236ffbb70ba3c391f09e37d7742870609ea8b432ded6a",
+          "scaled_linguistic": [
+            0.4643118381500244,
+            -0.13915231823921204,
+            -0.46937108039855957,
+            0.819282591342926,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            19.554027557373047
+          ],
+          "scaled_linguistic_sha256": "c92634ba81a3b8ec2cc71c3e7d739c0d1338da406c2308cb5d59111607fb7b84",
+          "hybrid_vector_sha256": "8117b0cdd45070fdfd26b7c268d3c1c7b3cc102d1fd6bc2b4b7998ad1af05c34",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 8.267820949146456,
+            "linguistic_features_total": -1.8440235797259175,
+            "linguistic_features": [
+              -0.27608874350112445,
+              -0.04816087481049739,
+              -0.01507474918983041,
+              0.2212761309156212,
+              -0.13948136689329305,
+              0.009798833959129505,
+              -1.5962928102059228
+            ],
+            "total_logit": 7.194202640504834
+          },
+          "probability_columns": [
+            0.0007503631374803366,
+            0.9992496368625197
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9992496368625197,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        }
+      }
+    },
+    "pre_facebook_pipeline_bff79ca": {
+      "path": "pre_facebook_pipeline_bff79ca",
+      "records": {
+        "hydration_statement": {
+          "input_sha256": "b83ddbf447be85fa01c95b5755501373c90320afc7a5da22b80e9452c645cca9",
+          "input_characters": 82,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration.",
+          "prepared_text_sha256": "b83ddbf447be85fa01c95b5755501373c90320afc7a5da22b80e9452c645cca9",
+          "content_tokens": 21,
+          "chunks": 1,
+          "embedding_sha256": "47b7919505228d7e60c196f7656d52d33b9ee4c5ceb92a7adc4f5630685a4158",
+          "linguistic_features": [
+            0.5,
+            0.0,
+            0.0,
+            0.028985507786273956,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "69696811963c6cb2b948a383f3b46c2b5c4bbca5265f9a24b6946361dcaee52c",
+          "scaled_context_sha256": "55dd16fb7362e57e04f3430e3155b6835c06a4aae13b00f59e862bd13ed360ea",
+          "scaled_linguistic": [
+            1.5356190204620361,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            -0.7761180400848389,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "3dbda27dd712bc17138359ec072fbdf712d32fc5fe4286af3c5cb4fc37836fab",
+          "hybrid_vector_sha256": "2a422486904f7bfe4aace975ddf2f8efda1b97c3f6af098ec71154c0f953841b",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 11.487976613572146,
+            "linguistic_features_total": -1.7124776096449912,
+            "linguistic_features": [
+              -0.913108585697534,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              -0.20961802296114537,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 10.545904275011448
+          },
+          "probability_columns": [
+            2.6300290436043205e-05,
+            0.999973699709564
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.999973699709564,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "batasan_caption": {
+          "input_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
+          "input_characters": 423,
+          "prepared_text": "Barangay Batasan Hills, Quezon City bago mag-2 AM kanina, Oct. 12. Naaresto ng Batasan Police sa ikinasa nilang hot pursuit operation ang 38-anyos na suspek na isang miyembro ng Quezon City Task Force Disiplina. Naging ugat umano ng krimen ang pagsita ng suspek sa mga biktima na nasa labas pa kahit disoras na ng gabi. Sasampahan siya ng reklamong three counts ng murder. via James Agustin GMA News COURTESY QCPD STATION 6",
+          "prepared_text_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
+          "content_tokens": 129,
+          "chunks": 1,
+          "embedding_sha256": "ec8d02dc02164c33a2546e766d02108e8da10d0b7ccf03e745853947ff69eddc",
+          "linguistic_features": [
+            0.2063492089509964,
+            0.06329113990068436,
+            0.0,
+            0.1275964379310608,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "730137187891987b263e6858583a0344642b815efae4ce271f4829379b6f3805",
+          "scaled_context_sha256": "6aef3329556b36eae4d33ec3b2a5612cb6e722023fedbd49ae13b21936db9192",
+          "scaled_linguistic": [
+            -0.5316882133483887,
+            1.04216468334198,
+            -0.46937108039855957,
+            2.628980875015259,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "b3fdd5781e0876d8ae8a7af3f6298b2c8b8b720620d3ad7c2fb80d8dcad00710",
+          "hybrid_vector_sha256": "b85902d516b4b076bba664b2fd6cd939aa4476875479a24e4302966e11afdade",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 4.03761864905275,
+            "linguistic_features_total": 1.300230239149812,
+            "linguistic_features": [
+              0.3161520312352749,
+              0.3606951251798201,
+              -0.01507474918983041,
+              0.7100489164806952,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 6.108254159286856
+          },
+          "probability_columns": [
+            0.0022194938161713695,
+            0.9977805061838286
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9977805061838286,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "long_complete_text": {
+          "input_sha256": "b140b73262873d575b2f3e785c4505afc82de9489029e9e57d87b4bcecbf0ede",
+          "input_characters": 7481,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. TAIL_MARKER",
+          "prepared_text_sha256": "b140b73262873d575b2f3e785c4505afc82de9489029e9e57d87b4bcecbf0ede",
+          "content_tokens": 1897,
+          "chunks": 4,
+          "embedding_sha256": "24ca63066d396f95d89150957319c2a2a459286f8a01f7748405ccac66860afb",
+          "linguistic_features": [
+            0.5,
+            0.0,
+            0.0,
+            0.030546624213457108,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "bff861e64beffb14b718478a71a8ba25de8fe8553ed5547bb8201fb9ddaf25a2",
+          "scaled_context_sha256": "39c66ac8fc5b655e54e27d4a53f3ef7126a82b3290bc1b6066757fccb726dfca",
+          "scaled_linguistic": [
+            1.5356190204620361,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            -0.7222116589546204,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "558f7d7a7beb13ccc0614ee089a0bbe240e00f37089c4a5a37f7613ffdd08588",
+          "hybrid_vector_sha256": "cadfa77f70bf8a243ec8a21ac79af0cc59728237fce1e1d0661f3e7db23d182d",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 6.257545697345041,
+            "linguistic_features_total": -1.6979182920490863,
+            "linguistic_features": [
+              -0.913108585697534,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              -0.1950587053652405,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 5.330032676380249
+          },
+          "probability_columns": [
+            0.004820561354480057,
+            0.9951794386455199
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9951794386455199,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_menu_reactions": {
+          "input_sha256": "dc1a73d2f00466e9bef76b42e07f26475ec6380323f0fc3b23072f8678da6ead",
+          "input_characters": 125,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Post menu Like Comment Share 123 reactions",
+          "prepared_text_sha256": "dc1a73d2f00466e9bef76b42e07f26475ec6380323f0fc3b23072f8678da6ead",
+          "content_tokens": 29,
+          "chunks": 1,
+          "embedding_sha256": "f7e9e029ee799a9160c43dfcc579aae9c58685061fab63c0fb1a5eae2d13c209",
+          "linguistic_features": [
+            0.3333333432674408,
+            0.0,
+            0.0,
+            0.05882352963089943,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "6e116352f399e102caec9e774d63188eb3236d4633aeb7e44b5604147d234eeb",
+          "scaled_context_sha256": "01be4ffb36b0e981ce3bb38175b6a6c21144c258603b0aa14a7f2b2d7e5a4929",
+          "scaled_linguistic": [
+            0.36228257417678833,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            0.2542080283164978,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "9e01694ad0f4ff0d3e7e7c4d8483d9e586155accd707c13b6cd9be913178cc1a",
+          "hybrid_vector_sha256": "175264cf6e70ea3c014232ceb9bebe4f68d3647b5c6c1af79704a3ed5990551b",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 9.65443623138931,
+            "linguistic_features_total": -0.7365133480505409,
+            "linguistic_features": [
+              -0.21542018203831392,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              0.06865783497408497,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 9.688328154423063
+          },
+          "probability_columns": [
+            6.199913308746474e-05,
+            0.9999380008669125
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9999380008669125,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_ocr_noise": {
+          "input_sha256": "5a3b8e5d97ec05fa2172456eb94dc54ff7e917f2b72d09afd0f727fdd6f14073",
+          "input_characters": 110,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. @@@ 111 !!! llI| unreadable",
+          "prepared_text_sha256": "5a3b8e5d97ec05fa2172456eb94dc54ff7e917f2b72d09afd0f727fdd6f14073",
+          "content_tokens": 34,
+          "chunks": 1,
+          "embedding_sha256": "f81fb3af8c872ddc28430ab6ccef0da5661776cbab26d22000feb6b4aed7ce59",
+          "linguistic_features": [
+            0.4615384638309479,
+            0.0,
+            0.027272727340459824,
+            0.03658536449074745,
+            0.08181817829608917,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "506043095e0dcdfa3295b13500de670b988d86aab6e2efb54e67b2e35ec96ed1",
+          "scaled_context_sha256": "18fff6c307e400fa8c81d6b1695c6a2fb3bf762a2d350394e75ab34f4b8e5221",
+          "scaled_linguistic": [
+            1.264849066734314,
+            -1.4535754919052124,
+            21.81613540649414,
+            -0.5136901140213013,
+            30.543949127197266,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "a4945df8183e3c7efcaef5fae899987ac2a136004e26b3a731f127918580ec79",
+          "hybrid_vector_sha256": "ef1aac08d2d1b800ec0c0301a278ea81f1cfdbb6030abe909aefea3bcd3d3bbf",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 18.083569198525737,
+            "linguistic_features_total": 6.880782087802485,
+            "linguistic_features": [
+              -0.7521035667421704,
+              -0.5030851672403335,
+              0.700666878038205,
+              -0.13874011497537148,
+              7.506153776385011,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 25.734756557412517
+          },
+          "probability_columns": [
+            6.660894058541089e-12,
+            0.9999999999933391
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9999999999933391,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_unrelated_audio": {
+          "input_sha256": "19f4908b4bf86b763644f9728c40fdf02cb06352218f0ff6d34ab9a5d9580837",
+          "input_characters": 162,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. BREAKING share agad, may ibang video na tumutugtog at hindi ito bahagi ng post.",
+          "prepared_text_sha256": "19f4908b4bf86b763644f9728c40fdf02cb06352218f0ff6d34ab9a5d9580837",
+          "content_tokens": 44,
+          "chunks": 1,
+          "embedding_sha256": "13e79c174624ad7039974dbdb1624e4a30f6f3b5736f7e582b7513d3fab06b8d",
+          "linguistic_features": [
+            0.3478260934352875,
+            0.03333333507180214,
+            0.0,
+            0.07518796622753143,
+            0.0,
+            0.0,
+            0.06666667014360428
+          ],
+          "linguistic_sha256": "058a8c023fd587e1f6523b2a68b6a0a29cb32af55a517806cbec79f18210274f",
+          "scaled_context_sha256": "ba0d4f5bdd7a9817e8d236ffbb70ba3c391f09e37d7742870609ea8b432ded6a",
+          "scaled_linguistic": [
+            0.4643118381500244,
+            -0.13915231823921204,
+            -0.46937108039855957,
+            0.819282591342926,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            19.554027557373047
+          ],
+          "scaled_linguistic_sha256": "c92634ba81a3b8ec2cc71c3e7d739c0d1338da406c2308cb5d59111607fb7b84",
+          "hybrid_vector_sha256": "8117b0cdd45070fdfd26b7c268d3c1c7b3cc102d1fd6bc2b4b7998ad1af05c34",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 8.267820949146456,
+            "linguistic_features_total": -1.8440235797259175,
+            "linguistic_features": [
+              -0.27608874350112445,
+              -0.04816087481049739,
+              -0.01507474918983041,
+              0.2212761309156212,
+              -0.13948136689329305,
+              0.009798833959129505,
+              -1.5962928102059228
+            ],
+            "total_logit": 7.194202640504834
+          },
+          "probability_columns": [
+            0.0007503631374803366,
+            0.9992496368625197
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9992496368625197,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        }
+      }
+    },
+    "current_direct_pipeline": {
+      "path": "current_direct_pipeline",
+      "records": {
+        "hydration_statement": {
+          "input_sha256": "b83ddbf447be85fa01c95b5755501373c90320afc7a5da22b80e9452c645cca9",
+          "input_characters": 82,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration.",
+          "prepared_text_sha256": "b83ddbf447be85fa01c95b5755501373c90320afc7a5da22b80e9452c645cca9",
+          "content_tokens": 21,
+          "chunks": 1,
+          "embedding_sha256": "47b7919505228d7e60c196f7656d52d33b9ee4c5ceb92a7adc4f5630685a4158",
+          "linguistic_features": [
+            0.5,
+            0.0,
+            0.0,
+            0.028985507786273956,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "69696811963c6cb2b948a383f3b46c2b5c4bbca5265f9a24b6946361dcaee52c",
+          "scaled_context_sha256": "55dd16fb7362e57e04f3430e3155b6835c06a4aae13b00f59e862bd13ed360ea",
+          "scaled_linguistic": [
+            1.5356190204620361,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            -0.7761180400848389,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "3dbda27dd712bc17138359ec072fbdf712d32fc5fe4286af3c5cb4fc37836fab",
+          "hybrid_vector_sha256": "2a422486904f7bfe4aace975ddf2f8efda1b97c3f6af098ec71154c0f953841b",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 11.487976613572146,
+            "linguistic_features_total": -1.7124776096449912,
+            "linguistic_features": [
+              -0.913108585697534,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              -0.20961802296114537,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 10.545904275011448
+          },
+          "probability_columns": [
+            2.6300290436043205e-05,
+            0.999973699709564
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.999973699709564,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "batasan_caption": {
+          "input_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
+          "input_characters": 423,
+          "prepared_text": "Barangay Batasan Hills, Quezon City bago mag-2 AM kanina, Oct. 12. Naaresto ng Batasan Police sa ikinasa nilang hot pursuit operation ang 38-anyos na suspek na isang miyembro ng Quezon City Task Force Disiplina. Naging ugat umano ng krimen ang pagsita ng suspek sa mga biktima na nasa labas pa kahit disoras na ng gabi. Sasampahan siya ng reklamong three counts ng murder. via James Agustin GMA News COURTESY QCPD STATION 6",
+          "prepared_text_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
+          "content_tokens": 129,
+          "chunks": 1,
+          "embedding_sha256": "ec8d02dc02164c33a2546e766d02108e8da10d0b7ccf03e745853947ff69eddc",
+          "linguistic_features": [
+            0.2063492089509964,
+            0.06329113990068436,
+            0.0,
+            0.1275964379310608,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "730137187891987b263e6858583a0344642b815efae4ce271f4829379b6f3805",
+          "scaled_context_sha256": "6aef3329556b36eae4d33ec3b2a5612cb6e722023fedbd49ae13b21936db9192",
+          "scaled_linguistic": [
+            -0.5316882133483887,
+            1.04216468334198,
+            -0.46937108039855957,
+            2.628980875015259,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "b3fdd5781e0876d8ae8a7af3f6298b2c8b8b720620d3ad7c2fb80d8dcad00710",
+          "hybrid_vector_sha256": "b85902d516b4b076bba664b2fd6cd939aa4476875479a24e4302966e11afdade",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 4.03761864905275,
+            "linguistic_features_total": 1.300230239149812,
+            "linguistic_features": [
+              0.3161520312352749,
+              0.3606951251798201,
+              -0.01507474918983041,
+              0.7100489164806952,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 6.108254159286856
+          },
+          "probability_columns": [
+            0.0022194938161713695,
+            0.9977805061838286
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9977805061838286,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "long_complete_text": {
+          "input_sha256": "b140b73262873d575b2f3e785c4505afc82de9489029e9e57d87b4bcecbf0ede",
+          "input_characters": 7481,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. TAIL_MARKER",
+          "prepared_text_sha256": "b140b73262873d575b2f3e785c4505afc82de9489029e9e57d87b4bcecbf0ede",
+          "content_tokens": 1897,
+          "chunks": 4,
+          "embedding_sha256": "24ca63066d396f95d89150957319c2a2a459286f8a01f7748405ccac66860afb",
+          "linguistic_features": [
+            0.5,
+            0.0,
+            0.0,
+            0.030546624213457108,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "bff861e64beffb14b718478a71a8ba25de8fe8553ed5547bb8201fb9ddaf25a2",
+          "scaled_context_sha256": "39c66ac8fc5b655e54e27d4a53f3ef7126a82b3290bc1b6066757fccb726dfca",
+          "scaled_linguistic": [
+            1.5356190204620361,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            -0.7222116589546204,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "558f7d7a7beb13ccc0614ee089a0bbe240e00f37089c4a5a37f7613ffdd08588",
+          "hybrid_vector_sha256": "cadfa77f70bf8a243ec8a21ac79af0cc59728237fce1e1d0661f3e7db23d182d",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 6.257545697345041,
+            "linguistic_features_total": -1.6979182920490863,
+            "linguistic_features": [
+              -0.913108585697534,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              -0.1950587053652405,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 5.330032676380249
+          },
+          "probability_columns": [
+            0.004820561354480057,
+            0.9951794386455199
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9951794386455199,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_menu_reactions": {
+          "input_sha256": "dc1a73d2f00466e9bef76b42e07f26475ec6380323f0fc3b23072f8678da6ead",
+          "input_characters": 125,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Post menu Like Comment Share 123 reactions",
+          "prepared_text_sha256": "dc1a73d2f00466e9bef76b42e07f26475ec6380323f0fc3b23072f8678da6ead",
+          "content_tokens": 29,
+          "chunks": 1,
+          "embedding_sha256": "f7e9e029ee799a9160c43dfcc579aae9c58685061fab63c0fb1a5eae2d13c209",
+          "linguistic_features": [
+            0.3333333432674408,
+            0.0,
+            0.0,
+            0.05882352963089943,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "6e116352f399e102caec9e774d63188eb3236d4633aeb7e44b5604147d234eeb",
+          "scaled_context_sha256": "01be4ffb36b0e981ce3bb38175b6a6c21144c258603b0aa14a7f2b2d7e5a4929",
+          "scaled_linguistic": [
+            0.36228257417678833,
+            -1.4535754919052124,
+            -0.46937108039855957,
+            0.2542080283164978,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "9e01694ad0f4ff0d3e7e7c4d8483d9e586155accd707c13b6cd9be913178cc1a",
+          "hybrid_vector_sha256": "175264cf6e70ea3c014232ceb9bebe4f68d3647b5c6c1af79704a3ed5990551b",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 9.65443623138931,
+            "linguistic_features_total": -0.7365133480505409,
+            "linguistic_features": [
+              -0.21542018203831392,
+              -0.5030851672403335,
+              -0.01507474918983041,
+              0.06865783497408497,
+              -0.13948136689329305,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 9.688328154423063
+          },
+          "probability_columns": [
+            6.199913308746474e-05,
+            0.9999380008669125
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9999380008669125,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_ocr_noise": {
+          "input_sha256": "5a3b8e5d97ec05fa2172456eb94dc54ff7e917f2b72d09afd0f727fdd6f14073",
+          "input_characters": 110,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. @@@ 111 !!! llI| unreadable",
+          "prepared_text_sha256": "5a3b8e5d97ec05fa2172456eb94dc54ff7e917f2b72d09afd0f727fdd6f14073",
+          "content_tokens": 34,
+          "chunks": 1,
+          "embedding_sha256": "f81fb3af8c872ddc28430ab6ccef0da5661776cbab26d22000feb6b4aed7ce59",
+          "linguistic_features": [
+            0.4615384638309479,
+            0.0,
+            0.027272727340459824,
+            0.03658536449074745,
+            0.08181817829608917,
+            0.0,
+            0.0
+          ],
+          "linguistic_sha256": "506043095e0dcdfa3295b13500de670b988d86aab6e2efb54e67b2e35ec96ed1",
+          "scaled_context_sha256": "18fff6c307e400fa8c81d6b1695c6a2fb3bf762a2d350394e75ab34f4b8e5221",
+          "scaled_linguistic": [
+            1.264849066734314,
+            -1.4535754919052124,
+            21.81613540649414,
+            -0.5136901140213013,
+            30.543949127197266,
+            -0.25531432032585144,
+            -0.7115998864173889
+          ],
+          "scaled_linguistic_sha256": "a4945df8183e3c7efcaef5fae899987ac2a136004e26b3a731f127918580ec79",
+          "hybrid_vector_sha256": "ef1aac08d2d1b800ec0c0301a278ea81f1cfdbb6030abe909aefea3bcd3d3bbf",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 18.083569198525737,
+            "linguistic_features_total": 6.880782087802485,
+            "linguistic_features": [
+              -0.7521035667421704,
+              -0.5030851672403335,
+              0.700666878038205,
+              -0.13874011497537148,
+              7.506153776385011,
+              0.009798833959129505,
+              0.05809144837801552
+            ],
+            "total_logit": 25.734756557412517
+          },
+          "probability_columns": [
+            6.660894058541089e-12,
+            0.9999999999933391
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9999999999933391,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        },
+        "caption_plus_unrelated_audio": {
+          "input_sha256": "19f4908b4bf86b763644f9728c40fdf02cb06352218f0ff6d34ab9a5d9580837",
+          "input_characters": 162,
+          "prepared_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. BREAKING share agad, may ibang video na tumutugtog at hindi ito bahagi ng post.",
+          "prepared_text_sha256": "19f4908b4bf86b763644f9728c40fdf02cb06352218f0ff6d34ab9a5d9580837",
+          "content_tokens": 44,
+          "chunks": 1,
+          "embedding_sha256": "13e79c174624ad7039974dbdb1624e4a30f6f3b5736f7e582b7513d3fab06b8d",
+          "linguistic_features": [
+            0.3478260934352875,
+            0.03333333507180214,
+            0.0,
+            0.07518796622753143,
+            0.0,
+            0.0,
+            0.06666667014360428
+          ],
+          "linguistic_sha256": "058a8c023fd587e1f6523b2a68b6a0a29cb32af55a517806cbec79f18210274f",
+          "scaled_context_sha256": "ba0d4f5bdd7a9817e8d236ffbb70ba3c391f09e37d7742870609ea8b432ded6a",
+          "scaled_linguistic": [
+            0.4643118381500244,
+            -0.13915231823921204,
+            -0.46937108039855957,
+            0.819282591342926,
+            -0.5675758719444275,
+            -0.25531432032585144,
+            19.554027557373047
+          ],
+          "scaled_linguistic_sha256": "c92634ba81a3b8ec2cc71c3e7d739c0d1338da406c2308cb5d59111607fb7b84",
+          "hybrid_vector_sha256": "8117b0cdd45070fdfd26b7c268d3c1c7b3cc102d1fd6bc2b4b7998ad1af05c34",
+          "logit_decomposition": {
+            "intercept": 0.7704052710842939,
+            "contextual_features": 8.267820949146456,
+            "linguistic_features_total": -1.8440235797259175,
+            "linguistic_features": [
+              -0.27608874350112445,
+              -0.04816087481049739,
+              -0.01507474918983041,
+              0.2212761309156212,
+              -0.13948136689329305,
+              0.009798833959129505,
+              -1.5962928102059228
+            ],
+            "total_logit": 7.194202640504834
+          },
+          "probability_columns": [
+            0.0007503631374803366,
+            0.9992496368625197
+          ],
+          "classifier_classes": [
+            0,
+            1
+          ],
+          "misleading_probability_column": 1,
+          "p_misleading": 0.9992496368625197,
+          "threshold": 0.65,
+          "predicted_class": 1,
+          "label": "Misleading"
+        }
+      }
+    }
+  },
+  "intermediate_comparison_to_notebook": {
+    "pre_facebook_pipeline_bff79ca": {
+      "hydration_statement": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "batasan_caption": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "long_complete_text": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "caption_plus_menu_reactions": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "caption_plus_ocr_noise": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "caption_plus_unrelated_audio": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      }
+    },
+    "current_direct_pipeline": {
+      "hydration_statement": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "batasan_caption": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "long_complete_text": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "caption_plus_menu_reactions": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "caption_plus_ocr_noise": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      },
+      "caption_plus_unrelated_audio": {
+        "prepared_text_identical": true,
+        "embedding_identical": true,
+        "linguistic_identical": true,
+        "scaled_context_identical": true,
+        "scaled_linguistic_identical": true,
+        "hybrid_vector_identical": true,
+        "max_probability_absolute_difference": 0.0,
+        "decision_identical": true
+      }
+    }
+  },
+  "current_api": {
+    "hydration_statement": {
+      "submitted_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration.",
+      "analyzed_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration.",
+      "submitted_matches_analyzed": true,
+      "p_misleading": 0.9999736996386072,
+      "probability_columns": [
+        2.63003613928392e-05,
+        0.9999736996386072
+      ],
+      "threshold": 0.65,
+      "predicted_class": 1,
+      "label": "Misleading",
+      "displayed_label": "Potentially Misleading",
+      "model_name": "Hybrid DistilBERT + linguistic + LR",
+      "training_run_id": "20261011T235112Z",
+      "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "linguistic_features": [
+        0.5,
+        0.0,
+        0.0,
+        0.028985507786273956,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "chunks": 1,
+      "content_tokens": 21
+    },
+    "batasan_caption": {
+      "submitted_text": "Barangay Batasan Hills, Quezon City bago mag-2 AM kanina, Oct. 12. Naaresto ng Batasan Police sa ikinasa nilang hot pursuit operation ang 38-anyos na suspek na isang miyembro ng Quezon City Task Force Disiplina. Naging ugat umano ng krimen ang pagsita ng suspek sa mga biktima na nasa labas pa kahit disoras na ng gabi. Sasampahan siya ng reklamong three counts ng murder. via James Agustin GMA News COURTESY QCPD STATION 6",
+      "analyzed_text": "Barangay Batasan Hills, Quezon City bago mag-2 AM kanina, Oct. 12. Naaresto ng Batasan Police sa ikinasa nilang hot pursuit operation ang 38-anyos na suspek na isang miyembro ng Quezon City Task Force Disiplina. Naging ugat umano ng krimen ang pagsita ng suspek sa mga biktima na nasa labas pa kahit disoras na ng gabi. Sasampahan siya ng reklamong three counts ng murder. via James Agustin GMA News COURTESY QCPD STATION 6",
+      "submitted_matches_analyzed": true,
+      "p_misleading": 0.9977805021719399,
+      "probability_columns": [
+        0.0022194978280600797,
+        0.9977805021719399
+      ],
+      "threshold": 0.65,
+      "predicted_class": 1,
+      "label": "Misleading",
+      "displayed_label": "Potentially Misleading",
+      "model_name": "Hybrid DistilBERT + linguistic + LR",
+      "training_run_id": "20261011T235112Z",
+      "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "linguistic_features": [
+        0.2063492089509964,
+        0.06329113990068436,
+        0.0,
+        0.1275964379310608,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "chunks": 1,
+      "content_tokens": 129
+    },
+    "long_complete_text": {
+      "submitted_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. TAIL_MARKER",
+      "analyzed_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. TAIL_MARKER",
+      "submitted_matches_analyzed": true,
+      "p_misleading": 0.9951794386455199,
+      "probability_columns": [
+        0.004820561354480057,
+        0.9951794386455199
+      ],
+      "threshold": 0.65,
+      "predicted_class": 1,
+      "label": "Misleading",
+      "displayed_label": "Potentially Misleading",
+      "model_name": "Hybrid DistilBERT + linguistic + LR",
+      "training_run_id": "20261011T235112Z",
+      "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "linguistic_features": [
+        0.5,
+        0.0,
+        0.0,
+        0.030546624213457108,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "chunks": 4,
+      "content_tokens": 1897
+    },
+    "caption_plus_menu_reactions": {
+      "submitted_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Post menu Like Comment Share 123 reactions",
+      "analyzed_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. Post menu Like Comment Share 123 reactions",
+      "submitted_matches_analyzed": true,
+      "p_misleading": 0.9999380006893911,
+      "probability_columns": [
+        6.199931060890673e-05,
+        0.9999380006893911
+      ],
+      "threshold": 0.65,
+      "predicted_class": 1,
+      "label": "Misleading",
+      "displayed_label": "Potentially Misleading",
+      "model_name": "Hybrid DistilBERT + linguistic + LR",
+      "training_run_id": "20261011T235112Z",
+      "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "linguistic_features": [
+        0.3333333432674408,
+        0.0,
+        0.0,
+        0.05882352963089943,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "chunks": 1,
+      "content_tokens": 29
+    },
+    "caption_plus_ocr_noise": {
+      "submitted_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. @@@ 111 !!! llI| unreadable",
+      "analyzed_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. @@@ 111 !!! llI| unreadable",
+      "submitted_matches_analyzed": true,
+      "p_misleading": 0.9999999999933391,
+      "probability_columns": [
+        6.660894058541089e-12,
+        0.9999999999933391
+      ],
+      "threshold": 0.65,
+      "predicted_class": 1,
+      "label": "Misleading",
+      "displayed_label": "Potentially Misleading",
+      "model_name": "Hybrid DistilBERT + linguistic + LR",
+      "training_run_id": "20261011T235112Z",
+      "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "linguistic_features": [
+        0.4615384638309479,
+        0.0,
+        0.027272727340459824,
+        0.03658536449074745,
+        0.08181817829608917,
+        0.0,
+        0.0
+      ],
+      "chunks": 1,
+      "content_tokens": 34
+    },
+    "caption_plus_unrelated_audio": {
+      "submitted_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. BREAKING share agad, may ibang video na tumutugtog at hindi ito bahagi ng post.",
+      "analyzed_text": "Ang tubig ay mahalaga sa katawan. Drinking enough water helps prevent dehydration. BREAKING share agad, may ibang video na tumutugtog at hindi ito bahagi ng post.",
+      "submitted_matches_analyzed": true,
+      "p_misleading": 0.9992496368625197,
+      "probability_columns": [
+        0.0007503631374803366,
+        0.9992496368625197
+      ],
+      "threshold": 0.65,
+      "predicted_class": 1,
+      "label": "Misleading",
+      "displayed_label": "Potentially Misleading",
+      "model_name": "Hybrid DistilBERT + linguistic + LR",
+      "training_run_id": "20261011T235112Z",
+      "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "linguistic_features": [
+        0.3478260934352875,
+        0.03333333507180214,
+        0.0,
+        0.07518796622753143,
+        0.0,
+        0.0,
+        0.06666667014360428
+      ],
+      "chunks": 1,
+      "content_tokens": 44
+    }
+  },
+  "current_api_comparison_to_direct": {
+    "hydration_statement": {
+      "submitted_text_identical": true,
+      "analyzed_text_identical": true,
+      "content_tokens_identical": true,
+      "chunks_identical": true,
+      "linguistic_features_max_absolute_difference": 0.0,
+      "probability_absolute_difference": 7.095679599444793e-11,
+      "decision_identical": true
+    },
+    "batasan_caption": {
+      "submitted_text_identical": true,
+      "analyzed_text_identical": true,
+      "content_tokens_identical": true,
+      "chunks_identical": true,
+      "linguistic_features_max_absolute_difference": 0.0,
+      "probability_absolute_difference": 4.011888710131473e-09,
+      "decision_identical": true
+    },
+    "long_complete_text": {
+      "submitted_text_identical": true,
+      "analyzed_text_identical": true,
+      "content_tokens_identical": true,
+      "chunks_identical": true,
+      "linguistic_features_max_absolute_difference": 0.0,
+      "probability_absolute_difference": 0.0,
+      "decision_identical": true
+    },
+    "caption_plus_menu_reactions": {
+      "submitted_text_identical": true,
+      "analyzed_text_identical": true,
+      "content_tokens_identical": true,
+      "chunks_identical": true,
+      "linguistic_features_max_absolute_difference": 0.0,
+      "probability_absolute_difference": 1.7752144199079112e-10,
+      "decision_identical": true
+    },
+    "caption_plus_ocr_noise": {
+      "submitted_text_identical": true,
+      "analyzed_text_identical": true,
+      "content_tokens_identical": true,
+      "chunks_identical": true,
+      "linguistic_features_max_absolute_difference": 0.0,
+      "probability_absolute_difference": 0.0,
+      "decision_identical": true
+    },
+    "caption_plus_unrelated_audio": {
+      "submitted_text_identical": true,
+      "analyzed_text_identical": true,
+      "content_tokens_identical": true,
+      "chunks_identical": true,
+      "linguistic_features_max_absolute_difference": 0.0,
+      "probability_absolute_difference": 0.0,
+      "decision_identical": true
+    }
+  },
+  "extension": {
+    "passed": true,
+    "browser": "Microsoft Edge (isolated off-screen profile)",
+    "unpacked_extension_loaded": true,
+    "extension_id_observed": true,
+    "popup_opened_from_action": true,
+    "popup_opened_as_extension_window": false,
+    "actual_backend_connection": true,
+    "empty_input": "passed",
+    "manual_text_prediction": "passed",
+    "duplicate_click_single_request": "passed",
+    "stale_result_cleared": "passed",
+    "long_text_tail_preserved": "passed",
+    "seven_feature_values_match_backend": "passed",
+    "context_visible": "passed",
+    "exact_eight_part_order": "passed",
+    "one_bottom_reminder": "passed",
+    "source_only_lookup_without_reclassification": "passed",
+    "diagnostic_text_path_comparisons": {
+      "hydration_statement": {
+        "text_sha256": "b83ddbf447be85fa01c95b5755501373c90320afc7a5da22b80e9452c645cca9",
+        "api_label": "Misleading",
+        "api_model_score": 0.9999736996386072,
+        "ui_label": "Potentially Misleading",
+        "ui_displayed_percent": ">99.99%",
+        "ui_analyzed_text_matches": true
+      },
+      "batasan_caption": {
+        "text_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
+        "api_label": "Misleading",
+        "api_model_score": 0.9977805021719399,
+        "ui_label": "Potentially Misleading",
+        "ui_displayed_percent": "99.78%",
+        "ui_analyzed_text_matches": true
+      },
+      "long_complete_text": {
+        "text_sha256": "b140b73262873d575b2f3e785c4505afc82de9489029e9e57d87b4bcecbf0ede",
+        "api_label": "Misleading",
+        "api_model_score": 0.9951794386455199,
+        "ui_label": "Potentially Misleading",
+        "ui_displayed_percent": "99.52%",
+        "ui_analyzed_text_matches": true
+      },
+      "caption_plus_menu_reactions": {
+        "text_sha256": "dc1a73d2f00466e9bef76b42e07f26475ec6380323f0fc3b23072f8678da6ead",
+        "api_label": "Misleading",
+        "api_model_score": 0.9999380006893911,
+        "ui_label": "Potentially Misleading",
+        "ui_displayed_percent": "99.99%",
+        "ui_analyzed_text_matches": true
+      },
+      "caption_plus_ocr_noise": {
+        "text_sha256": "5a3b8e5d97ec05fa2172456eb94dc54ff7e917f2b72d09afd0f727fdd6f14073",
+        "api_label": "Misleading",
+        "api_model_score": 0.9999999999933391,
+        "ui_label": "Potentially Misleading",
+        "ui_displayed_percent": ">99.99%",
+        "ui_analyzed_text_matches": true
+      },
+      "caption_plus_unrelated_audio": {
+        "text_sha256": "19f4908b4bf86b763644f9728c40fdf02cb06352218f0ff6d34ab9a5d9580837",
+        "api_label": "Misleading",
+        "api_model_score": 0.9992496368625197,
+        "ui_label": "Potentially Misleading",
+        "ui_displayed_percent": "99.92%",
+        "ui_analyzed_text_matches": true
+      }
+    },
+    "bilingual_switch_preserves_result_without_request": "passed",
+    "narrow_width_no_horizontal_clipping": "passed",
+    "survey_controls_absent": "passed",
+    "screenshots_private": true,
+    "content_script_facebook_extraction": "covered separately by FACEBOOK-MODAL-VERIFICATION.json on a synthetic HTTPS facebook.com fixture; actual Google Chrome/Facebook interaction remains manual",
+    "limitations": [
+      "No real social account or participant content was used.",
+      "Keyboard and screen-reader testing remains manual."
+    ]
+  },
+  "facebook_extraction": {
+    "passed": true,
+    "browser": "Microsoft Edge (isolated off-screen profile)",
+    "unpacked_extension_loaded": true,
+    "manifest_supported_facebook_origin": true,
+    "bounded_caption_extraction": "passed",
+    "menus_reactions_nested_comments_excluded": "passed",
+    "neighboring_post_excluded": "passed",
+    "unrecognized_container_fails_closed": "passed",
+    "exact_eight_part_visual_order": "passed",
+    "post_author_timestamp_scope_and_links": "passed",
+    "source_only_lookup_preserves_prediction": "passed",
+    "bilingual_switch_preserves_label_score_and_text": "passed",
+    "one_bottom_reminder": "passed",
+    "actual_facebook_account_tested": false,
+    "fixture_note": "Local HTTPS facebook.com fixture; no real account, post, message, or participant data was used.",
+    "screenshot_private": true
+  },
+  "media_diagnostics": {
+    "note": "Diagnostic text variants only. Production media behavior was not changed.",
+    "caption_only_key": "hydration_statement",
+    "combined_variant_keys": [
+      "caption_plus_menu_reactions",
+      "caption_plus_ocr_noise",
+      "caption_plus_unrelated_audio"
+    ]
+  },
+  "conclusion": "The Facebook-only restriction did not cause these classifier scores. The notebook replay, pre-Facebook pipeline, and current direct pipeline produce identical intermediates and decisions with the same pinned model_4 artifact. The live API and extension submit the same text and preserve the same decision. Current Facebook caption extraction excludes the tested menu, reaction, nested-comment, and neighboring-post text and fails closed for an unrecognized container. Media-derived OCR or audio remains intentionally combined only when the user chooses media analysis and can change the model input and score."
+}

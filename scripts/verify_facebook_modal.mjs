@@ -34,12 +34,20 @@ const certificate = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy
 assert.equal(certificate.status, 0, `Could not create fixture certificate: ${certificate.stderr}`);
 
 const fixtureHtml = `<!doctype html><meta charset="utf-8"><title>SuriPH Facebook fixture</title>
-<article role="article" tabindex="0">
+<article id="target-post" role="article" tabindex="0">
   <h2><a role="link" href="https://www.facebook.com/researcher.fixture">Researcher Fixture</a></h2>
   <p data-ad-comet-preview="message">BREAKING!!! Share agad!!! Totoo ba ito?</p>
+  <button type="button">Unrelated post menu</button>
+  <div aria-label="Reactions and actions">999 reactions Like Comment Share</div>
+  <article role="article"><p>Unrelated nested comment Reply 47</p></article>
   <time datetime="2026-10-20T08:00:00Z">October 20 at 4:00 PM</time>
   <a href="https://www.facebook.com/researcher.fixture/posts/123">Original post</a>
   <a href="https://example.org/reference">Reference article</a>
+</article>
+<article id="neighbor-post" role="article" tabindex="0">
+  <h2>Neighbor post</h2>
+  <p>Unrecognized plain text must fail closed and never be submitted.</p>
+  <button type="button">Like</button>
 </article>`;
 const fixtureCertificate = new X509Certificate(await readFile(certPath));
 const fixtureSpki = createHash('sha256').update(fixtureCertificate.publicKey.export({ type: 'spki', format: 'der' })).digest('base64');
@@ -101,16 +109,22 @@ try {
   assert.ok(pageTarget, 'Facebook fixture page did not open');
   page = await new CDP(pageTarget.webSocketDebuggerUrl).open();
   await Promise.all([page.send('Page.enable'), page.send('Runtime.enable')]);
-  await waitFor(page, `Boolean(document.querySelector('#suriph-control-host')?.shadowRoot)`, 30000);
+  await waitFor(page, `Boolean(document.querySelector('#target-post > #suriph-control-host')?.shadowRoot)`, 30000);
 
-  await evaluate(page, `document.querySelector('#suriph-control-host').shadowRoot.querySelector('.action').click(); true`);
-  await waitFor(page, `document.querySelector('#suriph-control-host').shadowRoot.textContent.includes('Analyze this text')`);
-  const previewText = await evaluate(page, `document.querySelector('#suriph-control-host').shadowRoot.querySelector('.result p').textContent`);
+  const failClosed = await evaluate(page, `(() => { const host=document.querySelector('#neighbor-post > #suriph-control-host'); host.shadowRoot.querySelector('.action').click(); return new Promise(resolve => setTimeout(() => resolve(host.shadowRoot.textContent), 50)); })()`, true);
+  assert.match(failClosed, /No readable Facebook post caption or text was found/);
+  await evaluate(page, `document.querySelector('#target-post > #suriph-control-host').shadowRoot.querySelector('.action').click(); true`);
+  const postClickState = await evaluate(page, `new Promise(resolve => setTimeout(() => { const host=document.querySelector('body > #suriph-control-host'); resolve({postText:document.querySelector('#target-post').innerText,shadowText:host.shadowRoot.textContent,shadowHtml:host.shadowRoot.innerHTML.slice(0,1200)}); }, 250))`, true);
+  if (!postClickState.shadowText.includes('Analyze this text')) console.error(JSON.stringify(postClickState, null, 2));
+  await waitFor(page, `document.querySelector('body > #suriph-control-host').shadowRoot.textContent.includes('Analyze this text')`);
+  const previewText = await evaluate(page, `document.querySelector('body > #suriph-control-host').shadowRoot.querySelector('.result p').textContent`);
   assert.equal(previewText, 'BREAKING!!! Share agad!!! Totoo ba ito?');
-  await evaluate(page, `(() => { const root=document.querySelector('#suriph-control-host').shadowRoot; const lookup=[...root.querySelectorAll('label')].find(node=>node.textContent.includes('Send up to 500 characters'))?.querySelector('input'); if(lookup?.checked) lookup.click(); [...root.querySelectorAll('button')].find(node=>node.textContent.includes('Analyze this text')).click(); return true; })()`);
-  await waitFor(page, `document.querySelector('#suriph-control-host').shadowRoot.querySelectorAll('[data-result-part]').length===8`);
+  assert.doesNotMatch(previewText, /menu|reaction|comment|reply|neighbor/i);
 
-  const state = await evaluate(page, `(() => { const root=document.querySelector('#suriph-control-host').shadowRoot; const result=root.querySelector('.result'); const action=root.querySelector('.action'); return {parts:[...result.querySelectorAll('[data-result-part]')].map(node=>node.dataset.resultPart),buttonPart:action.dataset.resultPart,resultOrder:result.style.order,buttonOrder:action.style.order,label:result.querySelector('[data-result-part="1-prediction"]').textContent,score:result.querySelector('[data-result-part="2-score"] strong').textContent,analyzed:result.querySelector('[data-result-part="6-analyzed-text"] p:last-child').textContent,context:result.querySelector('[data-result-part="3-post-context"]').innerText,links:[...result.querySelectorAll('[data-result-part="3-post-context"] a')].map(node=>node.href),reminders:result.querySelectorAll('[data-result-part="7-reminder"]').length,sourceText:result.querySelector('[data-result-part="5-related-sources"]').innerText}; })()`);
+  await evaluate(page, `(() => { const root=document.querySelector('body > #suriph-control-host').shadowRoot; const lookup=[...root.querySelectorAll('label')].find(node=>node.textContent.includes('Send up to 500 characters'))?.querySelector('input'); if(lookup?.checked) lookup.click(); [...root.querySelectorAll('button')].find(node=>node.textContent.includes('Analyze this text')).click(); return true; })()`);
+  await waitFor(page, `document.querySelector('body > #suriph-control-host').shadowRoot.querySelectorAll('[data-result-part]').length===8`);
+
+  const state = await evaluate(page, `(() => { const root=document.querySelector('body > #suriph-control-host').shadowRoot; const result=root.querySelector('.result'); const action=root.querySelector('.action'); return {parts:[...result.querySelectorAll('[data-result-part]')].map(node=>node.dataset.resultPart),buttonPart:action.dataset.resultPart,resultOrder:result.style.order,buttonOrder:action.style.order,label:result.querySelector('[data-result-part="1-prediction"]').textContent,score:result.querySelector('[data-result-part="2-score"] strong').textContent,analyzed:result.querySelector('[data-result-part="6-analyzed-text"] p:last-child').textContent,context:result.querySelector('[data-result-part="3-post-context"]').innerText,links:[...result.querySelectorAll('[data-result-part="3-post-context"] a')].map(node=>node.href),reminders:result.querySelectorAll('[data-result-part="7-reminder"]').length,sourceText:result.querySelector('[data-result-part="5-related-sources"]').innerText}; })()`);
   assert.deepEqual(state.parts, ['1-prediction', '2-score', '3-post-context', '4-features', '5-related-sources', '6-analyzed-text', '7-reminder']);
   assert.equal(state.buttonPart, '8-check-again');
   assert.equal(state.resultOrder, '2');
@@ -125,15 +139,15 @@ try {
   assert.match(state.sourceText, /Source lookup was not requested/);
 
   const beforeLookup = { label: state.label, score: state.score, analyzed: state.analyzed };
-  await evaluate(page, `(() => { const root=document.querySelector('#suriph-control-host').shadowRoot; [...root.querySelectorAll('button')].find(node=>node.textContent==='Find related sources').click(); return true; })()`);
-  await waitFor(page, `!document.querySelector('#suriph-control-host').shadowRoot.textContent.includes('Finding related sources')`, 30000);
-  const afterLookup = await evaluate(page, `(() => { const result=document.querySelector('#suriph-control-host').shadowRoot.querySelector('.result'); return {label:result.querySelector('[data-result-part="1-prediction"]').textContent,score:result.querySelector('[data-result-part="2-score"] strong').textContent,analyzed:result.querySelector('[data-result-part="6-analyzed-text"] p:last-child').textContent,sourceText:result.querySelector('[data-result-part="5-related-sources"]').innerText}; })()`);
+  await evaluate(page, `(() => { const root=document.querySelector('body > #suriph-control-host').shadowRoot; [...root.querySelectorAll('button')].find(node=>node.textContent==='Find related sources').click(); return true; })()`);
+  await waitFor(page, `!document.querySelector('body > #suriph-control-host').shadowRoot.textContent.includes('Finding related sources')`, 30000);
+  const afterLookup = await evaluate(page, `(() => { const result=document.querySelector('body > #suriph-control-host').shadowRoot.querySelector('.result'); return {label:result.querySelector('[data-result-part="1-prediction"]').textContent,score:result.querySelector('[data-result-part="2-score"] strong').textContent,analyzed:result.querySelector('[data-result-part="6-analyzed-text"] p:last-child').textContent,sourceText:result.querySelector('[data-result-part="5-related-sources"]').innerText}; })()`);
   assert.deepEqual({ label: afterLookup.label, score: afterLookup.score, analyzed: afterLookup.analyzed }, beforeLookup);
   assert.doesNotMatch(afterLookup.sourceText, /Source lookup was not requested/);
 
-  await evaluate(page, `(() => { const root=document.querySelector('#suriph-control-host').shadowRoot; [...root.querySelectorAll('button')].find(node=>node.textContent==='Tagalog').click(); return true; })()`);
-  await waitFor(page, `document.querySelector('#suriph-control-host').shadowRoot.textContent.includes('Konteksto ng post')`);
-  const tagalog = await evaluate(page, `(() => { const result=document.querySelector('#suriph-control-host').shadowRoot.querySelector('.result'); return {label:result.querySelector('[data-result-part="1-prediction"]').textContent,score:result.querySelector('[data-result-part="2-score"] strong').textContent,analyzed:result.querySelector('[data-result-part="6-analyzed-text"] p:last-child').textContent}; })()`);
+  await evaluate(page, `(() => { const root=document.querySelector('body > #suriph-control-host').shadowRoot; [...root.querySelectorAll('button')].find(node=>node.textContent==='Tagalog').click(); return true; })()`);
+  await waitFor(page, `document.querySelector('body > #suriph-control-host').shadowRoot.textContent.includes('Konteksto ng post')`);
+  const tagalog = await evaluate(page, `(() => { const result=document.querySelector('body > #suriph-control-host').shadowRoot.querySelector('.result'); return {label:result.querySelector('[data-result-part="1-prediction"]').textContent,score:result.querySelector('[data-result-part="2-score"] strong').textContent,analyzed:result.querySelector('[data-result-part="6-analyzed-text"] p:last-child').textContent}; })()`);
   assert.deepEqual(tagalog, beforeLookup);
 
   const shot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
@@ -144,6 +158,9 @@ try {
     unpacked_extension_loaded: true,
     manifest_supported_facebook_origin: true,
     bounded_caption_extraction: 'passed',
+    menus_reactions_nested_comments_excluded: 'passed',
+    neighboring_post_excluded: 'passed',
+    unrecognized_container_fails_closed: 'passed',
     exact_eight_part_visual_order: 'passed',
     post_author_timestamp_scope_and_links: 'passed',
     source_only_lookup_preserves_prediction: 'passed',

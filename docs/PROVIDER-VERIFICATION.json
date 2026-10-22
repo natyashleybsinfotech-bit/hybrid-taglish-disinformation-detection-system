@@ -14,5 +14,18 @@
     "results": 3,
     "latency_ms": 717.576,
     "live_request_attempted": true
+  },
+  "public_relevance_filter": {
+    "date": "2026-10-22",
+    "minimum_distinct_informative_matches_for_normal_posts": 3,
+    "credible_but_unrelated_fixture_rejected": true,
+    "reported_batasan_post_live_status": "available",
+    "reported_batasan_post_live_results": 1,
+    "reported_batasan_result": "Manila Bulletin: 3 killed, including minor, in QC shooting; suspect arrested",
+    "low_context_query_status_after_focused_retry": "available",
+    "low_context_query_results": 1,
+    "low_context_result": "Manila Bulletin: QCPD files murder raps vs suspect in Batasan Hills shooting",
+    "unrelated_court_car_theft_corporate_pdf_tag_page_and_pickpocket_results_rejected": true,
+    "classification_performed_by_source_lookup": false
   }
 }

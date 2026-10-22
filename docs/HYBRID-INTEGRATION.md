@@ -173,6 +173,14 @@ reading from approved publishers. Google Fact Check is available only through th
 administrator evidence-review endpoint. Neither provider generates or changes classifier
 labels or scores, and a provider failure does not change the prediction. `POST
 /related-sources` supports a later source lookup and never invokes classification.
+Approved-domain results are additionally filtered and ranked by overlap between informative
+terms in the supplied post and each result's title and snippet. Normal post-sized queries
+also require at least two informative headline matches, so generic snippet overlap is not
+enough. A credible domain by itself
+does not qualify a link; the endpoint returns `no_results` when no candidate passes this
+relevance gate. If the first result set has no qualifying candidate, one focused retry uses
+concise event terms and approved Philippine publisher domains; the same relevance gate is
+applied to the retry.
 Extension version 1.3.1 enables its visible Serper setting once on install/update because
 public Facebook screening is expected to return related sources. The user can turn it off
 before analysis; the API itself still defaults to no external lookup when omitted.

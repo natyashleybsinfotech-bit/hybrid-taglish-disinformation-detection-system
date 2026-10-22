@@ -14,13 +14,13 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | Raw-text hybrid parity | 598/598 labels; no probability mismatches at atol=rtol=1e-5 | [HYBRID-VERIFICATION.json](HYBRID-VERIFICATION.json) |
 | Saved test classification result | 300/298 ground truth, 322/276 predictions, TN=292, FP=8, FN=30, TP=268; 560/598 correct; accuracy 0.93645; Macro-F1 0.93635 | [Prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json) |
 | Model identity | Only model_4; run 20261011T235112Z; pinned SHA-256; threshold 0.65; CPU | [Integration contract](HYBRID-INTEGRATION.md) |
-| Backend regression suite | 72 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
+| Backend regression suite | 77 active-runtime tests passed; no unresolved failures in the final run | `python -m unittest discover -s backend-api/tests -p 'test_*.py'` |
 | Model scope sanity probe | Saved examples produced both classes as recorded, but 10/10 short general statements were predicted Misleading with scores from 0.902293 to 1.0 | [Diagnostic report](MODEL-SANITY-DIAGNOSTIC.json) |
 | Reported news-style path | Identical reconstructed input produced the same 0.9994187908527474 score through direct model_4 and API; the unpacked UI displayed 99.94% and preserved the text. The screenshot's complete 99.79% input was not recoverable | [News-style diagnostic](NEWS-STYLE-DIAGNOSTIC.json) |
 | Live API and extension transport | Actual fresh inference, empty/long input and real fetch through extension client/background | [HTTP report](HYBRID-HTTP-VERIFICATION.json) |
 | MariaDB | Empty/idempotent v1–v5 migration, actual provision command, DML-only writes, denied DDL, rollback, restart, outage, isolated SQL restore and withdrawal | [MariaDB report](MARIADB-VERIFICATION.json) |
 | Existing local database | Private logical backup made; schema v5 applied; existing candidate count preserved | Local operator execution; ignored backup under `backups/pre-schema5-*.sql.gz` |
-| Evidence providers | Public screening uses Serper only; a current live source-only request for the reported Batasan Hills post returned a directly related Manila Bulletin article and explicitly performed no classification. Google Fact Check remains available only to administrator evidence review | [Provider report](PROVIDER-VERIFICATION.json), current API/extension connection checks |
+| Evidence providers | Public screening uses Serper only; candidates must pass informative-term and headline relevance gates in addition to the approved-domain filter. Current live requests for the reported Batasan Hills post and its shorter query returned only directly related Manila Bulletin reporting and explicitly performed no classification. Unrelated court, car-theft, corporate-PDF, tag-page and pickpocket results were rejected. Google Fact Check remains available only to administrator evidence review | [Provider report](PROVIDER-VERIFICATION.json), current API/extension connection checks |
 | Provider edge cases | Mocked success/empty/timeout, malformed or oversized response rejection, redirect rejection, missing-key behavior | `test_services.py`, `test_participant.py`; these fixtures are not live evidence |
 | Media | Actual EasyOCR image smoke passed in 5.08 s; video OCR + Whisper smoke passed in 14.05 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
 | UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; English 390 px and Tagalog 320 px result layouts have no horizontal overflow | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
@@ -58,7 +58,12 @@ metadata in both result surfaces, and adds `POST /related-sources` for lookup af
 prediction. That endpoint never calls the classifier. Google Fact Check is no longer a
 public result section; it remains an administrator evidence-review tool. A current live
 Serper request for the reported Batasan Hills post returned a directly related Manila
-Bulletin report with a real title, URL, matching snippet and supplied date.
+Bulletin report with a real title, URL, matching snippet and supplied date. Retrieval now
+requires multiple informative post terms to match each candidate title/snippet and ranks
+stronger matches first. Normal post-sized queries also require at least two headline
+matches. The lower-context query now returns only a directly related Manila Bulletin
+follow-up; unrelated court, car-theft, corporate-PDF, tag-page and pickpocket results are
+filtered out.
 
 ## Resource measurements and their limits
 

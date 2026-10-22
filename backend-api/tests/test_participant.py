@@ -65,7 +65,7 @@ class ParticipantTests(unittest.TestCase):
 
 class ProviderTests(unittest.TestCase):
     def test_success_empty_error_timeout_unsafe_link_and_dates(self):
-        cases=[({'organic':[{'title':'Advisory','link':'https://who.int/advisory','date':'2026-01-01'}]},'available'), ({'organic':[]},'no_results'), ({'organic':[{'title':'Unsafe','link':'javascript://who.int/x'}]},'no_results')]
+        cases=[({'organic':[{'title':'Sample advisory','link':'https://who.int/advisory','date':'2026-01-01'}]},'available'), ({'organic':[]},'no_results'), ({'organic':[{'title':'Unsafe sample','link':'javascript://who.int/x'}]},'no_results')]
         with patch.object(retrieval.config,'SERPER_ENABLED',True),patch.object(retrieval.config,'SERPER_API_KEY','fixture-not-live'):
             for payload,status in cases:
                 with patch.object(retrieval,'open_provider',return_value=io.BytesIO(json.dumps(payload).encode())):

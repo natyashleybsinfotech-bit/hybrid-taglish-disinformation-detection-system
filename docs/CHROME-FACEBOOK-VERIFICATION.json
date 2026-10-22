@@ -6,15 +6,16 @@
   "unpacked_extension_loaded_automatically": false,
   "actual_facebook_interaction_completed_on_previous_build": true,
   "current_fix_retested_in_google_chrome": false,
-  "observed_defect": "The user-provided Google Chrome/Facebook result showed that source lookup had not been requested and the intended post-context presentation was incomplete.",
-  "root_cause": "The in-page flow did not expose the persisted source preference before the request, and the result renderer did not implement the required post-context and ordered result contract.",
-  "fix_implemented": "Version 1.3.1 restores bounded selected-post metadata, uses the exact eight-part result order, enables the visible Serper setting once on update, and offers a source-only lookup after analysis without invoking the classifier. Google Fact Check is no longer a public result panel.",
+  "observed_defect": "The user-provided Google Chrome/Facebook results showed that source lookup had not been requested, the intended post-context presentation was incomplete, and later returned links could be credible-domain results that were insufficiently related to the supplied post.",
+  "root_cause": "The in-page flow did not expose the persisted source preference before the request, the result renderer did not implement the required post-context and ordered result contract, and retrieval filtered publisher domains without an explicit title/snippet relevance gate.",
+  "fix_implemented": "Version 1.3.1 restores bounded selected-post metadata, uses the exact eight-part result order, enables the visible Serper setting once on update, and offers a source-only lookup after analysis without invoking the classifier. The backend now rejects and ranks candidates using distinct informative term matches between the post and result title/snippet. Google Fact Check is no longer a public result panel.",
   "reason_not_passed": "The corrected build passed isolated Edge Chromium tests, but the user has not yet reloaded version 1.3.1 and retested it against the current live Facebook DOM in Google Chrome.",
   "automated_evidence_that_does_not_count_as_actual_facebook": [
     "The rebuilt action popup passed against the actual local API, including exact order, seven feature values, language switching and source-only lookup without another inference request.",
     "The real content script passed on a local HTTPS facebook.com fixture with bounded caption extraction, visible author/timestamp/scope/links, the exact modal order and bilingual result stability.",
     "The screenshot post text produced the same model_4 probability through the API and extension UI: P(Misleading) 0.9977805021719399 and displayed score 99.78%; this confirms the reported label is model behavior rather than a UI substitution.",
-    "A live source-only request for the screenshot post returned the directly related Manila Bulletin article '3 killed, including minor, in QC shooting; suspect arrested' with its URL, matching snippet and date, and reported classification_performed=false."
+    "A live source-only request for the screenshot post returned the directly related Manila Bulletin article '3 killed, including minor, in QC shooting; suspect arrested' with its URL, matching snippet and date, and reported classification_performed=false.",
+    "The lower-context query now returns only the directly related Manila Bulletin follow-up 'QCPD files murder raps vs suspect in Batasan Hills shooting'; unrelated court, car-theft, corporate-PDF, tag-page and pickpocket results were rejected."
   ],
   "manual_steps_remaining": [
     "Open chrome://extensions and enable Developer mode.",

@@ -1,6 +1,8 @@
 import os
 import sys
 import unittest
+import io
+import json
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -37,6 +39,103 @@ class RetrievalTests(unittest.TestCase):
             result = retrieval.retrieve_related_sources("sample")
         self.assertEqual(result["retrieval_status"], "unavailable_not_configured")
         self.assertEqual(result["related_sources"], [])
+
+    def test_credible_but_unrelated_result_is_rejected(self):
+        payload = {
+            "organic": [{
+                "title": "Compliance filing in a separate court case",
+                "link": "https://sc.judiciary.gov.ph/example.pdf",
+                "snippet": "The order was issued in October after the parties filed pleadings.",
+            }]
+        }
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(
+            retrieval.config, "SERPER_API_KEY", "fixture-not-live"
+        ), patch.object(retrieval, "open_provider", return_value=io.BytesIO(json.dumps(payload).encode())):
+            result = retrieval.retrieve_related_sources(
+                "Batasan Hills Quezon police naaresto ang suspek matapos ang murder"
+            )
+        self.assertEqual(result["retrieval_status"], "no_results")
+        self.assertEqual(result["related_sources"], [])
+
+    def test_short_query_requires_all_informative_terms(self):
+        payload = {
+            "organic": [{
+                "title": "Police publish an unrelated traffic advisory",
+                "link": "https://pia.gov.ph/traffic-advisory",
+                "snippet": "Motorists should expect road closures.",
+            }]
+        }
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(
+            retrieval.config, "SERPER_API_KEY", "fixture-not-live"
+        ), patch.object(retrieval, "open_provider", return_value=io.BytesIO(json.dumps(payload).encode())):
+            result = retrieval.retrieve_related_sources("Quezon police")
+        self.assertEqual(result["retrieval_status"], "no_results")
+
+    def test_generic_snippet_overlap_cannot_replace_event_title_match(self):
+        payload = {"organic": [{
+            "title": "Police arrest suspects in viral pickpocketing video",
+            "link": "https://abs-cbn.com/unrelated-pickpocketing",
+            "snippet": "A hot pursuit operation passed Quezon Avenue and Batasan Tunnel.",
+        }]}
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(
+            retrieval.config, "SERPER_API_KEY", "fixture-not-live"
+        ), patch.object(retrieval, "open_provider", return_value=io.BytesIO(json.dumps(payload).encode())):
+            result = retrieval.retrieve_related_sources(
+                "Batasan Hills Quezon police hot pursuit operation"
+            )
+        self.assertEqual(result["retrieval_status"], "no_results")
+
+    def test_related_results_are_ranked_by_matching_post_terms(self):
+        payload = {
+            "organic": [
+                {
+                    "title": "Quezon police issue suspect advisory",
+                    "link": "https://pia.gov.ph/quezon-advisory",
+                    "snippet": "General information for residents.",
+                },
+                {
+                    "title": "3 killed in QC shooting; suspect arrested",
+                    "link": "https://mb.com.ph/batasan-shooting",
+                    "snippet": "Police arrested a 38-year-old man after a shooting in Barangay Batasan Hills.",
+                },
+            ]
+        }
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(
+            retrieval.config, "SERPER_API_KEY", "fixture-not-live"
+        ), patch.object(retrieval, "open_provider", return_value=io.BytesIO(json.dumps(payload).encode())):
+            result = retrieval.retrieve_related_sources(
+                "Batasan Hills Quezon police arrested a 38-year-old suspect after a shooting"
+            )
+        self.assertEqual(result["retrieval_status"], "available")
+        self.assertEqual([source["url"] for source in result["related_sources"]], [
+            "https://mb.com.ph/batasan-shooting",
+            "https://pia.gov.ph/quezon-advisory",
+        ])
+
+    def test_focused_retry_recovers_related_approved_result(self):
+        first_payload = {"organic": [{
+            "title": "Compliance filing in a separate court case",
+            "link": "https://sc.judiciary.gov.ph/example.pdf",
+            "snippet": "An unrelated order issued in October.",
+        }]}
+        focused_payload = {"organic": [{
+            "title": "3 killed in QC shooting; suspect arrested",
+            "link": "https://mb.com.ph/batasan-shooting",
+            "snippet": "Police arrested a suspect after a shooting in Barangay Batasan Hills.",
+        }]}
+        responses = [
+            io.BytesIO(json.dumps(first_payload).encode()),
+            io.BytesIO(json.dumps(focused_payload).encode()),
+        ]
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(
+            retrieval.config, "SERPER_API_KEY", "fixture-not-live"
+        ), patch.object(retrieval, "open_provider", side_effect=responses) as provider:
+            result = retrieval.retrieve_related_sources(
+                "Batasan Hills Quezon police naaresto ang suspek matapos ang murder"
+            )
+        self.assertEqual(result["retrieval_status"], "available")
+        self.assertEqual(result["related_sources"][0]["url"], "https://mb.com.ph/batasan-shooting")
+        self.assertEqual(provider.call_count, 2)
 
 
 class FactCheckTests(unittest.TestCase):

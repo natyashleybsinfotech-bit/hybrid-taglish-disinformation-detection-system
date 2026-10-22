@@ -31,14 +31,15 @@ input, page URL/title, prediction or feature values. Request logs contain route,
 duration, not bodies, raw text or credentials; the server/network may process connection
 information. The extension no longer stores previous input or results on disk.
 
-Related-source search is a separate, unchecked choice. When selected, up to 500 cleaned
-characters are sent as a search query to Serper and Google Fact Check. The choice persists
+Related-source search is a separate visible choice that is enabled initially in version
+1.3.1. It can be turned off before analysis. When enabled, up to 500 cleaned
+characters are sent as a search query to Serper. The choice persists
 on the device and also applies to the in-page S button until switched off. Provider
 processing is outside the study's database. Opening a retrieved link contacts that
-publisher. Serper links and published fact-check ratings are independent context; neither
-establishes that the classifier is correct or changes its prediction. [Serper](https://serper.dev/)
-supplies related search results, and the [Google Fact Check Tools API](https://developers.google.com/fact-check/tools/api/reference/rest/v1alpha1/claims/search)
-supplies matching published reviews when available.
+publisher. Serper links are independent context; they do not establish that the classifier
+is correct or change its prediction. [Serper](https://serper.dev/) supplies related search
+results from the backend's approved-publisher list. Google Fact Check search is available
+only to authorized administrators reviewing a voluntarily submitted candidate.
 
 The extension and administrator dashboard do not collect, display or export participant
 responses, consent records, usefulness ratings or survey receipts. Conduct the formal

@@ -7,7 +7,7 @@ const POST_TEXT_SELECTORS = [
 ];
 const CONTROL_ATTRIBUTE = 'data-suriph-control';
 let extensionEnabled = true;
-let retrievalEnabled = false;
+let retrievalEnabled = true;
 let interfaceLanguage = 'en';
 let activeResultHost = null;
 
@@ -254,7 +254,7 @@ function injectControl(post) {
 }
 function scanForControls() { if (extensionEnabled) for (const post of findPosts()) injectControl(post); }
 function removeControls() { document.querySelectorAll('#suriph-control-host').forEach((host) => host.remove()); document.querySelectorAll(`[${CONTROL_ATTRIBUTE}]`).forEach((post) => post.removeAttribute(CONTROL_ATTRIBUTE)); }
-chrome.storage.local.get({ suriphEnabled: true, suriphRetrieveSources: false, suriphLanguage: 'en' }, (settings) => {
+chrome.storage.local.get({ suriphEnabled: true, suriphRetrieveSources: true, suriphLanguage: 'en' }, (settings) => {
   extensionEnabled = settings.suriphEnabled !== false;
   retrievalEnabled = settings.suriphRetrieveSources === true;
   interfaceLanguage = settings.suriphLanguage === 'tl' ? 'tl' : 'en';

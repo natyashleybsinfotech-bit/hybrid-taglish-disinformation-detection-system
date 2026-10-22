@@ -99,7 +99,9 @@ npm.cmd run build
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`.
 After every rebuild, click **Reload** on SuriPH in `chrome://extensions` and refresh every
-open Facebook tab so the version 1.3.0 content script replaces the old one.
+open Facebook tab so the version 1.3.1 content script replaces the old one. Version 1.3.1
+enables related-source lookup once on upgrade; the visible checkbox can turn it off before
+analysis. Up to 500 characters are sent to Serper only when this setting is enabled.
 
 ## Production deployment
 

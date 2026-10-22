@@ -73,10 +73,10 @@ export function Result({ result, language = 'en', onLanguageChange = () => {}, s
 export default function Popup() {
   const [text, setText] = useState(''), [page, setPage] = useState(EMPTY_PAGE), [file, setFile] = useState(null), [kind, setKind] = useState('image');
   const [status, setStatus] = useState('idle'), [error, setError] = useState(''), [result, setResult] = useState(null), [sourceState, setSourceState] = useState('idle');
-  const [lookup, setLookup] = useState(false), [enabled, setEnabled] = useState(true), [language, setLanguage] = useState('en');
+  const [lookup, setLookup] = useState(true), [enabled, setEnabled] = useState(true), [language, setLanguage] = useState('en');
   const [consent, setConsent] = useState(false), [candidateState, setCandidateState] = useState('idle');
   const lock = useRef(false), sourceLock = useRef(false), candidateLock = useRef(false), textRef = useRef(null); const busy = !['idle', 'completed', 'failed'].includes(status); const t = copy[language];
-  useEffect(() => { chrome.storage.local.remove(['suriphLastResult', 'suriphLastText', 'suriphLastPage', 'suriphReceipts']); chrome.storage.local.get({ suriphEnabled: true, suriphRetrieveSources: false, suriphLanguage: 'en' }, saved => { setEnabled(saved.suriphEnabled); setLookup(saved.suriphRetrieveSources); setLanguage(saved.suriphLanguage === 'tl' ? 'tl' : 'en'); }); }, []);
+  useEffect(() => { chrome.storage.local.remove(['suriphLastResult', 'suriphLastText', 'suriphLastPage', 'suriphReceipts']); chrome.storage.local.get({ suriphEnabled: true, suriphRetrieveSources: true, suriphLanguage: 'en' }, saved => { setEnabled(saved.suriphEnabled); setLookup(saved.suriphRetrieveSources); setLanguage(saved.suriphLanguage === 'tl' ? 'tl' : 'en'); }); }, []);
   const changeLanguage = next => { setLanguage(next); chrome.storage.local.set({ suriphLanguage: next }); };
   const clearResult = () => { setResult(null); setError(''); setStatus('idle'); setSourceState('idle'); setConsent(false); setCandidateState('idle'); sourceLock.current = false; candidateLock.current = false; };
   const checkAgain = () => { clearResult(); requestAnimationFrame(() => textRef.current?.focus()); };

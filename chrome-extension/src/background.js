@@ -1,4 +1,14 @@
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+const SOURCE_DEFAULT_VERSION = 1;
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get({ suriphSourceDefaultVersion: 0 }, saved => {
+    if (saved.suriphSourceDefaultVersion >= SOURCE_DEFAULT_VERSION) return;
+    chrome.storage.local.set({
+      suriphRetrieveSources: true,
+      suriphSourceDefaultVersion: SOURCE_DEFAULT_VERSION,
+    });
+  });
+});
 async function boundedFetch(url, options = {}) {
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 120000);
   try { return await fetch(url, { ...options, signal: controller.signal }); }

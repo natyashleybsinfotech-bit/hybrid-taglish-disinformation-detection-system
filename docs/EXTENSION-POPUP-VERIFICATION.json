@@ -17,11 +17,11 @@
   "one_bottom_reminder": "passed",
   "source_only_lookup_without_reclassification": "passed",
   "diagnostic_text_path_comparison": {
-    "text_sha256": "bdef185132a229e69e1b24e8109e62e75d933e96fe5f12187481dd1404327caa",
+    "text_sha256": "5110674014cea139b1aa366f0d9527de504414bf9a8681fff62b1ca835325b01",
     "api_label": "Misleading",
-    "api_model_score": 0.9994187908527474,
+    "api_model_score": 0.9977805021719399,
     "ui_label": "Potentially Misleading",
-    "ui_displayed_percent": "99.94%",
+    "ui_displayed_percent": "99.78%",
     "ui_analyzed_text_matches": true
   },
   "bilingual_switch_preserves_result_without_request": "passed",

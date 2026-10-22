@@ -168,6 +168,7 @@ try {
   await clickText(popup, 'Analyze text');
   await waitFor(popup, 'Boolean(document.querySelector("[role=alert]"))');
   assert.match(await evaluate(popup, 'document.body.innerText'), /Enter or select text/);
+  await evaluate(popup, `(() => { const input=document.querySelector('fieldset.choices input[type=checkbox]'); if(input?.checked) input.click(); return input?.checked===false; })()`);
 
   const shortText = 'BREAKING!!! Share agad!!! Totoo ba ito?';
   await setValue(popup, '#screen-text', shortText);

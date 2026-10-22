@@ -19,6 +19,8 @@ assert.match(content, /context_explanation/, 'The in-page result must render the
 assert.match(content, /SURIPH_LOOKUP_SOURCES/, 'The in-page result must support a source-only lookup');
 assert.match(background, /SURIPH_LOOKUP_SOURCES/);
 assert.match(background, /\/related-sources/);
+assert.match(background, /suriphSourceDefaultVersion/);
+assert.match(background, /suriphRetrieveSources:\s*true/, 'The 1.3.1 update must enable public source lookup once');
 assert.match(api, /lookupRelatedSources/);
 assert.match(api, /\/related-sources/);
 assert.match(popup, /Potentially Misleading/);
@@ -52,6 +54,6 @@ assert.doesNotMatch(popup, /participant|questionnaire|survey/i);
 console.log(JSON.stringify({
   facebook_only_manifest: 'passed', bounded_extraction: 'passed', bilingual_fixed_copy: 'passed',
   cautious_labels: 'passed', exact_eight_part_order: 'passed', one_bottom_reminder: 'passed',
-  in_page_lookup_control: 'passed', source_only_lookup_path: 'passed', public_fact_check_panel_absent: 'passed',
+  in_page_lookup_control: 'passed', source_lookup_update_default: 'passed', source_only_lookup_path: 'passed', public_fact_check_panel_absent: 'passed',
   context_visible: 'passed', bounded_post_metadata: 'passed', explicit_candidate_consent: 'passed', duplicate_candidate_guard: 'passed', survey_ui_absent: 'passed',
 }));

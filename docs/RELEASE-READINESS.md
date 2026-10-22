@@ -20,12 +20,12 @@ private model mounts, explicit migrations, HTTPS proxy, retention and backups.
 | Live API and extension transport | Actual fresh inference, empty/long input and real fetch through extension client/background | [HTTP report](HYBRID-HTTP-VERIFICATION.json) |
 | MariaDB | Empty/idempotent v1–v5 migration, actual provision command, DML-only writes, denied DDL, rollback, restart, outage, isolated SQL restore and withdrawal | [MariaDB report](MARIADB-VERIFICATION.json) |
 | Existing local database | Private logical backup made; schema v5 applied; existing candidate count preserved | Local operator execution; ignored backup under `backups/pre-schema5-*.sql.gz` |
-| Evidence providers | Public screening uses Serper only; a current live source-only request returned 3 approved-publisher links and explicitly performed no classification. Google Fact Check remains available only to administrator evidence review | [Provider report](PROVIDER-VERIFICATION.json), current API/extension connection checks |
+| Evidence providers | Public screening uses Serper only; a current live source-only request for the reported Batasan Hills post returned a directly related Manila Bulletin article and explicitly performed no classification. Google Fact Check remains available only to administrator evidence review | [Provider report](PROVIDER-VERIFICATION.json), current API/extension connection checks |
 | Provider edge cases | Mocked success/empty/timeout, malformed or oversized response rejection, redirect rejection, missing-key behavior | `test_services.py`, `test_participant.py`; these fixtures are not live evidence |
 | Media | Actual EasyOCR image smoke passed in 5.08 s; video OCR + Whisper smoke passed in 14.05 s | [Media report](MEDIA-VERIFICATION.json); synthetic fixtures, not an accuracy study |
 | UI | Actual React component screenshots in headless Chrome; API feature values match rendered data attributes; English 390 px and Tagalog 320 px result layouts have no horizontal overflow | [UI report](UI-VERIFICATION.json), [screenshots](verification/ui/) |
 | Installed extension | Earlier unpacked build in isolated Microsoft Edge Chromium covered the action popup, focused caption extraction, reload toggle, persisted lookup, long/stale/duplicate behavior and absence of survey controls | [Installed-extension report](INSTALLED-EXTENSION-VERIFICATION.json) |
-| Current popup regression | Version 1.3.0 unpacked build in isolated Edge: live API, duplicate/stale/long input, seven feature values, exact eight-part order, one reminder, restored context, language switch and source-only lookup without reclassification passed | [Popup report](EXTENSION-POPUP-VERIFICATION.json) |
+| Current popup regression | Version 1.3.1 unpacked build in isolated Edge: live API, duplicate/stale/long input, seven feature values, exact eight-part order, one reminder, restored context, language switch and source-only lookup without reclassification passed | [Popup report](EXTENSION-POPUP-VERIFICATION.json) |
 | Current Facebook modal regression | The real content script on a synthetic HTTPS facebook.com fixture passed bounded caption extraction, author/timestamp/acquisition/link context, exact eight-part visual order, source-only lookup stability and bilingual stability | [Facebook modal report](FACEBOOK-MODAL-VERIFICATION.json) |
 | Actual Google Chrome/Facebook | An actual Facebook analysis exposed that the in-page request left lookup off and omitted context. Both defects are corrected in the rebuilt extension; Chrome reload and hands-on retest remain pending | [Chrome/Facebook status](CHROME-FACEBOOK-VERIFICATION.json) |
 | Extension failure states | A stopped backend produced a clear unavailable message and no prediction; controlled popup checks covered timeout, no-results and provider-unavailable display without changing the classifier result | [Failure-state report](EXTENSION-FAILURE-VERIFICATION.json) |
@@ -53,11 +53,12 @@ short-input bias or prove the user's complaint resolved for real Facebook posts.
 An actual Chrome/Facebook result then confirmed a separate source-display defect: the
 in-page flow had no visible way to opt into lookup, so the API correctly returned
 `not_requested`, and the redesigned result omitted the required selected-post context.
-Version 1.3.0 exposes the persisted Serper choice before analysis, renders bounded post
+Version 1.3.1 exposes and enables the persisted Serper choice once on update, renders bounded post
 metadata in both result surfaces, and adds `POST /related-sources` for lookup after a
 prediction. That endpoint never calls the classifier. Google Fact Check is no longer a
 public result section; it remains an administrator evidence-review tool. A current live
-Serper request returned three approved-publisher results with real titles, URLs and snippets.
+Serper request for the reported Batasan Hills post returned a directly related Manila
+Bulletin report with a real title, URL, matching snippet and supplied date.
 
 ## Resource measurements and their limits
 
@@ -90,7 +91,7 @@ React components and an actual synthetic API result. It checks exact viewport wi
 horizontal overflow and seven unscaled feature values. The misleading prediction in a
 synthetic screenshot is the model's actual output, not an approved factual judgement.
 
-The current content-script harness loaded version 1.3.0 in an isolated Microsoft Edge
+The current content-script harness loaded version 1.3.1 in an isolated Microsoft Edge
 Chromium profile and exercised the real modal on a synthetic article served from a local
 HTTPS, manifest-supported facebook.com origin. It used no account or participant content.
 Google Chrome ignored command-line unpacked-extension loading in the isolated run, so

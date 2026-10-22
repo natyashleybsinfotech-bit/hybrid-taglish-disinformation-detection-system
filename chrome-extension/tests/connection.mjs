@@ -26,14 +26,34 @@ const unavailableSource = apiSource.replaceAll(base, 'http://127.0.0.1:9');
 const unavailableApi = await import(`data:text/javascript;base64,${Buffer.from(unavailableSource).toString('base64')}`);
 await assert.rejects(unavailableApi.analyzeText({ text }), /screening service is unavailable/i);
 let handler;
+let installedHandler;
+const storedSettings = {};
 const calls = [];
 const background = (await readFile(new URL('../src/background.js', import.meta.url), 'utf8'))
   .replaceAll('import.meta.env.VITE_API_BASE_URL', JSON.stringify(base));
 vm.runInNewContext(background, {
   fetch: (...args) => { calls.push(String(args[0])); return fetch(...args); },
-  chrome: { runtime: { onMessage: { addListener: callback => { handler = callback; } } } },
+  chrome: {
+    runtime: {
+      onInstalled: { addListener: callback => { installedHandler = callback; } },
+      onMessage: { addListener: callback => { handler = callback; } },
+    },
+    storage: {
+      local: {
+        get: (defaults, callback) => callback({ ...defaults, ...storedSettings }),
+        set: values => Object.assign(storedSettings, values),
+      },
+    },
+  },
   FormData, Blob, AbortController, setTimeout, clearTimeout, Uint8Array, atob,
 });
+assert.equal(typeof installedHandler, 'function');
+installedHandler({ reason: 'update' });
+assert.equal(storedSettings.suriphRetrieveSources, true);
+assert.equal(storedSettings.suriphSourceDefaultVersion, 1);
+storedSettings.suriphRetrieveSources = false;
+installedHandler({ reason: 'update' });
+assert.equal(storedSettings.suriphRetrieveSources, false, 'A later browser restart/update must preserve the user choice');
 const response = await new Promise(resolve => handler({ type: 'SURIPH_ANALYZE_TEXT', payload: { text } }, {}, resolve));
 assert.equal(response.ok, true);
 assert.equal(response.result.analyzed_text, text);
@@ -49,4 +69,4 @@ calls.length = 0;
 const failedMedia = await new Promise(resolve => handler({ type: 'SURIPH_ANALYZE_TEXT', payload: { text, media: { has_video: true } } }, {}, resolve));
 assert.equal(failedMedia.ok, false);
 assert.equal(calls.length, 0, 'Unavailable video must not silently produce a caption-only result');
-console.log(JSON.stringify({ extension_api_client: 'passed', background_transport: 'passed', source_only_lookup_without_classification: 'passed', media_failure_no_substitution: 'passed', browser_ui_tested: false }));
+console.log(JSON.stringify({ extension_api_client: 'passed', source_lookup_update_migration: 'passed', background_transport: 'passed', source_only_lookup_without_classification: 'passed', media_failure_no_substitution: 'passed', browser_ui_tested: false }));

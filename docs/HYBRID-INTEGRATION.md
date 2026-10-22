@@ -173,6 +173,9 @@ reading from approved publishers. Google Fact Check is available only through th
 administrator evidence-review endpoint. Neither provider generates or changes classifier
 labels or scores, and a provider failure does not change the prediction. `POST
 /related-sources` supports a later source lookup and never invokes classification.
+Extension version 1.3.1 enables its visible Serper setting once on install/update because
+public Facebook screening is expected to return related sources. The user can turn it off
+before analysis; the API itself still defaults to no external lookup when omitted.
 
 Empty/whitespace inputs return 422. Text has an explicit **1,000,000-character API
 limit**; oversize input is rejected rather than silently clipped. The extension no

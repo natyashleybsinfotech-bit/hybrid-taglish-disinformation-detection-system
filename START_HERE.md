@@ -58,7 +58,9 @@ Invoke-RestMethod http://127.0.0.1:8000/analyze -Method Post -ContentType applic
 ```
 
 The default request saves nothing and does not query an external evidence provider.
-The popup has one unchecked choice for external source lookup. A separate explicit-consent
+Version 1.3.1 enables the visible external-source choice once on install/update so public
+Facebook screening requests related articles by default; users can turn it off before
+analysis. A separate explicit-consent
 action can submit the analyzed text to the private human-review queue; it does not add the
 text to a dataset. Participant surveys and responses are handled separately from the
 extension and administrator dashboard; the screening API does not save them.

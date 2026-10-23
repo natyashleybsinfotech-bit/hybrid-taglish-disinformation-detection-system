@@ -115,16 +115,16 @@ MODEL_SCOPE_NOTICE = (
     "unreliable, extreme scores; review the exact analyzed text and independent sources."
 )
 
-_artifact_dir = Path(_env("SURI_MODEL_ARTIFACT_DIR", "models/TRAINING RESULTS"))
-MODEL_ARTIFACT_DIR = (_artifact_dir if _artifact_dir.is_absolute() else BASE_DIR / _artifact_dir).resolve()
+MODEL_PROFILE = _env("SURI_MODEL_PROFILE", "20261011T235112Z")
+_artifact_dir_text = _env("SURI_MODEL_ARTIFACT_DIR")
+_artifact_dir = Path(_artifact_dir_text) if _artifact_dir_text else None
+MODEL_ARTIFACT_DIR = (
+    (_artifact_dir if _artifact_dir.is_absolute() else BASE_DIR / _artifact_dir).resolve()
+    if _artifact_dir is not None else None
+)
 MODEL_DEVICE = _env("SURI_MODEL_DEVICE", "auto")
 MODEL_CPU_THREADS = _env_int("SURI_MODEL_CPU_THREADS", 4)
 MAX_TEXT_CHARACTERS = 1_000_000
-_model_bundle_text = str(MODEL_ARTIFACT_DIR / "models" / "model_4.joblib")
-_model_bundle_path = Path(_model_bundle_text)
-MODEL_BUNDLE_PATH = (
-    _model_bundle_path if _model_bundle_path.is_absolute() else BASE_DIR / _model_bundle_path
-)
 MODEL_REQUIRED = _env("SURI_MODEL_REQUIRED", "true").lower() in {"1", "true", "yes", "on"}
 MODEL_WARMUP = _env("SURI_MODEL_WARMUP", "true" if APP_ENV == "production" else "false").lower() == "true"
 TRAINING_ENABLED = False  # This deployment serves only the pinned, already-trained model_4.
@@ -173,6 +173,8 @@ def validate_runtime_config() -> None:
         errors.append("The database URL is invalid")
     if not MODEL_REQUIRED or not MODEL_WARMUP:
         errors.append("Production requires SURI_MODEL_REQUIRED=true and SURI_MODEL_WARMUP=true")
+    if MODEL_PROFILE == "full-cleaned-20261023T022416Z":
+        errors.append("The full-cleaned candidate profile is approved for local trial only")
     if errors:
         raise RuntimeError("Unsafe production configuration: " + "; ".join(errors))
 

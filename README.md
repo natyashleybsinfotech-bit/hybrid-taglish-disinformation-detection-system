@@ -31,16 +31,27 @@ outside the product UI for the research team to manage under its approved proces
 
 ## Active hybrid model
 
-The only active classifier is `backend-api/models/TRAINING RESULTS/models/model_4.joblib`
-from training run `20261011T235112Z`, using frozen multilingual DistilBERT, the seven
-saved linguistic features and Logistic Regression with threshold **0.65**.
-The exact raw-text pipeline reproduced all **598** reference test labels and all
-probabilities within the declared tolerance (maximum difference **3.15e-6**).
-This is serving parity with the saved Colab output, not 100% classification accuracy.
-Against the saved ground truth, model_4 was correct on **560/598 (93.65%)** with
-Macro-F1 **0.9364**.
+The prepared workstation selects the local-trial profile
+`full-cleaned-20261023T022416Z`. Its only classifier is
+`model_4_full_dataset_CANDIDATE.joblib` (SHA-256
+`c2d7df1c519c4022c395a29e1d469e3089452fa8a9b6a15a2079eaa0216ea376`) and its
+saved decision threshold is **0.4000000000000001**. It uses the same architecture:
+frozen multilingual DistilBERT embeddings, seven saved linguistic features, saved
+scalers, and Logistic Regression. The candidate is explicitly marked for local trial,
+and production configuration rejects it.
 
-Read [the integration guide](docs/HYBRID-INTEGRATION.md) for the artifact layout,
+Fresh CPU inference reproduced all **3,470** saved test labels and probabilities with
+zero mismatches at `atol=rtol=1e-5` (maximum absolute probability difference
+**5.34e-6**). The same saved references contain 108 false positives and 114 false
+negatives against inherited labels; parity does not establish factual correctness.
+
+The previous run `20261011T235112Z` and `model_4.joblib` remain unchanged as an
+explicit rollback profile. Runtime inference never searches for, switches to, or falls
+back to either profile. `SURI_MODEL_PROFILE` selects exactly one profile before startup;
+a missing or incompatible selected profile leaves readiness false.
+
+Read [the local candidate guide](docs/LOCAL-CANDIDATE-TRIAL.md) and
+[the integration guide](docs/HYBRID-INTEGRATION.md) for the artifact layout,
 exact preprocessing, dependencies, API fields, verification evidence and limitations.
 The old `hybrid_model.pkl`/schema-1 loader is retired. Renaming another model does
 not make it compatible. Dataset/model review records remain in the restricted dashboard;
@@ -68,13 +79,13 @@ Start or stop it from the repository root with:
 Read development credentials privately from `.env.local`. Production setup generates
 new random credentials; never reuse a development password.
 
-Start the API from the repository root:
+Start the candidate API from the repository root:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r .\backend-api\requirements.txt
+python -m venv .venv-candidate-20261023-isolated
+.\.venv-candidate-20261023-isolated\Scripts\python.exe -m pip install -r .\backend-api\requirements-candidate.txt
 Set-Location .\backend-api
-..\.venv\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000
+..\.venv-candidate-20261023-isolated\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log
 ```
 
 In a second terminal:
@@ -99,7 +110,7 @@ npm.cmd run build
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`.
 After every rebuild, click **Reload** on SuriPH in `chrome://extensions` and refresh every
-open Facebook tab so the version 1.3.1 content script replaces the old one. Version 1.3.1
+open Facebook tab so the version 1.3.2 content script replaces the old one. Version 1.3.2
 enables related-source lookup once on upgrade; the visible checkbox can turn it off before
 analysis. Up to 500 characters are sent to Serper only when this setting is enabled.
 
@@ -124,7 +135,7 @@ errors prevent startup. Training and model switching are disabled.
 
 ```powershell
 Set-Location .\backend-api
-..\.venv\Scripts\python.exe -B -m unittest discover -s tests -p 'test_*.py' -v
+..\.venv-candidate-20261023-isolated\Scripts\python.exe -B -m unittest discover -s tests -p 'test_*.py' -v
 
 Set-Location ..\admin-dashboard
 npm.cmd ci

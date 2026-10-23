@@ -12,7 +12,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.hybrid_pipeline import HybridPipeline, prepare_text
-from src.model_runtime import ModelRuntime, ModelUnavailableError, THRESHOLD
+from src.model_runtime import ACTIVE_PROFILE, ModelRuntime, ModelUnavailableError, THRESHOLD
 import config
 
 
@@ -29,13 +29,14 @@ class HybridContractTests(unittest.TestCase):
         runtime._device = "cpu"
         runtime._pipeline = Mock()
         runtime._pipeline.bundle = {"threshold": THRESHOLD}
-        runtime._pipeline.infer.return_value = (np.array([.64, .65]), np.zeros((2, 7)), [1, 1], [2, 2])
+        below = THRESHOLD - .01
+        runtime._pipeline.infer.return_value = (np.array([below, THRESHOLD]), np.zeros((2, 7)), [1, 1], [2, 2])
         predictions = runtime.predict_many(["one input", "second input"])
         self.assertEqual([p.predicted_class for p in predictions], [0, 1])
-        self.assertEqual([p.model_score for p in predictions], [.64, .65])
+        self.assertEqual([p.model_score for p in predictions], [below, THRESHOLD])
         self.assertEqual([p.public_label for p in predictions], ["No Misleading Information Detected", "Potentially Misleading"])
-        self.assertEqual([p.to_dict()["displayed_class_score"] for p in predictions], [.36, .65])
-        self.assertEqual([p.to_dict()["misleading_probability"] for p in predictions], [.64, .65])
+        self.assertEqual([p.to_dict()["displayed_class_score"] for p in predictions], [1 - below, THRESHOLD])
+        self.assertEqual([p.to_dict()["misleading_probability"] for p in predictions], [below, THRESHOLD])
         runtime._pipeline.infer.assert_called_once_with(["one input", "second input"])
 
     def test_failure_clears_readiness_and_never_returns_a_label(self):
@@ -66,12 +67,16 @@ class HybridContractTests(unittest.TestCase):
             root = Path(directory)
             encoder = root / "models/contextual_encoder"
             encoder.mkdir(parents=True)
-            for name in ("config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json", "special_tokens_map.json", "vocab.txt"):
+            for name in (Path(path).name for path in ACTIVE_PROFILE["encoder_files"]):
                 (encoder / name).write_bytes(b"test fixture")
-            (root / "models/model_4.joblib").write_bytes(b"corrupt artifact")
+            classifier = root / ACTIVE_PROFILE["classifier"]
+            classifier.parent.mkdir(parents=True, exist_ok=True)
+            classifier.write_bytes(b"corrupt artifact")
             (root / "models/tagalog_tokenizer").write_bytes(b"test fixture")
             (root / "models/feature_config.json").write_text("{}")
-            (root / "run_manifest.json").write_text(json.dumps({"run_id": "20261011T235112Z", "model_artifacts": []}))
+            (root / ACTIVE_PROFILE["metadata_file"]).write_text("{}")
+            if ACTIVE_PROFILE.get("protocol_file"):
+                (root / ACTIVE_PROFILE["protocol_file"]).write_text("{}")
             with patch("joblib.load") as load:
                 state = ModelRuntime(root).initialize()
                 self.assertFalse(state["ready"])
@@ -85,7 +90,7 @@ class HybridContractTests(unittest.TestCase):
             (root / "models/model_1.joblib").write_bytes(b"must not load")
             state = ModelRuntime(root).initialize()
             self.assertFalse(state["ready"])
-            self.assertIn("model_4.joblib", state["error"])
+            self.assertIn(Path(ACTIVE_PROFILE["classifier"]).name, state["error"])
             self.assertIn("contextual_encoder", state["error"])
             load.assert_not_called()
 
@@ -97,7 +102,7 @@ class HybridContractTests(unittest.TestCase):
                 self.assert_no_truncation = kwargs["truncation"] is False
                 return {"input_ids": list(map(int, text.split()))}
             def prepare_for_model(self, part, **kwargs):
-                return {"input_ids": [10000] + part + [10001], "attention_mask": [1] * (len(part) + 2)}
+                raise AssertionError("Training-compatible chunk construction must be manual")
             def pad(self, chunks, **kwargs):
                 width = max(len(c["input_ids"]) for c in chunks)
                 return {key: torch.tensor([c[key] + [0] * (width - len(c[key])) for c in chunks]) for key in chunks[0]}

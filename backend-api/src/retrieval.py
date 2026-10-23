@@ -66,6 +66,17 @@ CANONICAL_TERMS = {
     "eleksyon": "election", "halalan": "election", "boto": "vote",
 }
 
+PERSON_CONNECTORS = {"da", "de", "del", "dela", "dello", "delos", "dos", "la", "las", "los", "van", "von"}
+PERSON_TITLES = {
+    "atty", "capt", "chief", "col", "cong", "dr", "father", "gen", "gov",
+    "judge", "kap", "mayor", "mr", "mrs", "ms", "nanay", "pastor", "pres",
+    "pssg", "sen", "sgt", "tatay",
+}
+EPISODIC_MARKERS = {
+    "episode", "episodes", "teleserye", "trailer", "teaser", "recap",
+    "kapamilya", "character", "season", "finale",
+}
+
 
 def _canonical_term(term: str) -> str:
     return CANONICAL_TERMS.get(term, term)
@@ -89,6 +100,55 @@ def _ordered_informative_terms(text: str) -> list[str]:
             continue
         ordered.append(canonical)
     return ordered
+
+
+def _person_entity_anchors(text: str) -> set[tuple[str, ...]]:
+    """Extract conservative full-name anchors without depending on an online NER model."""
+    tokens = re.findall(r"[^\W\d_]+(?:[-'][^\W\d_]+)*|[.:!?;,]", unicodedata.normalize("NFKC", text), flags=re.UNICODE)
+    anchors: set[tuple[str, ...]] = set()
+    group: list[str] = []
+
+    def finish():
+        nonlocal group
+        if not group:
+            return
+        normalized = [token.casefold().strip(".") for token in group]
+        had_title = bool(normalized and normalized[0] in PERSON_TITLES)
+        while normalized and normalized[0] in PERSON_TITLES:
+            normalized.pop(0)
+        name_words = [token for token in normalized if token not in PERSON_CONNECTORS]
+        has_connector = any(token in PERSON_CONNECTORS for token in normalized)
+        if len(name_words) >= 2 and len(normalized) >= 3 and (had_title or has_connector):
+            anchors.add(tuple(normalized))
+        group = []
+
+    for token in tokens:
+        folded = token.casefold().strip(".")
+        is_name_word = token[:1].isupper() and token.replace("-", "").replace("'", "").isalpha()
+        if is_name_word or (group and folded in PERSON_CONNECTORS):
+            group.append(token)
+            if len(group) > 6:
+                finish()
+        else:
+            finish()
+    finish()
+    return anchors
+
+
+def _contains_episodic_markers(text: str) -> bool:
+    terms = set(re.findall(r"[^\W_]+", unicodedata.normalize("NFKC", text).casefold(), flags=re.UNICODE))
+    return bool(terms & EPISODIC_MARKERS) or bool(re.search(r"\b(?:ep|episode)\s*\d+\b", text, flags=re.IGNORECASE))
+
+
+def _entity_and_content_alignment(query: str, item: dict) -> bool:
+    candidate = " ".join((str(item.get("title", "")), str(item.get("snippet", "")), str(item.get("link", ""))))
+    if _contains_episodic_markers(candidate) and not _contains_episodic_markers(query):
+        return False
+    query_people = _person_entity_anchors(query)
+    if not query_people:
+        return True
+    candidate_people = _person_entity_anchors(candidate)
+    return bool(query_people & candidate_people)
 
 
 def _term_matches(query_term: str, candidate_term: str) -> bool:
@@ -117,17 +177,17 @@ def _relevance(item: dict, query_terms: set[str]) -> tuple[int, int, int]:
     return len(all_matches), len(title_matches), len(all_matches) + (2 * len(title_matches))
 
 
-def _is_relevant(item: dict, query_terms: set[str]) -> tuple[bool, int]:
+def _is_relevant(item: dict, query_terms: set[str], query: str = "") -> tuple[bool, int]:
     matched_terms, title_matches, score = _relevance(item, query_terms)
     required_matches = len(query_terms) if len(query_terms) <= 2 else 2 if len(query_terms) <= 5 else 3
     title_required = 2 if len(query_terms) > 5 else 1 if len(query_terms) >= 3 else 0
-    return matched_terms >= required_matches and title_matches >= title_required, score
+    aligned = _entity_and_content_alignment(query, item) if query else True
+    return matched_terms >= required_matches and title_matches >= title_required and aligned, score
 
 
 def _search_query(query: str) -> str:
-    """Keep the claim searchable without Facebook UI text or social results."""
+    """Keep the claim searchable without embedded URLs or social results."""
     cleaned = re.sub(r"https?://\S+|www\.\S+", " ", query, flags=re.IGNORECASE)
-    cleaned = re.sub(r"\b(?:read|see)\s+(?:more|less)\b", " ", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" .-|\"")[:500]
     exclusions = " -site:facebook.com -site:tiktok.com -site:x.com -site:youtube.com -site:reddit.com"
     return f"{cleaned}{exclusions}".strip()
@@ -166,7 +226,7 @@ def _serper_search(search_query: str) -> dict | None:
         return None
 
 
-def _relevant_sources(body: dict, query_terms: set[str], excluded_domain: str | None) -> list[tuple[int, dict]]:
+def _relevant_sources(body: dict, query_terms: set[str], query: str, excluded_domain: str | None) -> list[tuple[int, dict]]:
     candidates = []
     seen_hosts: set[str] = set()
     for item in body.get("organic", []):
@@ -174,7 +234,7 @@ def _relevant_sources(body: dict, query_terms: set[str], excluded_domain: str | 
         title = str(item.get("title", "")).strip()
         host = urlparse(url).netloc
         normalized_host = host.casefold().removeprefix("www.")
-        relevant, relevance_score = _is_relevant(item, query_terms)
+        relevant, relevance_score = _is_relevant(item, query_terms, query)
         if safe_link(url) and title and relevant and normalized_host not in seen_hosts and _is_trusted_domain(host) and not _is_blocked_domain(host, excluded_domain):
             candidates.append((relevance_score, {
                 "title": title,
@@ -199,11 +259,11 @@ def retrieve_related_sources(query: str, excluded_domain: str | None = None) -> 
     query_terms = _informative_terms(query)
     if not query_terms:
         return {"retrieval_status": "no_results", "related_sources": []}
-    candidates = _relevant_sources(body, query_terms, excluded_domain)
+    candidates = _relevant_sources(body, query_terms, query, excluded_domain)
     if not candidates:
         focused_body = _serper_search(_focused_search_query(query))
         if focused_body is not None:
-            candidates = _relevant_sources(focused_body, query_terms, excluded_domain)
+            candidates = _relevant_sources(focused_body, query_terms, query, excluded_domain)
     candidates.sort(key=lambda candidate: candidate[0], reverse=True)
     sources = [source for _score, source in candidates[:config.SERPER_MAX_RESULTS]]
     return {

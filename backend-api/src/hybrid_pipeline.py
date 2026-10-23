@@ -25,7 +25,10 @@ def prepare_text(text: str) -> str:
 
 
 class HybridPipeline:
-    def __init__(self, root, bundle, *, device="auto", cpu_threads=4):
+    def __init__(
+        self, root, bundle, *, device="auto", cpu_threads=4,
+        allowed_unexpected_encoder_keys=None,
+    ):
         import spacy
         import torch
         from lingua import Language, LanguageDetectorBuilder
@@ -44,8 +47,18 @@ class HybridPipeline:
         encoder, loading = AutoModel.from_pretrained(
             encoder_dir, local_files_only=True, use_safetensors=True, output_loading_info=True,
         )
-        if any(loading.get(key) for key in ("missing_keys", "unexpected_keys", "mismatched_keys", "error_msgs")):
-            raise ValueError("Saved encoder weights did not load completely; refusing initialized or mismatched parameters")
+        allowed_unexpected = set(allowed_unexpected_encoder_keys or ())
+        actual_unexpected = set(loading.get("unexpected_keys") or ())
+        if actual_unexpected != allowed_unexpected or any(
+            loading.get(key) for key in ("missing_keys", "mismatched_keys", "error_msgs")
+        ):
+            raise ValueError(
+                "Saved encoder weights do not match the recorded encoder contract: "
+                f"unexpected={sorted(actual_unexpected)}, allowed={sorted(allowed_unexpected)}, "
+                f"missing={loading.get('missing_keys') or []}, "
+                f"mismatched={loading.get('mismatched_keys') or []}, "
+                f"errors={loading.get('error_msgs') or []}"
+            )
         self.encoder = encoder.to(self.device)
         self.encoder.eval()
         for parameter in self.encoder.parameters():
@@ -100,14 +113,14 @@ class HybridPipeline:
             parts = [ids[start:start + 510] for start in range(0, len(ids), 510)]
             per_record.append(len(parts))
             for part in parts:
-                encoded = self.tokenizer.prepare_for_model(
-                    part, add_special_tokens=True, return_attention_mask=True,
-                    return_special_tokens_mask=False, truncation=False,
-                )
-                if encoded["input_ids"] != [self.tokenizer.cls_token_id] + part + [self.tokenizer.sep_token_id]:
-                    raise ValueError("Unexpected DistilBERT special-token layout")
-                # Added CLS/SEP are excluded, content tokens (including UNK) retained.
-                encoded["special_tokens_mask"] = [1] + [0] * len(part) + [1]
+                # The candidate was trained in a Colab runtime where the selected
+                # tokenizer did not expose prepare_for_model. Construct the exact
+                # single-sequence BERT layout explicitly for every 510-token chunk.
+                encoded = {
+                    "input_ids": [self.tokenizer.cls_token_id] + part + [self.tokenizer.sep_token_id],
+                    "attention_mask": [1] * (len(part) + 2),
+                    "special_tokens_mask": [1] + [0] * len(part) + [1],
+                }
                 chunks.append(encoded)
                 owners.append(index)
         sums = np.zeros((len(texts), 768), dtype=np.float64)

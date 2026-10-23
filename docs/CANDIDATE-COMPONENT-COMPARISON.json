@@ -1,0 +1,56 @@
+{
+  "purpose": "Offline component identity comparison; neither profile was served or selected by this script.",
+  "stable_rollback": {
+    "run_id": "20261011T235112Z",
+    "classifier_file": "model_4.joblib",
+    "classifier_bundle_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+    "encoder_files_sha256": {
+      "models/contextual_encoder/config.json": "7f13faae81a4420192f29d9fe5cd1dc7b80fa12229687c5edc7aaacfc2ac0eb9",
+      "models/contextual_encoder/model.safetensors": "45620facecba512b46c58430d27e20af43952eda9c1be56e023d0bbcfdcf10cb",
+      "models/contextual_encoder/special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+      "models/contextual_encoder/tokenizer.json": "bf1b59b7b11c95f194f51708d918eea378e09d05f84c0e1656dc5180e8117088",
+      "models/contextual_encoder/tokenizer_config.json": "91955163d30880d1ef0928cfdd729baaf413401dc4456f3ab1a48b3eec2ec624",
+      "models/contextual_encoder/vocab.txt": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
+    },
+    "feature_config_sha256": "5907e4b63d61451a16865117c69fe546501df884d429b3989c3f7b2710afd648",
+    "tagalog_tokenizer_sha256": "fb915498d76e32e6283c2a77ecd05f48cfd983b33a91bda4cc7dde241c7a9403",
+    "context_scaler_state_sha256": "c7cbf9774d38a7e7025288a7a89ffbc937fc0fbb26e5f1c32a7c8b1515567df9",
+    "linguistic_scaler_state_sha256": "bbd8d981886e8e3d5051212049c2d3438416c849efa1ce4d29dfcce463422684",
+    "classifier_state_sha256": "1e9a165a06e4269753a6ded04f4fb90d278af36e0a3f282a4988a5beea1982f3",
+    "threshold": 0.65,
+    "classes": [
+      0,
+      1
+    ],
+    "feature_count": 775
+  },
+  "local_candidate": {
+    "run_id": "full-cleaned-20261023T022416Z",
+    "classifier_file": "model_4_full_dataset_CANDIDATE.joblib",
+    "classifier_bundle_sha256": "c2d7df1c519c4022c395a29e1d469e3089452fa8a9b6a15a2079eaa0216ea376",
+    "encoder_files_sha256": {
+      "models/contextual_encoder/config.json": "67ab80c9a476e7c2d189cd03f95d297b04bd1d90e99765323af155ab6308960e",
+      "models/contextual_encoder/model.safetensors": "fcf002be901b9ad708e0df430b8d18deaa4b3fe3519e24e9017a5ee17ca2c228",
+      "models/contextual_encoder/tokenizer.json": "f4a4d5bf7301717e261fafbe26e1eb967f6ba4cb3ae0ab7a29f4642ec229f386",
+      "models/contextual_encoder/tokenizer_config.json": "0f6d13e6f4da6f9e24f22ada6bc3be571123d858d7c0c05a8a7cd55a9c23c2e8",
+      "models/contextual_encoder/vocab.txt": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
+    },
+    "feature_config_sha256": "5907e4b63d61451a16865117c69fe546501df884d429b3989c3f7b2710afd648",
+    "tagalog_tokenizer_sha256": "fb915498d76e32e6283c2a77ecd05f48cfd983b33a91bda4cc7dde241c7a9403",
+    "context_scaler_state_sha256": "dcd1d52fee50801eff58c3b7d65a926c534ee282e88ff91b3c7ba0aea09cbe28",
+    "linguistic_scaler_state_sha256": "e27fcc40f2cf15e2f0f019f1f37d2e925aad2d30a3042c6daab9a406f4700352",
+    "classifier_state_sha256": "7a5709fd50a542a968aaf7cf288c82f030bf18cc340c9ad08f5ea96f24ead613",
+    "threshold": 0.4000000000000001,
+    "classes": [
+      0,
+      1
+    ],
+    "feature_count": 775
+  },
+  "same_feature_config": true,
+  "same_tagalog_tokenizer": true,
+  "same_context_scaler_state": false,
+  "same_linguistic_scaler_state": false,
+  "same_classifier_state": false,
+  "training_or_tuning_performed": false
+}

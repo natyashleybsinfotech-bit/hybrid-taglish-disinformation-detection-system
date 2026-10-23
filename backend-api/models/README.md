@@ -1,10 +1,14 @@
-# Pinned hybrid artifacts
+# Pinned hybrid artifacts and local trial
 
-The active runtime uses only `TRAINING RESULTS/models/model_4.joblib` from run
-`20261011T235112Z`, plus its saved encoder folder, Tagalog tokenizer, feature
-configuration and `run_manifest.json`. Keep the supplied files unchanged.
+The stable rollback profile uses only `TRAINING RESULTS/models/model_4.joblib` from
+run `20261011T235112Z`. The prepared workstation's local-trial profile uses only
+`local-trials/full-cleaned-20261023T022416Z/models/model_4_full_dataset_CANDIDATE.joblib`
+from run `full-cleaned-20261023T022416Z`. Each profile uses its own saved encoder,
+Tagalog tokenizer, feature configuration, scalers and metadata. Keep every supplied
+file unchanged.
 
-See [the integration guide](../../docs/HYBRID-INTEGRATION.md) for the full layout,
+See [the candidate trial guide](../../docs/LOCAL-CANDIDATE-TRIAL.md) and
+[the integration guide](../../docs/HYBRID-INTEGRATION.md) for the full layout,
 hashes, versions, inference contract and raw-text comparison results.
 
 The entire training results directory is ignored by Git. Do not copy model binaries,

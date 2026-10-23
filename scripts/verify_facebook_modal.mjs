@@ -36,7 +36,7 @@ assert.equal(certificate.status, 0, `Could not create fixture certificate: ${cer
 const fixtureHtml = `<!doctype html><meta charset="utf-8"><title>SuriPH Facebook fixture</title>
 <article id="target-post" role="article" tabindex="0">
   <h2><a role="link" href="https://www.facebook.com/researcher.fixture">Researcher Fixture</a></h2>
-  <p data-ad-comet-preview="message">BREAKING!!! Share agad!!! Totoo ba ito?</p>
+  <p data-ad-comet-preview="message">BREAKING!!! Share agad!!! Totoo ba ito? <span role="button" aria-expanded="true" tabindex="0">See more</span> User wrote &quot;See less&quot; in the caption.</p>
   <button type="button">Unrelated post menu</button>
   <div aria-label="Reactions and actions">999 reactions Like Comment Share</div>
   <article role="article"><p>Unrelated nested comment Reply 47</p></article>
@@ -118,7 +118,9 @@ try {
   if (!postClickState.shadowText.includes('Analyze this text')) console.error(JSON.stringify(postClickState, null, 2));
   await waitFor(page, `document.querySelector('body > #suriph-control-host').shadowRoot.textContent.includes('Analyze this text')`);
   const previewText = await evaluate(page, `document.querySelector('body > #suriph-control-host').shadowRoot.querySelector('.result p').textContent`);
-  assert.equal(previewText, 'BREAKING!!! Share agad!!! Totoo ba ito?');
+  assert.equal(previewText, 'BREAKING!!! Share agad!!! Totoo ba ito? User wrote "See less" in the caption.');
+  assert.doesNotMatch(previewText, /See more/);
+  assert.match(previewText, /See less/, 'User-authored control-like words must be preserved');
   assert.doesNotMatch(previewText, /menu|reaction|comment|reply|neighbor/i);
 
   await evaluate(page, `(() => { const root=document.querySelector('body > #suriph-control-host').shadowRoot; const lookup=[...root.querySelectorAll('label')].find(node=>node.textContent.includes('Send up to 500 characters'))?.querySelector('input'); if(lookup?.checked) lookup.click(); [...root.querySelectorAll('button')].find(node=>node.textContent.includes('Analyze this text')).click(); return true; })()`);
@@ -158,6 +160,7 @@ try {
     unpacked_extension_loaded: true,
     manifest_supported_facebook_origin: true,
     bounded_caption_extraction: 'passed',
+    actual_caption_control_removed_user_phrase_preserved: 'passed',
     menus_reactions_nested_comments_excluded: 'passed',
     neighboring_post_excluded: 'passed',
     unrecognized_container_fails_closed: 'passed',

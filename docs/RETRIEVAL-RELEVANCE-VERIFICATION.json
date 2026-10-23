@@ -1,0 +1,9 @@
+{
+  "query_sha256": "ca863fd9e86842eac43bc751f8340c39139d482935b26f89f1040572cf0d1094",
+  "synthetic_false_match_rejected": true,
+  "synthetic_term_overlap_score_before_alignment_gate": 9,
+  "rule": "Reject episodic entertainment for non-entertainment queries and require complete conservative person-name alignment when those anchors exist.",
+  "exact_caption_sent_to_external_provider": false,
+  "live_provider_health_evidence": "See PROVIDER-VERIFICATION.json; it uses a neutral synthetic query.",
+  "classification_invoked": false
+}

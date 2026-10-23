@@ -5,18 +5,21 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 const base = process.env.SURI_TEST_API_URL;
+const expectedRun = process.env.SURI_TEST_RUN_ID || '20261011T235112Z';
+const expectedThreshold = Number(process.env.SURI_TEST_THRESHOLD || '.65');
+const expectedHash = process.env.SURI_TEST_ARTIFACT_SHA256 || '72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c';
 assert.ok(base?.startsWith('http://127.0.0.1:'), 'Supply an isolated local test API');
 const apiSource = (await readFile(new URL('../src/api.js', import.meta.url), 'utf8'))
   .replaceAll('import.meta.env.VITE_API_BASE_URL', JSON.stringify(base));
 const api = await import(`data:text/javascript;base64,${Buffer.from(apiSource).toString('base64')}`);
 const text = `Integration request ${Date.now()}: Basahin muna ang buong balita at ang source nito.`;
 const direct = await api.analyzeText({ text });
-assert.equal(direct.training_run_id, '20261011T235112Z');
+assert.equal(direct.training_run_id, expectedRun);
 assert.equal(direct.analyzed_text, text);
-assert.equal(direct.decision_threshold, .65);
-assert.equal(direct.artifact_sha256, '72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c');
+assert.equal(direct.decision_threshold, expectedThreshold);
+assert.equal(direct.artifact_sha256, expectedHash);
 assert.ok(Number.isFinite(direct.model_score));
-assert.equal(direct.predicted_class, Number(direct.model_score >= .65));
+assert.equal(direct.predicted_class, Number(direct.model_score >= expectedThreshold));
 const directSources = await api.lookupRelatedSources({ text, pageUrl: 'https://www.facebook.com/example/posts/1' });
 assert.equal(directSources.classification_performed, false);
 assert.ok(['available', 'no_results', 'unavailable'].includes(directSources.retrieval_status));

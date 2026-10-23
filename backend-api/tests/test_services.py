@@ -26,11 +26,11 @@ class ModelRuntimeTests(unittest.TestCase):
                 model_runtime.configure_model(path)
 
 class RetrievalTests(unittest.TestCase):
-    def test_search_query_removes_ui_text_and_blocks_social_sites(self):
+    def test_search_query_preserves_authored_control_like_text_and_blocks_social_sites(self):
         query = retrieval._search_query(
-            "DOLE approves a wage increase. Read more https://facebook.com/example"
+            "A witness wrote See less in the caption. https://facebook.com/example"
         )
-        self.assertNotIn("Read more", query)
+        self.assertIn("See less", query)
         self.assertNotIn("https://facebook.com/example", query)
         self.assertIn("-site:facebook.com", query)
 
@@ -136,6 +136,39 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(result["retrieval_status"], "available")
         self.assertEqual(result["related_sources"][0]["url"], "https://mb.com.ph/batasan-shooting")
         self.assertEqual(provider.call_count, 2)
+
+    def test_fictional_episode_is_rejected_despite_surname_and_verb_overlap(self):
+        payload = {"organic": [{
+            "title": "Juan dela Cruz: Kael, patuloy na hinanap ang vigilante | Episode 21",
+            "link": "https://www.abs-cbn.com/entertainment/studios/tv/2026/10/22/juan-dela-cruz-episode-21",
+            "snippet": "Panoorin ang paboritong Kapamilya teleserye episode.",
+        }]}
+        query = (
+            "TO THE RESCUE SI NANAY: Nanay Kara Dela Cruz said that PSSg Tyran John "
+            "Miranda patuloy na tumulong sa pamilya matapos ang insidente."
+        )
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(
+            retrieval.config, "SERPER_API_KEY", "fixture-not-live"
+        ), patch.object(retrieval, "open_provider", side_effect=[
+            io.BytesIO(json.dumps(payload).encode()), io.BytesIO(json.dumps(payload).encode())
+        ]):
+            result = retrieval.retrieve_related_sources(query)
+        self.assertEqual(result["retrieval_status"], "no_results")
+        self.assertEqual(result["related_sources"], [])
+
+    def test_relevant_news_video_with_full_person_entity_is_allowed(self):
+        payload = {"organic": [{
+            "title": "Kara Dela Cruz thanks PSSg Tyran John Miranda after rescue",
+            "link": "https://www.gmanetwork.com/news/video/rescue-interview/",
+            "snippet": "Kara Dela Cruz described how the police officer helped her family.",
+        }]}
+        query = "Nanay Kara Dela Cruz thanked PSSg Tyran John Miranda after the rescue."
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(
+            retrieval.config, "SERPER_API_KEY", "fixture-not-live"
+        ), patch.object(retrieval, "open_provider", return_value=io.BytesIO(json.dumps(payload).encode())):
+            result = retrieval.retrieve_related_sources(query)
+        self.assertEqual(result["retrieval_status"], "available")
+        self.assertEqual(result["related_sources"][0]["url"], payload["organic"][0]["link"])
 
 
 class FactCheckTests(unittest.TestCase):

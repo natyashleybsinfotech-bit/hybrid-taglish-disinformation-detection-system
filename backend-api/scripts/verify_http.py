@@ -11,6 +11,7 @@ import tempfile
 import time
 import threading
 import statistics
+import argparse
 from concurrent.futures import ThreadPoolExecutor
 import psutil
 from urllib.error import HTTPError, URLError
@@ -30,6 +31,18 @@ def request(base, path, body=None, headers=None):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--profile", default=os.environ.get("SURI_MODEL_PROFILE", ""))
+    args = parser.parse_args()
+    if args.profile:
+        profile_id = args.profile
+    else:
+        from dotenv import dotenv_values
+        profile_id = dotenv_values(BASE / ".env.local").get("SURI_MODEL_PROFILE") or "20261011T235112Z"
+    profiles = json.loads((BASE / "src/model_profiles.json").read_text(encoding="utf-8"))["profiles"]
+    if profile_id not in profiles:
+        raise SystemExit(f"Unknown profile: {profile_id}")
+    expected_profile = profiles[profile_id]
     with tempfile.TemporaryDirectory(prefix="suriph-http-") as directory:
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
@@ -42,6 +55,7 @@ def main():
             "SURI_TRUSTED_HOSTS": "localhost,127.0.0.1", "SURI_MODEL_DEVICE": "cpu",
             "SERPER_ENABLED": "false", "GOOGLE_FACT_CHECK_ENABLED": "false",
             "SURI_TRAFFIC_LIMITS": "true",
+            "SURI_MODEL_PROFILE": profile_id,
         }
         with (Path(directory) / "server.log").open("w", encoding="utf-8") as log:
             process = subprocess.Popen([sys.executable, "-m", "uvicorn", "src.app:app", "--host", "127.0.0.1", "--port", str(port)], cwd=BASE, env=env, stdout=log, stderr=log)
@@ -70,7 +84,9 @@ def main():
                             raise RuntimeError("API startup timed out")
                         time.sleep(.5)
                 print("Actual API ready on CPU", flush=True)
-                assert state["model"]["classifier"] == "model_4.joblib"
+                assert state["model"]["classifier"] == Path(expected_profile["classifier"]).name
+                assert state["model"]["training_run_id"] == profile_id
+                assert state["model"]["sha256"] == expected_profile["classifier_sha256"]
                 assert state["model"]["device"] == "cpu"
                 for text in ("", " \n\t "):
                     status, body = request(base, "/analyze", {"text": text})
@@ -78,7 +94,7 @@ def main():
                 novel = f"Bagong integration check {time.time_ns()}. Suriin natin ang source ng balita."
                 status, first = request(base, "/analyze", {"text": novel})
                 assert status == 200 and first["analyzed_text"] == novel
-                assert first["predicted_class"] == int(first["model_score"] >= .65)
+                assert first["predicted_class"] == int(first["model_score"] >= state["model"]["decision_threshold"])
                 assert "research_receipt" not in first and "storage_status" not in first
                 (BASE.parent / 'tmp' / 'ui-real-result.json').write_text(json.dumps(first), encoding='utf-8')
                 long_text = "Basahin natin ang buong artikulo at suriin ang source. " * 100 + "UNIQUE_TAIL_73129"
@@ -89,7 +105,12 @@ def main():
                 if not node:
                     raise RuntimeError("Node.js is required for the extension transport check")
                 subprocess.run([node, "tests/connection.mjs"], cwd=BASE.parent / "chrome-extension",
-                               env=os.environ | {"SURI_TEST_API_URL": base}, check=True)
+                               env=os.environ | {
+                                   "SURI_TEST_API_URL": base,
+                                   "SURI_TEST_RUN_ID": profile_id,
+                                   "SURI_TEST_THRESHOLD": str(expected_profile["expected_threshold"]),
+                                   "SURI_TEST_ARTIFACT_SHA256": expected_profile["classifier_sha256"],
+                               }, check=True)
                 timings=[]; inference=[]
                 for index in range(5):
                     began=time.perf_counter()

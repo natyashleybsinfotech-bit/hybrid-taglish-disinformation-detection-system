@@ -1,0 +1,14 @@
+# Local-trial runtime recorded by full-cleaned-20261023T022416Z.
+# A CPU torch 2.11.0 build is supported; the training runtime used +cu130.
+torch==2.11.0
+transformers==5.20.1
+scikit-learn==1.6.1
+numpy==2.1.3
+lingua-language-detector==2.1.1
+spacy==3.8.16
+joblib==1.6.0
+# Integration-resolved transitive versions used by the verified local CPU run.
+huggingface-hub==2.2.0
+tokenizers==0.23.3
+safetensors==0.8.0
+scipy==1.18.1

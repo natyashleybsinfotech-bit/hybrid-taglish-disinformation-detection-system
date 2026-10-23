@@ -4,6 +4,7 @@
   "unpacked_extension_loaded": true,
   "manifest_supported_facebook_origin": true,
   "bounded_caption_extraction": "passed",
+  "actual_caption_control_removed_user_phrase_preserved": "passed",
   "menus_reactions_nested_comments_excluded": "passed",
   "neighboring_post_excluded": "passed",
   "unrecognized_container_fails_closed": "passed",

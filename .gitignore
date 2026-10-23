@@ -8,6 +8,7 @@ backend-api/models/*.joblib
 backend-api/models/*.pkl.json
 backend-api/models/*.joblib.json
 backend-api/models/TRAINING RESULTS/
+backend-api/models/local-trials/
 backend-api/models/**/*.safetensors
 backend-api/models/**/*.bin
 backend-api/models/**/*.joblib
@@ -15,6 +16,7 @@ backend-api/models/**/*.pkl
 backend-api/data/raw/
 backend-api/data/processed/
 .venv/
+.venv-candidate-*/
 backend-api/.env
 backend-api/.env.local
 backend-api/backend-runtime*.log

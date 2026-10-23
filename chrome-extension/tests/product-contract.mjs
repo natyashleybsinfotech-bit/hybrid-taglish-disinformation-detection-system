@@ -13,7 +13,9 @@ for (const forbidden of ['*://*.x.com/*', '*://*.twitter.com/*', '*://*.youtube.
 for (const forbidden of ['tweetText', 'ytd-watch', 'reddit']) assert.ok(!content.includes(forbidden), `Unexpected content selector/support: ${forbidden}`);
 for (const forbidden of ['x.com', 'twimg.com', 'youtube.com', 'googlevideo.com', 'reddit.com', 'redd.it']) assert.ok(!background.includes(`'${forbidden}'`), `Unexpected media origin: ${forbidden}`);
 assert.match(content, /Fail closed[\s\S]{0,240}return '';/, 'Facebook extraction must fail closed without a recognized message node');
-assert.doesNotMatch(content, /cloneNode\(true\)/, 'Whole post/feed fallback must not be reachable');
+assert.match(content, /const caption = node\.cloneNode\(true\)/, 'Only a recognized caption node must be cloned for control removal');
+assert.match(content, /caption\.querySelectorAll[\s\S]{0,220}\[role=\\?"button\\?"\]/, 'Actual DOM controls inside a caption must be removed');
+assert.doesNotMatch(content, /replace\([^\n]{0,100}(?:See|see)\s+(?:more|less)/, 'User-authored See more/See less text must not be deleted by phrase matching');
 assert.match(content, /appendLookupChoice/, 'The in-page Facebook flow must expose source lookup before analysis');
 assert.match(content, /context_explanation/, 'The in-page result must render the backend context');
 assert.match(content, /SURIPH_LOOKUP_SOURCES/, 'The in-page result must support a source-only lookup');

@@ -23,7 +23,7 @@ class ProductionConfigTests(unittest.TestCase):
             VIEWER_BOOTSTRAP_USERNAME="viewer", VIEWER_BOOTSTRAP_PASSWORD="c" * 32,
             CORS_ORIGINS=("https://admin.suriph.ph",), TRUSTED_HOSTS=("api.suriph.ph",),
             DB_ENGINE="mariadb", DATABASE_URL="mysql+pymysql://suriph:abcdefghijklmnop12345@database/suriph",
-            MODEL_REQUIRED=True, MODEL_WARMUP=True,
+            MODEL_REQUIRED=True, MODEL_WARMUP=True, MODEL_PROFILE="20261011T235112Z",
         )
         return patch.multiple(config, **(values | overrides))
 
@@ -44,6 +44,12 @@ class ProductionConfigTests(unittest.TestCase):
         ):
             with self.subTest(values=values), self.production(**values), self.assertRaises(RuntimeError):
                 config.validate_runtime_config()
+
+    def test_local_candidate_profile_is_rejected_in_production(self):
+        with self.production(MODEL_PROFILE="full-cleaned-20261023T022416Z"), self.assertRaisesRegex(
+            RuntimeError, "local trial only"
+        ):
+            config.validate_runtime_config()
 
 
 class DeploymentGeneratorTests(unittest.TestCase):

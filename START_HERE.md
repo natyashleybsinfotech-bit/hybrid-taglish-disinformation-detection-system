@@ -3,7 +3,9 @@
 **Implemented and locally tested; deployment prepared; not publicly deployed.**
 See [the release evidence and GO/NO-GO gate](docs/RELEASE-READINESS.md) before inviting participants.
 The [documentation index](docs/README.md) maps research references, setup and deployment.
-The selected hybrid model is verified. An earlier isolated Edge Chromium extension rehearsal
+The stable hybrid model is verified; the prepared workstation currently selects the
+new local-trial candidate described in [LOCAL-CANDIDATE-TRIAL.md](docs/LOCAL-CANDIDATE-TRIAL.md).
+An earlier isolated Edge Chromium extension rehearsal
 passed; Linux containers, production HTTPS and a manual Google Chrome/Facebook study
 session still need completion.
 
@@ -13,14 +15,16 @@ Run from `hybrid taglish-detector system`, not its parent folder. Preserve the e
 private `.env.local`; do not overwrite it with examples. Python 3.13 was tested here.
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r backend-api\requirements-test.txt
+.\.venv-candidate-20261023-isolated\Scripts\python.exe -m pip install -r backend-api\requirements-test-candidate.txt
 .\scripts\start-mariadb.ps1
 cd backend-api
-..\.venv\Scripts\python.exe -m src.manage migrate
-..\.venv\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log
+..\.venv-candidate-20261023-isolated\Scripts\python.exe -m src.manage migrate
+..\.venv-candidate-20261023-isolated\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log
 ```
 
-For a fresh checkout, first create `.venv` with `python -m venv .venv`. The portable
+For a fresh candidate trial, first create `.venv-candidate-20261023-isolated` with
+`python -m venv .venv-candidate-20261023-isolated` and install
+`backend-api/requirements-candidate.txt`. The portable
 database scripts are specific to this prepared workstation; use Compose below for
 a reproducible fresh database. Never reuse its development login in production.
 
@@ -58,7 +62,7 @@ Invoke-RestMethod http://127.0.0.1:8000/analyze -Method Post -ContentType applic
 ```
 
 The default request saves nothing and does not query an external evidence provider.
-Version 1.3.1 enables the visible external-source choice once on install/update so public
+Version 1.3.2 retains the visible external-source choice enabled after install/update so public
 Facebook screening requests related articles by default; users can turn it off before
 analysis. A separate explicit-consent
 action can submit the analyzed text to the private human-review queue; it does not add the
@@ -98,8 +102,9 @@ docker compose --env-file .env.local-stack stop
 From the project root (local model artifacts and test records required):
 
 ```powershell
-.\.venv\Scripts\python.exe -B -m unittest discover -s backend-api/tests -p 'test_*.py' -v
-.\.venv\Scripts\python.exe -B backend-api/scripts/verify_hybrid.py
+.\.venv-candidate-20261023-isolated\Scripts\python.exe -B -m unittest discover -s backend-api/tests -p 'test_*.py' -v
+.\.venv-candidate-20261023-isolated\Scripts\python.exe -B backend-api/scripts/verify_candidate_regressions.py
+.\.venv-candidate-20261023-isolated\Scripts\python.exe -B backend-api/scripts/verify_hybrid.py
 .\.venv\Scripts\python.exe -B backend-api/scripts/diagnose_prediction_path.py
 .\.venv\Scripts\python.exe -B backend-api/scripts/verify_http.py
 .\.venv\Scripts\python.exe scripts/verify_mariadb_local.py

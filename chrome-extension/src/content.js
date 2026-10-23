@@ -49,7 +49,14 @@ function collectPostText(post) {
   const parts = [];
   const add = (node) => {
     if (!node || node.closest?.('#suriph-control-host, button, [role="button"], nav, form')) return;
-    const text = normalize(node.innerText || node.textContent || '');
+    // Facebook places See more/See less inside the recognized caption node as
+    // real controls. Remove control elements from this bounded clone only; a
+    // user-authored phrase with the same words remains part of the caption.
+    const caption = node.cloneNode(true);
+    caption.querySelectorAll?.(
+      '#suriph-control-host, button, [role="button"], nav, form, [aria-expanded][tabindex]'
+    ).forEach((control) => control.remove());
+    const text = normalize(caption.innerText || caption.textContent || '');
     if (text) parts.push(text);
   };
   for (const selector of POST_TEXT_SELECTORS) {

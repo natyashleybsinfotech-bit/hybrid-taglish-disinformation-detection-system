@@ -1,0 +1,47 @@
+{
+  "default_profile": "20261011T235112Z",
+  "profiles": {
+    "20261011T235112Z": {
+      "artifact_directory": "models/TRAINING RESULTS",
+      "classifier": "models/model_4.joblib",
+      "classifier_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+      "metadata_kind": "legacy_manifest",
+      "metadata_file": "run_manifest.json",
+      "expected_threshold": 0.65,
+      "deployment_approved": true,
+      "allowed_unexpected_encoder_keys": [],
+      "encoder_files": {
+        "models/contextual_encoder/config.json": "7f13faae81a4420192f29d9fe5cd1dc7b80fa12229687c5edc7aaacfc2ac0eb9",
+        "models/contextual_encoder/model.safetensors": "45620facecba512b46c58430d27e20af43952eda9c1be56e023d0bbcfdcf10cb",
+        "models/contextual_encoder/special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+        "models/contextual_encoder/tokenizer.json": "bf1b59b7b11c95f194f51708d918eea378e09d05f84c0e1656dc5180e8117088",
+        "models/contextual_encoder/tokenizer_config.json": "91955163d30880d1ef0928cfdd729baaf413401dc4456f3ab1a48b3eec2ec624",
+        "models/contextual_encoder/vocab.txt": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
+      }
+    },
+    "full-cleaned-20261023T022416Z": {
+      "artifact_directory": "models/local-trials/full-cleaned-20261023T022416Z",
+      "classifier": "models/model_4_full_dataset_CANDIDATE.joblib",
+      "classifier_sha256": "c2d7df1c519c4022c395a29e1d469e3089452fa8a9b6a15a2079eaa0216ea376",
+      "metadata_kind": "candidate_results",
+      "metadata_file": "results.json",
+      "protocol_file": "protocol.json",
+      "expected_threshold": 0.4000000000000001,
+      "deployment_approved": false,
+      "allowed_unexpected_encoder_keys": [
+        "vocab_layer_norm.bias",
+        "vocab_layer_norm.weight",
+        "vocab_projector.bias",
+        "vocab_transform.bias",
+        "vocab_transform.weight"
+      ],
+      "encoder_files": {
+        "models/contextual_encoder/config.json": "67ab80c9a476e7c2d189cd03f95d297b04bd1d90e99765323af155ab6308960e",
+        "models/contextual_encoder/model.safetensors": "fcf002be901b9ad708e0df430b8d18deaa4b3fe3519e24e9017a5ee17ca2c228",
+        "models/contextual_encoder/tokenizer.json": "f4a4d5bf7301717e261fafbe26e1eb967f6ba4cb3ae0ab7a29f4642ec229f386",
+        "models/contextual_encoder/tokenizer_config.json": "0f6d13e6f4da6f9e24f22ada6bc3be571123d858d7c0c05a8a7cd55a9c23c2e8",
+        "models/contextual_encoder/vocab.txt": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
+      }
+    }
+  }
+}

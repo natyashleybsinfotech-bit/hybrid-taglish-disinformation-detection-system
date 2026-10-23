@@ -4,7 +4,7 @@
 | --- | --- |
 | Install and run locally | [START_HERE](../START_HERE.md) |
 | Completed checks and remaining release gates | [Release readiness](RELEASE-READINESS.md) |
-| Model contract, artifacts, threshold, parity and observed scope bias | [Hybrid integration](HYBRID-INTEGRATION.md), [598-record result](HYBRID-VERIFICATION.json), [prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json), [Facebook-only regression investigation](FACEBOOK-CLASSIFICATION-REGRESSION.json), [news-style path check](NEWS-STYLE-DIAGNOSTIC.json), [short-input diagnostic](MODEL-SANITY-DIAGNOSTIC.json) |
+| Model contract, artifacts, threshold, parity and observed scope bias | [Local candidate trial and rollback](LOCAL-CANDIDATE-TRIAL.md), [component hash comparison](CANDIDATE-COMPONENT-COMPARISON.json), [candidate supplied-case result](CANDIDATE-REGRESSION-VERIFICATION.json), [candidate 3,470-record result](CANDIDATE-HYBRID-VERIFICATION.json), [stable hybrid integration](HYBRID-INTEGRATION.md), [stable 598-record result](HYBRID-VERIFICATION.json), [prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json), [Facebook-only regression investigation](FACEBOOK-CLASSIFICATION-REGRESSION.json), [news-style path check](NEWS-STYLE-DIAGNOSTIC.json), [short-input diagnostic](MODEL-SANITY-DIAGNOSTIC.json) |
 | VPS, Compose, database, HTTPS, backups and restore | [Deployment guide](DEPLOYMENT.md) |
 | Separate survey plan and participant tasks | [Participant guide](research/PARTICIPANT-GUIDE.md) |
 | Draft questionnaires and expert review | [Questionnaires](research/QUESTIONNAIRES.md), [pilot and traceability](research/PILOT-AND-TRACEABILITY.md) |
@@ -12,7 +12,7 @@
 | Earlier requirements and agent instructions | [Prototype instructions](references/SuriPH_Codex_Prototype_Instructions.docx), [initial prototype](references/SuriPH_Sprint1_Working_Prototype.docx), [prototype v2](references/SuriPH_Sprint1_Working_Prototype_v2.docx), [final document](references/final.docx) |
 | Historical system design | [SDD](sdd.docx); its preserved generator is in `tools/`, with npm configuration here |
 | UI and browser inspection | [UI report](UI-VERIFICATION.json), [current popup regression](EXTENSION-POPUP-VERIFICATION.json), [synthetic Facebook modal](FACEBOOK-MODAL-VERIFICATION.json), [Google Chrome/Facebook status](CHROME-FACEBOOK-VERIFICATION.json), [earlier isolated Edge extension](INSTALLED-EXTENSION-VERIFICATION.json), [extension failure states](EXTENSION-FAILURE-VERIFICATION.json), [administrator browser flow](ADMIN-BROWSER-VERIFICATION.json), [screenshots](verification/ui/) |
-| Database, providers, media and resources | [MariaDB](MARIADB-VERIFICATION.json), [providers](PROVIDER-VERIFICATION.json), [media](MEDIA-VERIFICATION.json), [API resources](RESOURCE-MEASUREMENTS.json), [live stack](LIVE-STACK-PERFORMANCE.json) |
+| Database, providers, media and resources | [MariaDB](MARIADB-VERIFICATION.json), [provider availability](PROVIDER-VERIFICATION.json), [retrieval relevance regression](RETRIEVAL-RELEVANCE-VERIFICATION.json), [media](MEDIA-VERIFICATION.json), [API resources](RESOURCE-MEASUREMENTS.json), [live stack](LIVE-STACK-PERFORMANCE.json) |
 | Repository layout and preservation decisions | [Project structure](PROJECT-STRUCTURE.md), [move inventory](CLEANUP-MOVES.json) |
 
 The supplied training notebook, manifest, feature configuration, encoder, tokenizers,
@@ -20,6 +20,10 @@ all model artifacts, evidence figures and reference predictions remain **local a
 unchanged** under `backend-api/models/TRAINING RESULTS/`. They are deliberately
 excluded from Git, not deleted. See that directory's `SuriPH_Repaired_Training_Run.ipynb`,
 `run_manifest.json`, `models/feature_config.json` and `records/`.
+
+The full-cleaned candidate run is stored separately under the ignored
+`backend-api/models/local-trials/full-cleaned-20261023T022416Z/` directory. Its
+classifier and raw records are also local-only and unchanged.
 
 Historical documents describe earlier designs. The current integration contract and
 release evidence take precedence for operating this deployment. Existing research

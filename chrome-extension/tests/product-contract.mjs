@@ -28,8 +28,8 @@ assert.match(api, /lookupRelatedSources/);
 assert.match(api, /\/related-sources/);
 assert.match(popup, /Potentially Misleading/);
 assert.match(popup, /No Misleading Information Detected/);
-assert.match(popup, /This score is shown separately from the evidence-assisted final label\./);
-assert.match(popup, /Hiwalay ang score na ito sa evidence-assisted final label\./);
+assert.match(popup, /Why this result/);
+assert.match(popup, /Bakit ito ang resulta/);
 assert.match(popup, /suriphLanguage/);
 assert.match(popup, /consentToStore: true/);
 assert.match(popup, /candidateState === 'submitted'/);
@@ -37,17 +37,17 @@ assert.match(popup, /candidateLock\.current/, 'Candidate submission must use a s
 assert.match(popup, /context_explanation/, 'The popup result must render the backend context');
 assert.match(popup, /fact_check_matches/, 'Popup must display decisive published fact-check evidence');
 assert.match(content, /fact_check_matches/, 'Facebook modal must display decisive published fact-check evidence');
-assert.match(popup, /decision_basis/);
-assert.match(content, /decision_basis/);
+assert.doesNotMatch(popup, /decision_basis|model_4 linguistic-risk|Technical score details|Linguistic-feature details/);
+assert.doesNotMatch(content, /decision_basis|model_4 linguistic-risk|Technical score details|Linguistic-feature details/);
 const popupParts = [...popup.matchAll(/data-result-part="([^"]+)"/g)].map(match => match[1]);
 assert.deepEqual(popupParts, [
-  '1-prediction', '2-score', '3-post-context', '4-features',
-  '5-related-sources', '6-analyzed-text', '7-reminder', '8-check-again',
+  '1-prediction', '2-explanation', '3-post-context', '4-related-sources',
+  '5-analyzed-text', '6-reminder', '7-check-again',
 ]);
-for (const part of ['1-prediction', '2-score', '3-post-context', '4-features', '5-related-sources', '6-analyzed-text', '7-reminder', '8-check-again'])
+for (const part of ['1-prediction', '2-explanation', '3-post-context', '4-related-sources', '5-analyzed-text', '6-reminder', '7-check-again'])
   assert.match(content, new RegExp(part), `Facebook result is missing ${part}`);
-const englishReminder = 'SuriPH is an automated screening tool that may produce incorrect predictions. Its label and score do not confirm whether a claim is true or false. Review the original post’s date, source and full context, and consult credible references before sharing or acting on the information.';
-const tagalogReminder = 'Ang SuriPH ay awtomatikong kasangkapan sa paunang pagsusuri na maaaring magkamali. Hindi pinatutunayan ng label at score nito kung totoo o mali ang isang pahayag. Suriin ang petsa, pinagmulan at buong konteksto ng post, at kumonsulta sa mapagkakatiwalaang sanggunian bago ibahagi o aksyunan ang impormasyon.';
+const englishReminder = 'SuriPH can make mistakes. Read the full post, check its date and source, and compare it with reliable references before sharing or acting on it.';
+const tagalogReminder = 'Maaaring magkamali ang SuriPH. Basahin ang buong post, tingnan ang petsa at pinagmulan, at ikumpara ito sa mapagkakatiwalaang sanggunian bago ibahagi o aksyunan.';
 assert.equal(popup.split(englishReminder).length - 1, 1, 'Popup must contain exactly one English reminder');
 assert.equal(popup.split(tagalogReminder).length - 1, 1, 'Popup must contain exactly one Tagalog reminder');
 assert.equal(content.split(englishReminder).length - 1, 1, 'Facebook modal must contain exactly one English reminder');
@@ -58,7 +58,7 @@ assert.doesNotMatch(popup, /participant|questionnaire|survey/i);
 
 console.log(JSON.stringify({
   facebook_only_manifest: 'passed', bounded_extraction: 'passed', bilingual_fixed_copy: 'passed',
-  cautious_labels: 'passed', exact_eight_part_order: 'passed', one_bottom_reminder: 'passed',
+  cautious_labels: 'passed', user_friendly_result_order: 'passed', one_bottom_reminder: 'passed',
   in_page_lookup_control: 'passed', source_lookup_update_default: 'passed', source_only_lookup_path: 'passed', decisive_fact_check_visible: 'passed',
   context_visible: 'passed', bounded_post_metadata: 'passed', explicit_candidate_consent: 'passed', duplicate_candidate_guard: 'passed', survey_ui_absent: 'passed',
 }));

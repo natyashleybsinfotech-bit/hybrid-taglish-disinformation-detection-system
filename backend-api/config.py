@@ -107,8 +107,9 @@ TRUSTED_HOSTS = tuple(
     if host.strip()
 )
 DISCLAIMER = (
-    "This is a model prediction and can be wrong. Its score is not calibrated certainty or proof that a claim is true or false. "
-    "Related links are not automatically supporting or debunking evidence. Check original sources, dates and context."
+    "This two-label screening result can be wrong. Evidence overrides require either a closely matching published fact-check "
+    "or corroboration from at least two independent approved publishers; otherwise the result follows model_4. "
+    "The model score is not calibrated certainty or proof. Check original sources, dates and context."
 )
 MODEL_SCOPE_NOTICE = (
     "The model was verified against its saved article-like test set. Brief or out-of-distribution text can receive "

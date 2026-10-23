@@ -19,7 +19,7 @@ assert.match(content, /boundaryDisplays/, 'Block boundaries inside Facebook capt
 assert.doesNotMatch(content, /replace\([^\n]{0,100}(?:See|see)\s+(?:more|less)/, 'User-authored See more/See less text must not be deleted by phrase matching');
 assert.match(content, /appendLookupChoice/, 'The in-page Facebook flow must expose source lookup before analysis');
 assert.match(content, /context_explanation/, 'The in-page result must render the backend context');
-assert.match(content, /SURIPH_LOOKUP_SOURCES/, 'The in-page result must support a source-only lookup');
+assert.match(content, /SURIPH_ANALYZE_TEXT[\s\S]{0,300}retrieve_sources:\s*true/, 'A later evidence request must recompute the final two-label assessment');
 assert.match(background, /SURIPH_LOOKUP_SOURCES/);
 assert.match(background, /\/related-sources/);
 assert.match(background, /suriphSourceDefaultVersion/);
@@ -28,15 +28,17 @@ assert.match(api, /lookupRelatedSources/);
 assert.match(api, /\/related-sources/);
 assert.match(popup, /Potentially Misleading/);
 assert.match(popup, /No Misleading Information Detected/);
-assert.match(popup, /This is the model score for the displayed class\./);
-assert.match(popup, /Ito ang model score para sa ipinapakitang class\./);
+assert.match(popup, /This score is shown separately from the evidence-assisted final label\./);
+assert.match(popup, /Hiwalay ang score na ito sa evidence-assisted final label\./);
 assert.match(popup, /suriphLanguage/);
 assert.match(popup, /consentToStore: true/);
 assert.match(popup, /candidateState === 'submitted'/);
 assert.match(popup, /candidateLock\.current/, 'Candidate submission must use a synchronous duplicate-request guard');
 assert.match(popup, /context_explanation/, 'The popup result must render the backend context');
-assert.doesNotMatch(popup, /Published fact-check reviews|fact_check_matches/, 'Google Fact Check is not a public result section');
-assert.doesNotMatch(content, /Published fact-check reviews|fact_check_matches/, 'Google Fact Check is not a public result section');
+assert.match(popup, /fact_check_matches/, 'Popup must display decisive published fact-check evidence');
+assert.match(content, /fact_check_matches/, 'Facebook modal must display decisive published fact-check evidence');
+assert.match(popup, /decision_basis/);
+assert.match(content, /decision_basis/);
 const popupParts = [...popup.matchAll(/data-result-part="([^"]+)"/g)].map(match => match[1]);
 assert.deepEqual(popupParts, [
   '1-prediction', '2-score', '3-post-context', '4-features',
@@ -57,6 +59,6 @@ assert.doesNotMatch(popup, /participant|questionnaire|survey/i);
 console.log(JSON.stringify({
   facebook_only_manifest: 'passed', bounded_extraction: 'passed', bilingual_fixed_copy: 'passed',
   cautious_labels: 'passed', exact_eight_part_order: 'passed', one_bottom_reminder: 'passed',
-  in_page_lookup_control: 'passed', source_lookup_update_default: 'passed', source_only_lookup_path: 'passed', public_fact_check_panel_absent: 'passed',
+  in_page_lookup_control: 'passed', source_lookup_update_default: 'passed', source_only_lookup_path: 'passed', decisive_fact_check_visible: 'passed',
   context_visible: 'passed', bounded_post_metadata: 'passed', explicit_candidate_consent: 'passed', duplicate_candidate_guard: 'passed', survey_ui_absent: 'passed',
 }));

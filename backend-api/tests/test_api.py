@@ -110,14 +110,17 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.json()["internal_label"], baseline["internal_label"])
         self.assertEqual(response.json()["retrieval_status"], "unavailable")
 
-    def test_public_lookup_calls_serper_without_exposing_admin_fact_checks(self):
+    def test_two_independent_sources_can_corroborate_the_final_label(self):
         self.retrieval_mock.return_value = {
             "retrieval_status": "available",
-            "related_sources": [{"title": "Related report", "url": "https://example.org/report"}],
+            "related_sources": [
+                {"title": "Agency confirms supplied claim", "url": "https://one.example/report", "source": "one.example"},
+                {"title": "Supplied claim confirmed", "url": "https://two.example/report", "source": "two.example"},
+            ],
         }
         self.fact_check_mock.return_value = {
             "status": "available",
-            "matches": [{"title": "Published review", "url": "https://example.org/review", "rating": "False"}],
+            "matches": [],
             "signal": None,
         }
         response = self.client.post("/analyze", json={"retrieve_sources": True, "text": "A supplied claim"})
@@ -125,11 +128,13 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(body["public_label"], "No Misleading Information Detected")
         self.assertEqual(body["retrieval_status"], "available")
-        self.assertEqual(body["fact_check_status"], "admin_only")
-        self.assertEqual(len(body["related_sources"]), 1)
+        self.assertEqual(body["fact_check_status"], "available")
+        self.assertEqual(len(body["related_sources"]), 2)
         self.assertEqual(body["fact_check_matches"], [])
+        self.assertEqual(body["decision_source"], "corroborated_sources")
+        self.assertTrue(body["evidence_adjusted"])
         self.retrieval_mock.assert_called_once()
-        self.fact_check_mock.assert_not_called()
+        self.fact_check_mock.assert_called_once()
 
     def test_source_lookup_endpoint_does_not_run_classification(self):
         self.retrieval_mock.return_value = {
@@ -225,28 +230,23 @@ class ApiTests(unittest.TestCase):
         self.assertIn("out-of-distribution", first.json()["model_scope_notice"])
         self.candidate_mock.assert_not_called()
 
-    def test_google_fact_check_is_not_called_by_public_screening(self):
-        self.fact_check_patcher.stop()
-        signal = {
-            "internal_label": "Misleading",
-            "public_label": "Potentially Misleading",
-            "confidence": 0.91,
-            "basis": "A closely matching published fact-check rated the claim as: False",
-            "source_url": "https://example.org/fact-check",
-        }
-        with patch.object(application, "search_fact_checks", return_value={
+    def test_strong_published_fact_check_can_set_potentially_misleading(self):
+        self.fact_check_mock.return_value = {
             "status": "available",
-            "matches": [{"url": signal["source_url"], "rating": "False"}],
-            "signal": signal,
-        }):
-            response = self.client.post("/analyze", json={"text": "A closely matching claim", "retrieve_sources": True})
-        self.fact_check_patcher.start()
+            "matches": [{
+                "title": "Published review", "url": "https://example.org/fact-check",
+                "publisher": "Example Check", "rating": "False",
+                "match_strength": .9, "matched_term_count": 4,
+            }],
+            "signal": None,
+        }
+        response = self.client.post("/analyze", json={"text": "A closely matching claim", "retrieve_sources": True})
         body = response.json()
-        self.assertEqual(body["public_label"], "No Misleading Information Detected")
-        self.assertEqual(body["decision_source"], "screening_model")
-        self.assertIsNone(body["decision_basis"])
-        self.assertEqual(body["fact_check_status"], "admin_only")
-        self.assertEqual(body["fact_check_matches"], [])
+        self.assertEqual(body["public_label"], "Potentially Misleading")
+        self.assertEqual(body["decision_source"], "published_fact_check")
+        self.assertIn("False", body["decision_basis"])
+        self.assertEqual(len(body["fact_check_matches"]), 1)
+        self.assertTrue(body["evidence_adjusted"])
 
     def test_context_does_not_fabricate_individual_fact_checks(self):
         payload = {

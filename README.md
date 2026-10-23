@@ -4,7 +4,7 @@ Start with [START_HERE.md](START_HERE.md) and the [release evidence](docs/RELEAS
 Use the [documentation index](docs/README.md) to find the paper, training references,
 setup, research materials and [project layout](docs/PROJECT-STRUCTURE.md).
 
-SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Facebook-only Google Chrome extension, and an administrator dashboard. It screens manual or user-selected Facebook text and text extracted from images or videos, reports model predictions and scores, and can attach related reporting from approved publishers. Public screening uses Serper for related sources, then requires multiple informative terms from the supplied post to match each result title or snippet. Google Fact Check Tools remains an administrator evidence-review tool.
+SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Facebook-only Google Chrome extension, and an administrator dashboard. It returns exactly two public labels: **Potentially Misleading** or **No Misleading Information Detected**. The pinned model_4 prediction is the fallback. A closely matching published fact-check can set either label from its rating. One relevant official primary source or at least two relevant reports from independent approved publishers can corroborate the core claim as No Misleading Information Detected. One ordinary news link, an irrelevant match, or absence of search results never overrides model_4.
 
 The classifier is loaded from a versioned model bundle. The API never falls back to random, hash-based, or mock verdicts. If the bundle is missing or incompatible, screening returns an error and the readiness endpoint fails.
 
@@ -61,6 +61,10 @@ remain disabled so they cannot replace model_4.
 `/health` and `/ready` report the classifier identity, SHA-256, actual CPU/CUDA device,
 threshold and readiness. A load/inference failure returns 503 for prediction and
 false readiness. No alternative classifier or fabricated prediction is used.
+
+## Evidence-assisted two-label decision
+
+When the visible evidence option is enabled, the API queries Serper and Google Fact Check alongside model inference. A fact-check override requires a similarity of at least 0.70, at least three matched informative terms, a published rating, and a safe source URL. Source corroboration requires at least two independently filtered publisher domains; headlines or snippets containing debunking markers do not count as support. The response identifies `decision_source`, `decision_basis`, the original `model_public_label`, and whether evidence adjusted the final label. The saved model probability and threshold remain unchanged and are shown separately from the final evidence-assisted label.
 
 ## Local development
 

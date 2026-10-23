@@ -12,6 +12,7 @@ import logging
 import re
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,7 @@ request_logger.setLevel(logging.INFO)
 request_logger.propagate = False
 try:
     from . import database
+    from .evidence_decision import apply_evidence
     from .feature_display import describe
     from .fact_check import search_fact_checks
     from .media_processing import MediaProcessingError, extract_image_text, process_video, service_health
@@ -45,6 +47,7 @@ try:
     from .traffic_limits import TrafficLimits
 except ImportError:  # Supports the legacy test runner that adds src/ to sys.path.
     import database
+    from evidence_decision import apply_evidence
     from feature_display import describe
     from fact_check import search_fact_checks
     from media_processing import MediaProcessingError, extract_image_text, process_video, service_health
@@ -275,19 +278,48 @@ def _screen(
     excluded_domain = urlparse(page_url).netloc if page_url else None
     explanation = _context_explanation(analyzed_text, context, input_type=input_type)
     if retrieve_sources:
-        try:
-            retrieval = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain)
-        except Exception:
-            retrieval = {"retrieval_status": "unavailable", "related_sources": []}
-        fact_checks = {"status": "admin_only", "matches": [], "signal": None}
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="suriph-evidence") as executor:
+            retrieval_future = executor.submit(
+                retrieve_related_sources, analyzed_text, excluded_domain=excluded_domain
+            )
+            fact_check_future = executor.submit(search_fact_checks, analyzed_text)
+            try:
+                retrieval = retrieval_future.result()
+            except Exception:
+                retrieval = {"retrieval_status": "unavailable", "related_sources": []}
+            try:
+                fact_checks = fact_check_future.result()
+            except Exception:
+                fact_checks = {"status": "unavailable", "matches": [], "signal": None}
     else:
         retrieval = {"retrieval_status": "not_requested", "related_sources": []}
         fact_checks = {"status": "not_requested", "matches": [], "signal": None}
     linguistic_indicators = describe(prediction["linguistic_indicators"])
     prediction["linguistic_indicators"] = linguistic_indicators
+    model_identity = {
+        "model_internal_label": prediction["internal_label"],
+        "model_public_label": prediction["public_label"],
+        "model_predicted_class": prediction["predicted_class"],
+    }
+    decision = apply_evidence(
+        prediction, retrieval["related_sources"], fact_checks["matches"]
+    ) if retrieve_sources else {
+        "internal_label": prediction["internal_label"],
+        "public_label": prediction["public_label"],
+        "decision_source": "screening_model",
+        "decision_basis": "Evidence lookup was not requested; the displayed label follows the pinned model_4 prediction.",
+        "supporting_source_count": 0,
+        "strong_fact_check_matches": [],
+    }
+    prediction.update({
+        "internal_label": decision["internal_label"],
+        "public_label": decision["public_label"],
+        "predicted_class": 1 if decision["internal_label"] == "Misleading" else 0,
+    })
+    prediction.update(model_identity)
     retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
     explanation["related_coverage"] = (
-        "Retrieved links are related reading only; they have not been verified as supporting or debunking this text."
+        "Retrieved links were checked for strict corroboration or a closely matching published fact-check."
         if retrieval["related_sources"] else
         "No related links are available for this result. Retrieval does not affect the model prediction."
     )
@@ -328,9 +360,11 @@ def _screen(
         "retrieval_status": retrieval["retrieval_status"],
         "related_sources": retrieval["related_sources"],
         "fact_check_status": fact_checks["status"],
-        "fact_check_matches": fact_checks["matches"],
-        "decision_source": "screening_model",
-        "decision_basis": None,
+        "fact_check_matches": decision["strong_fact_check_matches"],
+        "decision_source": decision["decision_source"],
+        "decision_basis": decision["decision_basis"],
+        "supporting_source_count": decision["supporting_source_count"],
+        "evidence_adjusted": decision["decision_source"] != "screening_model",
         "linguistic_indicators": linguistic_indicators,
         "candidate_sample_id": candidate_id,
         "topic_suggestion": topic_suggestion.to_dict(),

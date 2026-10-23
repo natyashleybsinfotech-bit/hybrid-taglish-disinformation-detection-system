@@ -62,9 +62,11 @@ Invoke-RestMethod http://127.0.0.1:8000/analyze -Method Post -ContentType applic
 ```
 
 The default request saves nothing and does not query an external evidence provider.
-Version 1.3.2 retains the visible external-source choice enabled after install/update so public
-Facebook screening requests related articles by default; users can turn it off before
-analysis. A separate explicit-consent
+Version 1.3.4 retains the visible evidence choice enabled after install/update. Public
+Facebook screening requests approved-publisher reports and published fact-checks by default.
+The final output still has exactly two labels. Strong fact-check evidence or at least two
+independent corroborating reports can override the model label; otherwise model_4 decides.
+Users can turn evidence lookup off before analysis. A separate explicit-consent
 action can submit the analyzed text to the private human-review queue; it does not add the
 text to a dataset. Participant surveys and responses are handled separately from the
 extension and administrator dashboard; the screening API does not save them.

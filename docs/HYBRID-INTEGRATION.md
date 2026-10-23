@@ -1,7 +1,5 @@
 # SuriPH hybrid model integration
 
-> Archived research and reproducibility reference. The active product no longer loads this classifier; see [EVIDENCE-ONLY-MODE.md](EVIDENCE-ONLY-MODE.md).
-
 Verified locally, with cleanup checks completed October 20, 2026. The actual frozen hybrid pipeline loads and
 produces verified predictions on CPU. This does not establish that its predictions
 are always factually correct, nor does it complete production hosting or Chrome UI QA.

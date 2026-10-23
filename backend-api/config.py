@@ -107,15 +107,13 @@ TRUSTED_HOSTS = tuple(
     if host.strip()
 )
 DISCLAIMER = (
-    "SuriPH does not use a trained classifier in evidence-only mode. Published fact-check ratings belong to their cited "
-    "publishers, and related links do not automatically prove or disprove every detail. Check the original sources, dates and context."
+    "This is a model prediction and can be wrong. Its score is not calibrated certainty or proof that a claim is true or false. "
+    "Related links are not automatically supporting or debunking evidence. Check original sources, dates and context."
 )
 MODEL_SCOPE_NOTICE = (
-    "The active system performs evidence lookup without a text classifier. It abstains when no closely matching published "
-    "fact-check or approved-source coverage is available."
+    "The model was verified against its saved article-like test set. Brief or out-of-distribution text can receive "
+    "unreliable, extreme scores; review the exact analyzed text and independent sources."
 )
-
-DECISION_MODE = _env("SURI_DECISION_MODE", "evidence_only")
 
 MODEL_PROFILE = _env("SURI_MODEL_PROFILE", "20261011T235112Z")
 _artifact_dir_text = _env("SURI_MODEL_ARTIFACT_DIR")
@@ -129,7 +127,7 @@ MODEL_CPU_THREADS = _env_int("SURI_MODEL_CPU_THREADS", 4)
 MAX_TEXT_CHARACTERS = 1_000_000
 MODEL_REQUIRED = _env("SURI_MODEL_REQUIRED", "true").lower() in {"1", "true", "yes", "on"}
 MODEL_WARMUP = _env("SURI_MODEL_WARMUP", "true" if APP_ENV == "production" else "false").lower() == "true"
-TRAINING_ENABLED = False  # Evidence-only runtime; historical model artifacts are research records.
+TRAINING_ENABLED = False  # This deployment serves only the pinned, already-trained model_4.
 
 
 def validate_runtime_config() -> None:
@@ -173,10 +171,10 @@ def validate_runtime_config() -> None:
             errors.append("The database password must be a non-placeholder value of at least 16 characters")
     except Exception:
         errors.append("The database URL is invalid")
-    if DECISION_MODE != "evidence_only":
-        errors.append("Production supports only SURI evidence-only decision mode")
-    if not ((SERPER_ENABLED and SERPER_API_KEY) or (GOOGLE_FACT_CHECK_ENABLED and GOOGLE_FACT_CHECK_API_KEY)):
-        errors.append("Production evidence-only mode requires Serper or Google Fact Check configuration")
+    if not MODEL_REQUIRED or not MODEL_WARMUP:
+        errors.append("Production requires SURI_MODEL_REQUIRED=true and SURI_MODEL_WARMUP=true")
+    if MODEL_PROFILE == "full-cleaned-20261023T022416Z":
+        errors.append("The full-cleaned candidate profile is approved for local trial only")
     if errors:
         raise RuntimeError("Unsafe production configuration: " + "; ".join(errors))
 

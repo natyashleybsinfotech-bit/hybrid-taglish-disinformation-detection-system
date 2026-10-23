@@ -47,3 +47,11 @@ export function analyzeMedia(kind, file, page = {}) {
   form.append('retrieve_sources', String(page.retrieveSources || false));
   return request(`/analyze/${kind}`, { method: 'POST', body: form });
 }
+
+export function submitCandidate({ text, pageUrl, pageTitle, consentToStore }) {
+  return request('/candidates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, page_url: pageUrl || null, page_title: pageTitle || null, consent_to_store: consentToStore === true }),
+  });
+}

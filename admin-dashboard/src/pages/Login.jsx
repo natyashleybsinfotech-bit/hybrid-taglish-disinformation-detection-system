@@ -22,10 +22,10 @@ export default function Login({ onLogin }) {
         <div className="login-brand"><span className="login-brand-icon"><ShieldCheck size={21} /></span><span>SuriPH</span></div>
         <p className="eyebrow">CONTENT INTELLIGENCE</p>
         <h1>Understand what you’re reading.</h1>
-        <p className="intro-copy">A focused workspace for reviewing evidence-provider health and system activity.</p>
+        <p className="intro-copy">A focused workspace for reviewing content signals, candidate samples, and system activity in one place.</p>
         <div className="intro-features">
-          <div><span><FileCheck2 size={16} /></span><p><strong>Review evidence</strong><small>See provider status and cited results</small></p></div>
-          <div><span><Database size={16} /></span><p><strong>Preserve research</strong><small>Keep archived datasets separate from runtime</small></p></div>
+          <div><span><FileCheck2 size={16} /></span><p><strong>Review signals</strong><small>Measured signals and model predictions</small></p></div>
+          <div><span><Database size={16} /></span><p><strong>Curate samples</strong><small>Keep validation separate from training</small></p></div>
           <div><span><Activity size={16} /></span><p><strong>Track activity</strong><small>See health and audit events at a glance</small></p></div>
         </div>
       </div>

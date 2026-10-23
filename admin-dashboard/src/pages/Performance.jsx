@@ -2,26 +2,32 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 
 export default function Performance() {
-  const [engine, setEngine] = useState(null);
+  const [models, setModels] = useState([]);
+  const [runtime, setRuntime] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/system-status').then(({ data }) => setEngine(data.decision_engine)).catch((reason) => setError(reason.response?.data?.detail || reason.message));
+    api.get('/system-status').then(({ data }) => setRuntime(data.model)).catch(() => {});
+    api.get('/model-versions').then(({ data }) => setModels(data.model_versions)).catch((reason) => setError(reason.response?.data?.detail || reason.message));
   }, []);
 
   return <div>
-    <h1>Evidence assessment</h1>
-    <p style={{ color: 'var(--text-secondary)' }}>Live status for the evidence-only decision path.</p>
+    <h1>Model performance</h1>
+    <p style={{ color: 'var(--text-secondary)' }}>Read-only runtime identity and historical quality information. Dataset and retraining controls are not available here.</p>
     {error && <p style={{ color: 'var(--danger)' }}>{error}</p>}
     <section className="card" style={{ marginTop: 20 }}>
-      <h2>Active decision engine</h2>
-      <p>{engine ? `${engine.mode}: ${engine.status}` : 'Runtime status unavailable'}</p>
-      {engine && <>
-        <p>Configured providers: {engine.configured_providers?.join(', ') || 'none'}</p>
-        <p>Possible outcomes: {engine.outcomes?.join(', ')}</p>
-        <p>Classifier loaded: <strong>{String(engine.classifier_loaded)}</strong></p>
+      <h2>Active inference pipeline</h2>
+      <p>{runtime ? `${runtime.classifier}: ${runtime.status} · ${runtime.device || 'device unavailable'}` : 'Runtime status unavailable'}</p>
+      {runtime && <>
+        <p>Training run {runtime.training_run_id} · Threshold {runtime.decision_threshold}. SHA-256: <code>{runtime.sha256 || 'unavailable'}</code></p>
+        <p>{runtime.local_trial ? 'This profile is active for local trial and is not approved for public deployment.' : 'This is the stable deployment profile.'}</p>
       </>}
-      <p>The active system does not load a trained classifier. Related articles provide context; only a closely matching published fact-check can supply its publisher’s rating.</p>
+      <p>Only the explicitly selected hybrid profile serves predictions. Historical registry entries below cannot select the running classifier.</p>
+    </section>
+    <section className="card" style={{ marginTop: 20, overflowX: 'auto' }}>
+      <table><thead><tr><th>Version</th><th>Status</th><th>Dataset</th><th>Evaluation metrics</th></tr></thead>
+        <tbody>{models.length ? models.map((model) => <tr key={model.model_version_id}><td>{model.version_name}<br/><small>{model.model_name}</small></td><td>{model.status}</td><td>#{model.dataset_version_id}</td><td><pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{JSON.stringify(model.metrics, null, 2)}</pre></td></tr>) : <tr><td colSpan="4">No model version has been registered yet.</td></tr>}</tbody>
+      </table>
     </section>
   </div>;
 }

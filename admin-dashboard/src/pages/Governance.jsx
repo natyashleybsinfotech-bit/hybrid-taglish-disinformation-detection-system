@@ -89,8 +89,8 @@ export default function Governance() {
   const openRuns = runs.filter((row) => ['queued', 'running'].includes(row.status));
 
   return <div>
-    <h1>Datasets and models</h1>
-    <p style={{ color: 'var(--text-secondary)' }}>This deployment uses only the verified model_4 hybrid classifier. Training, model registration and switching are disabled. Dataset review remains available.</p>
+    <h1>Research archive</h1>
+    <p style={{ color: 'var(--text-secondary)' }}>The active product uses evidence-only assessment. Historical datasets, model records, and training runs remain available for research provenance and do not control runtime decisions.</p>
     {error && <p style={{ color: 'var(--danger)', marginTop: 12 }}>{error}</p>}
     {notice && <p className="notice-success">{notice}</p>}
 
@@ -99,7 +99,7 @@ export default function Governance() {
         <div><strong>{datasets.length}</strong><small>Dataset versions</small></div>
         <div><strong>{approvedDatasets.length}</strong><small>Approved datasets</small></div>
         <div><strong>{openRuns.length}</strong><small>Open training runs</small></div>
-        <div><strong>{runtimeModel?.ready ? runtimeModel.training_run_id : 'Unavailable'}</strong><small>Active model</small></div>
+        <div><strong>{runtimeModel?.active ? 'Active' : 'Disabled'}</strong><small>Runtime classifier</small></div>
       </div>
     </section>
 
@@ -126,7 +126,7 @@ export default function Governance() {
     </>}
 
     {activeTab === 'models' && <>
-      <section className="card"><h2>Historical model registry</h2><p>These records do not select the running classifier. The active runtime is shown above.</p><div style={{ overflowX: 'auto', marginTop: 14 }}><table><thead><tr><th>Version</th><th>Dataset</th><th>Mode</th><th>Status</th><th>Metrics</th><th>Actions</th></tr></thead><tbody>{models.length ? models.map((row) => <tr key={row.model_version_id}><td>{row.version_name}<br/><small>{row.model_name}</small></td><td>#{row.dataset_version_id}</td><td>{row.feature_mode}</td><td>{row.status}</td><td><small>{JSON.stringify(row.metrics)}</small></td><td><div className="row-actions">{row.status === 'candidate' && <><button className="btn-primary" onClick={() => reviewModel(row.model_version_id, 'approved')}>Approve</button><button className="ghost-btn" onClick={() => reviewModel(row.model_version_id, 'rejected')}>Reject</button></>}</div></td></tr>) : <tr><td colSpan="6">No model versions.</td></tr>}</tbody></table></div></section>
+      <section className="card"><h2>Historical model registry</h2><p>These archived records cannot select a classifier for the evidence-only runtime.</p><div style={{ overflowX: 'auto', marginTop: 14 }}><table><thead><tr><th>Version</th><th>Dataset</th><th>Mode</th><th>Status</th><th>Metrics</th><th>Actions</th></tr></thead><tbody>{models.length ? models.map((row) => <tr key={row.model_version_id}><td>{row.version_name}<br/><small>{row.model_name}</small></td><td>#{row.dataset_version_id}</td><td>{row.feature_mode}</td><td>{row.status}</td><td><small>{JSON.stringify(row.metrics)}</small></td><td><div className="row-actions">{row.status === 'candidate' && <><button className="btn-primary" onClick={() => reviewModel(row.model_version_id, 'approved')}>Approve</button><button className="ghost-btn" onClick={() => reviewModel(row.model_version_id, 'rejected')}>Reject</button></>}</div></td></tr>) : <tr><td colSpan="6">No model versions.</td></tr>}</tbody></table></div></section>
 
       <section className="card" style={{ marginTop: 18 }}><h2>Training runs</h2><p style={{ color: 'var(--text-secondary)', marginTop: 6 }}>Queued and running jobs refresh automatically every five seconds.</p>{runs.length ? <div style={{ overflowX: 'auto', marginTop: 12 }}><table><thead><tr><th>ID</th><th>Requested version</th><th>Status</th><th>Progress</th><th>Result</th></tr></thead><tbody>{runs.map((run) => <tr key={run.training_run_id}><td>#{run.training_run_id}</td><td>{run.requested_version_name}</td><td>{run.status}</td><td style={{ minWidth: 220 }}><div className="progress-track"><span style={{ width: `${run.progress_percent || 0}%` }}/></div><small>{run.progress_percent || 0}% · {run.progress_stage || 'Queued'}</small></td><td>{run.error_message || (run.model_version_id ? `Model #${run.model_version_id}` : '—')}</td></tr>)}</tbody></table></div> : <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>No training runs.</p>}</section>
 

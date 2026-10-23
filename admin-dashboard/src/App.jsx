@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
-import { Activity as ActivityIcon, Database, GitBranch, LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
+import { Activity as ActivityIcon, GitBranch, LayoutDashboard, LogOut, ShieldCheck } from 'lucide-react';
 import { api } from './api.js';
 import Activity from './pages/Activity.jsx';
-import Candidates from './pages/Candidates.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
 import Governance from './pages/Governance.jsx';
@@ -17,10 +16,9 @@ export function Layout({ children, onLogout, user }) {
     onLogout();
   };
   const links = [
-    ['/performance', ActivityIcon, 'Model performance'],
+    ['/performance', ActivityIcon, 'Evidence status'],
     ...(user.role === 'admin' ? [
-      ['/candidates', Database, 'Candidate samples'],
-      ['/governance', GitBranch, 'Dataset and models'],
+      ['/governance', GitBranch, 'Research archive'],
       ['/activity', ActivityIcon, 'Audit log'],
       ['/', LayoutDashboard, 'System status'],
     ] : [
@@ -55,7 +53,6 @@ export default function App() {
     <ErrorBoundary><BrowserRouter><Layout user={user} onLogout={() => setUser(null)}><Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/performance" element={<Performance />} />
-      {user.role === 'admin' && <Route path="/candidates" element={<Candidates />} />}
       {user.role === 'admin' && <Route path="/governance" element={<Governance />} />}
       {user.role === 'admin' && <Route path="/activity" element={<Activity />} />}
       <Route path="*" element={<Navigate to="/" replace />} />

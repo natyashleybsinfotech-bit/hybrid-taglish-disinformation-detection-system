@@ -3,8 +3,9 @@
 | Need | Start here |
 | --- | --- |
 | Install and run locally | [START_HERE](../START_HERE.md) |
+| Active evidence-only decision rules and limitations | [Evidence-only mode](EVIDENCE-ONLY-MODE.md) |
 | Completed checks and remaining release gates | [Release readiness](RELEASE-READINESS.md) |
-| Model contract, artifacts, threshold, parity and observed scope bias | [Local candidate trial and rollback](LOCAL-CANDIDATE-TRIAL.md), [component hash comparison](CANDIDATE-COMPONENT-COMPARISON.json), [candidate supplied-case result](CANDIDATE-REGRESSION-VERIFICATION.json), [candidate 3,470-record result](CANDIDATE-HYBRID-VERIFICATION.json), [stable hybrid integration](HYBRID-INTEGRATION.md), [stable 598-record result](HYBRID-VERIFICATION.json), [prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json), [Facebook-only regression investigation](FACEBOOK-CLASSIFICATION-REGRESSION.json), [news-style path check](NEWS-STYLE-DIAGNOSTIC.json), [short-input diagnostic](MODEL-SANITY-DIAGNOSTIC.json) |
+| Archived model research, parity and observed scope bias | [Local candidate trial](LOCAL-CANDIDATE-TRIAL.md), [component hash comparison](CANDIDATE-COMPONENT-COMPARISON.json), [candidate supplied-case result](CANDIDATE-REGRESSION-VERIFICATION.json), [candidate 3,470-record result](CANDIDATE-HYBRID-VERIFICATION.json), [stable hybrid integration](HYBRID-INTEGRATION.md), [stable 598-record result](HYBRID-VERIFICATION.json), [prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json), [Facebook-only regression investigation](FACEBOOK-CLASSIFICATION-REGRESSION.json), [news-style path check](NEWS-STYLE-DIAGNOSTIC.json), [short-input diagnostic](MODEL-SANITY-DIAGNOSTIC.json) |
 | VPS, Compose, database, HTTPS, backups and restore | [Deployment guide](DEPLOYMENT.md) |
 | Separate survey plan and participant tasks | [Participant guide](research/PARTICIPANT-GUIDE.md) |
 | Draft questionnaires and expert review | [Questionnaires](research/QUESTIONNAIRES.md), [pilot and traceability](research/PILOT-AND-TRACEABILITY.md) |
@@ -25,8 +26,8 @@ The full-cleaned candidate run is stored separately under the ignored
 `backend-api/models/local-trials/full-cleaned-20261023T022416Z/` directory. Its
 classifier and raw records are also local-only and unchanged.
 
-Historical documents describe earlier designs. The current integration contract and
-release evidence take precedence for operating this deployment. Existing research
+Historical documents describe earlier designs. The active evidence-only guide and
+current start instructions take precedence for operating this deployment. Existing research
 papers and prototype instructions have not been rewritten.
 
 The extension and administrator dashboard do not collect, display or export participant

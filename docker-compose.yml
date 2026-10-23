@@ -38,11 +38,6 @@ services:
     logging: *logging
     volumes:
       - suriph-model-cache:/app/data/runtime-models
-      - "./backend-api/models/TRAINING RESULTS/models/model_4.joblib:/app/artifacts/models/model_4.joblib:ro"
-      - "./backend-api/models/TRAINING RESULTS/models/contextual_encoder:/app/artifacts/models/contextual_encoder:ro"
-      - "./backend-api/models/TRAINING RESULTS/models/tagalog_tokenizer:/app/artifacts/models/tagalog_tokenizer:ro"
-      - "./backend-api/models/TRAINING RESULTS/models/feature_config.json:/app/artifacts/models/feature_config.json:ro"
-      - "./backend-api/models/TRAINING RESULTS/run_manifest.json:/app/artifacts/run_manifest.json:ro"
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:
@@ -50,7 +45,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 300s
+      start_period: 30s
     depends_on:
       database:
         condition: service_healthy

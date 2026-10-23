@@ -18,11 +18,12 @@ def _tokens(value: str) -> set[str]:
     return {word for word in re.findall(r"[a-zA-Z]{3,}", value.casefold()) if word not in ignored}
 
 
-def _similarity(query: str, claim: str) -> float:
+def _similarity_details(query: str, claim: str) -> tuple[float, int]:
     query_tokens, claim_tokens = _tokens(query), _tokens(claim)
     if not query_tokens or not claim_tokens:
-        return 0.0
-    return round(len(query_tokens & claim_tokens) / min(len(query_tokens), len(claim_tokens)), 3)
+        return 0.0, 0
+    matched = len(query_tokens & claim_tokens)
+    return round(matched / min(len(query_tokens), len(claim_tokens)), 3), matched
 
 
 def search_fact_checks(query: str) -> dict:
@@ -47,7 +48,7 @@ def search_fact_checks(query: str) -> dict:
     seen_urls: set[str] = set()
     for claim in body.get("claims", []):
         claim_text = str(claim.get("text", "")).strip()
-        similarity = _similarity(query, claim_text)
+        similarity, matched_terms = _similarity_details(query, claim_text)
         for review in claim.get("claimReview", []):
             url = str(review.get("url", "")).strip()
             if not safe_link(url) or url in seen_urls:
@@ -65,6 +66,7 @@ def search_fact_checks(query: str) -> dict:
                 "review_date": str(review.get("reviewDate", "")).strip(),
                 "language": str(review.get("languageCode", "")).strip(),
                 "match_strength": similarity,
+                "matched_term_count": matched_terms,
             })
             seen_urls.add(url)
             if len(matches) == config.GOOGLE_FACT_CHECK_MAX_RESULTS:

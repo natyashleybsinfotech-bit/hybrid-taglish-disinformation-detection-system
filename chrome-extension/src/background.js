@@ -24,7 +24,7 @@ async function postJson(payload) {
 async function postRelatedSources(payload) {
   let response;
   try { response = await boundedFetch(`${API_BASE}/related-sources`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: payload.text, page_url: payload.page_url || null }) }); }
-  catch (_) { throw new Error('Related-source lookup is unavailable. The prediction is unchanged.'); }
+  catch (_) { throw new Error('Evidence lookup is unavailable. No verdict was produced.'); }
   const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Source lookup failed with status ${response.status}.`); return body;
 }
 async function postMedia(path, url, payload) {
@@ -66,7 +66,7 @@ async function analyzePayload(payload) {
       const result = await postMedia('analyze/image', url, payload);
       if (result.extraction?.ocr_text) extracted.push(result.extraction.ocr_text);
     }
-    if (!extracted.length) throw new Error('No readable image text was extracted. No caption-only prediction was substituted.');
+    if (!extracted.length) throw new Error('No readable image text was extracted. No caption-only assessment was substituted.');
     return postJson({ text: `${payload.text || ''}\n${extracted.join('\n')}`.trim(), page_url: payload.page_url, page_title: payload.page_title, context: payload.context, retrieve_sources: payload.retrieve_sources === true });
   }
   return postJson(payload);

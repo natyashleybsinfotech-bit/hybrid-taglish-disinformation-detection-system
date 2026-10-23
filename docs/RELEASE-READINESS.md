@@ -1,5 +1,7 @@
 # Release evidence and GO/NO-GO — October 22, 2026
 
+> Historical classifier-era verification record. The active runtime changed to evidence-only mode on October 23, 2026. Use [EVIDENCE-ONLY-MODE.md](EVIDENCE-ONLY-MODE.md) and [START_HERE.md](../START_HERE.md) for current behavior and startup steps.
+
 **Implemented:** the fixed hybrid runtime, feature display, separate optional evidence
 lookup, MariaDB schema v5, administration and deployment scripts. Participant survey
 collection is outside the extension and administrator dashboard.

@@ -34,23 +34,17 @@ request_logger.setLevel(logging.INFO)
 request_logger.propagate = False
 try:
     from . import database
-    from .feature_display import describe
+    from .evidence_runtime import assess_evidence, evidence_health, normalize_text
     from .fact_check import search_fact_checks
     from .media_processing import MediaProcessingError, extract_image_text, process_video, service_health
-    from .model_runtime import (
-        ModelUnavailableError, classify, initialize_model, model_health, normalize_text,
-    )
     from .retrieval import retrieve_related_sources
     from .topic_classifier import suggest_topic
     from .traffic_limits import TrafficLimits
 except ImportError:  # Supports the legacy test runner that adds src/ to sys.path.
     import database
-    from feature_display import describe
+    from evidence_runtime import assess_evidence, evidence_health, normalize_text
     from fact_check import search_fact_checks
     from media_processing import MediaProcessingError, extract_image_text, process_video, service_health
-    from model_runtime import (
-        ModelUnavailableError, classify, initialize_model, model_health, normalize_text,
-    )
     from retrieval import retrieve_related_sources
     from topic_classifier import suggest_topic
     from traffic_limits import TrafficLimits
@@ -150,10 +144,6 @@ async def lifespan(_app: FastAPI):
             if config.APP_ENV == "production":
                 raise
             logging.exception("Database/bootstrap initialization failed")
-    state = await run_in_threadpool(initialize_model)
-    if not state["ready"]:
-        logging.error("%s", state["error"])
-    # Keep health/readiness reachable after a model failure. Prediction fails 503.
     yield
 
 
@@ -242,7 +232,7 @@ def _context_explanation(
         "recency": _derived_recency(details.get("published_at")),
         "freshness": _derived_recency(details.get("published_at")),
         "recency_explanation": "Recency is calculated only when the selected post exposes a complete timestamp.",
-        "assessment_scope": "One hybrid-model prediction was computed from the complete supplied text. Individual claims were not fact-checked.",
+        "assessment_scope": "Evidence-only lookup was performed on the complete supplied text. No trained classifier produced a label or score.",
         "checked_material": details.get("extraction_scope") or default_checked,
         "original_post_url": details.get("original_post_url") or None,
         "relevant_links": list(dict.fromkeys(visible_links))[:8],
@@ -263,60 +253,26 @@ def _screen(
     started = time.perf_counter()
     analyzed_text = normalize_text(text)
     if not analyzed_text:
-        raise HTTPException(status_code=422, detail="No usable text was provided for screening.")
-    try:
-        prediction = classify(analyzed_text).to_dict()
-    except ModelUnavailableError as exc:
-        raise HTTPException(status_code=503, detail="The trained classifier is unavailable. Please try again after service recovery.") from None
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from None
-    inference_ms = (time.perf_counter() - started) * 1000
-    retrieval_started = time.perf_counter()
+        raise HTTPException(status_code=422, detail="No usable text was provided for evidence assessment.")
+    if capture_candidate:
+        raise HTTPException(status_code=410, detail="Public candidate submission is retired in evidence-only mode.")
     excluded_domain = urlparse(page_url).netloc if page_url else None
     explanation = _context_explanation(analyzed_text, context, input_type=input_type)
-    if retrieve_sources:
-        try:
-            retrieval = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain)
-        except Exception:
-            retrieval = {"retrieval_status": "unavailable", "related_sources": []}
-        fact_checks = {"status": "admin_only", "matches": [], "signal": None}
-    else:
-        retrieval = {"retrieval_status": "not_requested", "related_sources": []}
-        fact_checks = {"status": "not_requested", "matches": [], "signal": None}
-    linguistic_indicators = describe(prediction["linguistic_indicators"])
-    prediction["linguistic_indicators"] = linguistic_indicators
-    retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
-    explanation["related_coverage"] = (
-        "Retrieved links are related reading only; they have not been verified as supporting or debunking this text."
-        if retrieval["related_sources"] else
-        "No related links are available for this result. Retrieval does not affect the model prediction."
-    )
+    try:
+        evidence = assess_evidence(
+            analyzed_text, requested=retrieve_sources, excluded_domain=excluded_domain
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    evidence_ms = (time.perf_counter() - started) * 1000
+    explanation["related_coverage"] = evidence["assessment_basis"]
     topic_suggestion = suggest_topic(analyzed_text)
-    candidate_id = None
-    if capture_candidate:
-        try:
-            candidate_id = database.create_candidate(
-                text=analyzed_text,
-                page_url=page_url,
-                page_title=page_title,
-                source_type=input_type,
-                proposed_label=prediction["internal_label"],
-                topic=topic_suggestion.topic,
-                topic_confidence=topic_suggestion.confidence,
-            )
-            database.log_audit(
-                "CANDIDATE_SUBMITTED_WITH_CONSENT",
-                f"Candidate sample {candidate_id} submitted from {input_type} for human review.",
-                "candidate-submission",
-            )
-        except Exception:
-            raise HTTPException(
-                status_code=503,
-                detail="Screening completed, but the candidate could not be saved for required review.",
-            ) from None
     return {
-        "timings_ms": {"inference": round(inference_ms, 3), "retrieval": round(retrieval_ms, 3)},
-        **prediction,
+        "timings_ms": {"evidence_lookup": round(evidence_ms, 3)},
+        "decision_mode": "evidence_only",
+        "classification_performed": False,
+        "classifier_loaded": False,
+        **evidence,
         "analyzed_text": analyzed_text,
         "timestamp": _timestamp(),
         "input_type": input_type,
@@ -325,17 +281,11 @@ def _screen(
         "context": context or {},
         "context_explanation": explanation,
         "extraction_status": extraction_status,
-        "retrieval_status": retrieval["retrieval_status"],
-        "related_sources": retrieval["related_sources"],
-        "fact_check_status": fact_checks["status"],
-        "fact_check_matches": fact_checks["matches"],
-        "decision_source": "screening_model",
-        "decision_basis": None,
-        "linguistic_indicators": linguistic_indicators,
-        "candidate_sample_id": candidate_id,
+        "decision_basis": evidence["assessment_basis"],
+        "candidate_sample_id": None,
         "topic_suggestion": topic_suggestion.to_dict(),
-        "evidence_status": "missing" if capture_candidate else "not_captured",
-        "model_scope_notice": config.MODEL_SCOPE_NOTICE,
+        "evidence_status": evidence["assessment_status"],
+        "evidence_scope_notice": config.MODEL_SCOPE_NOTICE,
         "disclaimer": config.DISCLAIMER,
     }
 
@@ -347,13 +297,21 @@ def related_sources(request: SourceLookupRequest) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail="No usable text was provided for source lookup.")
     excluded_domain = urlparse(request.page_url).netloc if request.page_url else None
     try:
-        result = retrieve_related_sources(analyzed_text, excluded_domain=excluded_domain)
+        result = assess_evidence(analyzed_text, requested=True, excluded_domain=excluded_domain)
     except Exception:
-        result = {"retrieval_status": "unavailable", "related_sources": []}
+        result = {
+            "assessment_status": "providers_unavailable",
+            "assessment_label": "Evidence providers unavailable",
+            "assessment_basis": "Evidence lookup failed. No verdict was produced.",
+            "decision_source": "insufficient_evidence",
+            "retrieval_status": "unavailable", "related_sources": [],
+            "fact_check_status": "unavailable", "fact_check_matches": [],
+        }
     return {
-        "retrieval_status": result["retrieval_status"],
-        "related_sources": result["related_sources"],
+        **result,
         "classification_performed": False,
+        "classifier_loaded": False,
+        "decision_mode": "evidence_only",
     }
 
 
@@ -371,7 +329,10 @@ async def _read_upload(file: UploadFile, expected_prefix: str) -> bytes:
 
 @app.get("/health")
 def health() -> dict[str, Any]:
-    model = model_health()
+    engine = evidence_health(
+        serper_configured=config.SERPER_ENABLED and bool(config.SERPER_API_KEY),
+        fact_check_configured=config.GOOGLE_FACT_CHECK_ENABLED and bool(config.GOOGLE_FACT_CHECK_API_KEY),
+    )
     return {
         "backend": "available",
         "database": database.database_health(),
@@ -380,8 +341,9 @@ def health() -> dict[str, Any]:
             "serper": "configured" if config.SERPER_API_KEY else "not_configured",
             "google_fact_check": "configured" if config.GOOGLE_FACT_CHECK_API_KEY else "not_configured",
         },
-        "model": model,
-        "model_status": model["status"],
+        "decision_engine": engine,
+        "model": {"status": "disabled", "ready": False, "classifier": None, "active": False},
+        "model_status": "disabled",
         "timestamp": _timestamp(),
     }
 
@@ -389,11 +351,17 @@ def health() -> dict[str, Any]:
 @app.get("/ready")
 def readiness(response: Response) -> dict[str, Any]:
     database_status = database.database_health()
-    model = model_health()
-    ready = database_status["status"] == "available" and model["status"] == "ready"
+    engine = evidence_health(
+        serper_configured=config.SERPER_ENABLED and bool(config.SERPER_API_KEY),
+        fact_check_configured=config.GOOGLE_FACT_CHECK_ENABLED and bool(config.GOOGLE_FACT_CHECK_API_KEY),
+    )
+    ready = database_status["status"] == "available" and engine["ready"]
     if not ready:
         response.status_code = 503
-    return {"ready": ready, "database": database_status, "model": model}
+    return {
+        "ready": ready, "database": database_status, "decision_engine": engine,
+        "model": {"status": "disabled", "ready": False, "classifier": None, "active": False},
+    }
 
 
 @app.post("/analyze")
@@ -512,23 +480,7 @@ async def analyze_video(
 
 @app.post("/candidates", status_code=201)
 def submit_candidate(request: CandidateRequest) -> dict[str, Any]:
-    result = _screen(
-        request.text,
-        input_type="consented_candidate",
-        extraction_status="provided",
-        page_url=request.page_url,
-        page_title=request.page_title,
-        context=request.context,
-        capture_candidate=True,
-        retrieve_sources=False,
-    )
-    return {
-        "status": "submitted_for_human_review",
-        "candidate_sample_id": result["candidate_sample_id"],
-        "internal_label": result["internal_label"],
-        "model_score": result["model_score"],
-        "training_run_id": result["training_run_id"],
-    }
+    raise HTTPException(status_code=410, detail="Public candidate submission is retired in evidence-only mode.")
 
 
 def _token_signature(payload: str) -> str:
@@ -975,12 +927,12 @@ def admin_training_runs(_username: str = Depends(current_admin)):
 
 @app.post("/admin-api/training-runs", status_code=202)
 def admin_queue_training(payload: RetrainingRequest, username: str = Depends(current_admin)):
-    raise HTTPException(status_code=410, detail="This deployment is pinned to the verified model_4 hybrid pipeline. Training, model registration and activation are disabled.")
+    raise HTTPException(status_code=410, detail="The active deployment is evidence-only. Model training, registration and activation are disabled.")
 
 
 @app.post("/admin-api/model-versions", status_code=201)
 def admin_register_model(payload: ModelVersionRequest, username: str = Depends(current_admin)):
-    raise HTTPException(status_code=410, detail="This deployment is pinned to the verified model_4 hybrid pipeline. Training, model registration and activation are disabled.")
+    raise HTTPException(status_code=410, detail="The active deployment is evidence-only. Model training, registration and activation are disabled.")
 
 
 @app.post("/admin-api/model-versions/{model_id}/review")
@@ -997,7 +949,7 @@ def admin_review_model(
 
 @app.post("/admin-api/model-versions/{model_id}/activate")
 def admin_activate_model(model_id: int, username: str = Depends(current_admin)):
-    raise HTTPException(status_code=410, detail="This deployment is pinned to the verified model_4 hybrid pipeline. Training, model registration and activation are disabled.")
+    raise HTTPException(status_code=410, detail="The active deployment is evidence-only. Model training, registration and activation are disabled.")
 
 
 @app.get("/admin-api/audit-logs")

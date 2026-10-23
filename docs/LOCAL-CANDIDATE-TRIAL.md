@@ -1,5 +1,7 @@
 # Full-cleaned candidate local trial
 
+> Archived model trial. This candidate is not part of the active evidence-only runtime; see [EVIDENCE-ONLY-MODE.md](EVIDENCE-ONLY-MODE.md).
+
 This workstation currently selects training run `full-cleaned-20261023T022416Z`
 for local testing only. The candidate is not approved for public deployment, and
 `config.validate_runtime_config()` rejects this profile when `SURI_APP_ENV=production`.

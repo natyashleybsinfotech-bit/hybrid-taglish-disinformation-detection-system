@@ -20,6 +20,33 @@ function rootsFrom(root = document) {
   return roots;
 }
 function normalize(value) { return (value || '').replace(/\s+/g, ' ').trim(); }
+const CAPTION_CONTROL_SELECTOR = '#suriph-control-host, button, [role="button"], nav, form, [aria-expanded][tabindex]';
+function readableCaptionText(node) {
+  const output = [];
+  const boundaryDisplays = new Set([
+    'block', 'flex', 'grid', 'list-item', 'table', 'table-row', 'table-cell',
+  ]);
+  const boundary = () => {
+    if (output.length && !/\s$/.test(output[output.length - 1])) output.push(' ');
+  };
+  const visit = (current) => {
+    if (current.nodeType === Node.TEXT_NODE) {
+      output.push(current.nodeValue || '');
+      return;
+    }
+    if (current.nodeType !== Node.ELEMENT_NODE) return;
+    if (current !== node && current.matches?.(CAPTION_CONTROL_SELECTOR)) return;
+    if (current.hidden || current.getAttribute?.('aria-hidden') === 'true') return;
+    const style = window.getComputedStyle?.(current);
+    if (style?.display === 'none' || style?.visibility === 'hidden') return;
+    const separatesText = current.tagName === 'BR' || boundaryDisplays.has(style?.display);
+    if (separatesText) boundary();
+    if (current.tagName !== 'BR') current.childNodes.forEach(visit);
+    if (separatesText) boundary();
+  };
+  visit(node);
+  return normalize(output.join(''));
+}
 function tr(english, tagalog) { return interfaceLanguage === 'tl' ? tagalog : english; }
 function localizedError(message) {
   if (interfaceLanguage !== 'tl') return message || 'SuriPH could not complete the request.';
@@ -49,14 +76,10 @@ function collectPostText(post) {
   const parts = [];
   const add = (node) => {
     if (!node || node.closest?.('#suriph-control-host, button, [role="button"], nav, form')) return;
-    // Facebook places See more/See less inside the recognized caption node as
-    // real controls. Remove control elements from this bounded clone only; a
-    // user-authored phrase with the same words remains part of the caption.
-    const caption = node.cloneNode(true);
-    caption.querySelectorAll?.(
-      '#suriph-control-host, button, [role="button"], nav, form, [aria-expanded][tabindex]'
-    ).forEach((control) => control.remove());
-    const text = normalize(caption.innerText || caption.textContent || '');
+    // Traverse only the recognized caption subtree. Real controls are skipped,
+    // while visible block boundaries become spaces so Facebook's nested title
+    // and body elements cannot collapse into strings such as "SEIZEDThe".
+    const text = readableCaptionText(node);
     if (text) parts.push(text);
   };
   for (const selector of POST_TEXT_SELECTORS) {
@@ -256,7 +279,7 @@ function injectControl(post) {
   if (window.getComputedStyle(post).position === 'static') post.style.position = 'relative';
   const host = document.createElement('div'); host.id = 'suriph-control-host'; host.setAttribute('aria-label', 'SuriPH post screening control'); host.style.cssText = 'position:absolute;right:10px;top:10px;z-index:2147483646;';
   const shadow = host.attachShadow({ mode: 'open' }); const style = document.createElement('style');
-  style.textContent = ':host{all:initial;display:block;pointer-events:auto;font-family:Arial,Helvetica,sans-serif}.wrap{width:34px;display:flex;flex-direction:column;gap:8px;pointer-events:auto}.wrap.expanded{position:relative;display:flex;flex-direction:column;width:560px;max-width:calc(100vw - 32px);max-height:calc(100vh - 64px);overflow:auto;padding:20px;border:1px solid #cbd5e1;border-radius:18px;background:#fff!important;color:#0f172a;box-shadow:0 24px 80px rgba(15,23,42,.4);pointer-events:auto}.wrap.expanded:before{content:none!important}.action{box-sizing:border-box;width:34px;height:34px;margin:0;border:0;border-radius:999px;background:#10b981;color:#052e24;font:700 15px Arial;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,.35);pointer-events:auto}.action:hover{background:#34d399}.expanded .action{order:3;width:100%;height:46px;margin-top:16px;border-radius:10px;font-size:16px}.action:disabled{opacity:.65;cursor:wait}.close{display:none;position:absolute;top:12px;right:12px;width:34px;height:34px;border:0;border-radius:9px;background:#334155;color:#fff;font:700 20px Arial;line-height:34px;cursor:pointer;z-index:3;pointer-events:auto}.expanded .close{display:block;font-size:0}.expanded .close:before{content:"X";font-size:18px}.close:hover{background:#1e293b}.message{order:1;color:#334155;font:14px/1.5 Arial;white-space:normal}.message:empty{display:none}.message[data-tone=loading]{display:flex;align-items:center;gap:10px;padding:20px 4px;justify-content:center}.message[data-tone=loading]:before{content:"";width:20px;height:20px;border:3px solid #cbd5e1;border-top-color:#10b981;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.message[data-tone=error]{color:#b91c1c}.result{order:2;display:flex;flex-direction:column;gap:10px;color:#0f172a;font:14px/1.5 Arial}.result a{color:#0369a1;text-decoration:underline;overflow-wrap:anywhere}.result details{padding:10px 12px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc}.result summary{cursor:pointer;color:#334155;font-weight:700}.result details div{margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere}.result span{display:block}.result small{color:#64748b}.result .context-box{padding:12px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc}.result .sources{display:flex;flex-direction:column;gap:4px}.result .disclaimer{margin-top:4px}.wrap.expanded::-webkit-scrollbar{width:10px}.wrap.expanded::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:99px;border:3px solid #fff}';
+  style.textContent = ':host{all:initial;display:block;pointer-events:auto;font-family:Arial,Helvetica,sans-serif}.wrap{width:34px;display:flex;flex-direction:column;gap:8px;pointer-events:auto}.wrap.expanded{position:relative;display:flex;flex-direction:column;width:560px;max-width:calc(100vw - 32px);max-height:calc(100vh - 64px);overflow:auto;padding:20px;border:1px solid #cbd5e1;border-radius:18px;background:#fff!important;color:#0f172a;box-shadow:0 24px 80px rgba(15,23,42,.4);pointer-events:auto}.wrap.expanded:before{content:none!important}.action{box-sizing:border-box;width:34px;height:34px;margin:0;border:0;border-radius:999px;background:#10b981;color:#052e24;font:700 15px Arial;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,.35);pointer-events:auto}.action:hover{background:#34d399}.expanded .action{order:3;width:100%;height:46px;margin-top:16px;border-radius:10px;font-size:16px}.action:disabled{opacity:.65;cursor:wait}.close{display:none;position:absolute;top:12px;right:12px;width:34px;height:34px;border:0;border-radius:9px;background:#334155;color:#fff;font:700 20px Arial;line-height:34px;cursor:pointer;z-index:3;pointer-events:auto}.expanded .close{display:block;font-size:0}.expanded .close:before{content:"X";font-size:18px}.close:hover{background:#1e293b}.message{order:1;color:#334155;font:14px/1.5 Arial;white-space:normal}.message:empty{display:none}.message[data-tone=loading]{display:flex;align-items:center;gap:10px;padding:20px 4px;justify-content:center}.message[data-tone=loading]:before{content:"";width:20px;height:20px;border:3px solid #cbd5e1;border-top-color:#10b981;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.message[data-tone=error]{color:#b91c1c}.result{order:2;display:flex;flex-direction:column;gap:10px;color:#0f172a;font:14px/1.5 Arial}.result a{color:#0369a1;text-decoration:underline;overflow-wrap:anywhere}.result details{padding:10px 12px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc}.result summary{cursor:pointer;color:#334155;font-weight:700}.result details div{margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere}.result span{display:block}.result small{display:block;color:#64748b}.result .context-box{padding:12px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc}.result .sources{display:flex;flex-direction:column;gap:4px}.result .disclaimer{margin-top:4px}.wrap.expanded::-webkit-scrollbar{width:10px}.wrap.expanded::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:99px;border:3px solid #fff}';
   const wrap = document.createElement('div'); wrap.className = 'wrap'; const button = document.createElement('button'); button.className = 'action'; button.type = 'button'; button.textContent = 'S'; button.dataset.recheck = 'false'; button.title = tr('Check with SuriPH', 'Suriin gamit ang SuriPH'); const close = document.createElement('button'); close.type = 'button'; close.className = 'close'; close.textContent = '×'; close.title = tr('Close result', 'Isara ang resulta'); const message = document.createElement('div'); message.className = 'message'; const result = document.createElement('div'); result.className = 'message result'; close.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); wrap.classList.remove('expanded'); wrap.style.position = ''; wrap.style.display = ''; wrap.style.flexDirection = ''; wrap.style.removeProperty('background'); wrap.style.color = ''; button.style.order = ''; button.style.marginTop = ''; message.style.order = ''; message.style.color = ''; result.style.order = ''; message.replaceChildren(); result.replaceChildren(); button.disabled = false; button.textContent = 'S'; button.dataset.recheck = 'false'; delete button.dataset.previewConfirmed; delete button.dataset.resultPart; post.appendChild(host); host.style.cssText = 'position:absolute;right:10px;top:10px;z-index:2147483646;'; if (activeResultHost === host) activeResultHost = null; }); button.addEventListener('click', () => analyzePost(post, button, message, result)); wrap.append(close, button, message, result); shadow.append(style, wrap); post.appendChild(host);
 }
 function scanForControls() { if (extensionEnabled) for (const post of findPosts()) injectControl(post); }

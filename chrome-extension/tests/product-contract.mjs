@@ -30,6 +30,10 @@ assert.match(popup, /Potentially Misleading/);
 assert.match(popup, /No Misleading Information Detected/);
 assert.match(popup, /Why this result/);
 assert.match(popup, /Bakit ito ang resulta/);
+assert.match(popup, /Text warning score/);
+assert.match(popup, /Warning score ng teksto/);
+assert.match(popup, /How the text was analyzed/);
+assert.match(popup, /Paano sinuri ang teksto/);
 assert.match(popup, /suriphLanguage/);
 assert.match(popup, /consentToStore: true/);
 assert.match(popup, /candidateState === 'submitted'/);
@@ -41,10 +45,10 @@ assert.doesNotMatch(popup, /decision_basis|model_4 linguistic-risk|Technical sco
 assert.doesNotMatch(content, /decision_basis|model_4 linguistic-risk|Technical score details|Linguistic-feature details/);
 const popupParts = [...popup.matchAll(/data-result-part="([^"]+)"/g)].map(match => match[1]);
 assert.deepEqual(popupParts, [
-  '1-prediction', '2-explanation', '3-post-context', '4-related-sources',
-  '5-analyzed-text', '6-reminder', '7-check-again',
+  '1-prediction', '2-explanation', '3-post-context', '4-features',
+  '5-related-sources', '6-analyzed-text', '7-reminder', '8-check-again',
 ]);
-for (const part of ['1-prediction', '2-explanation', '3-post-context', '4-related-sources', '5-analyzed-text', '6-reminder', '7-check-again'])
+for (const part of ['1-prediction', '2-explanation', '3-post-context', '4-features', '5-related-sources', '6-analyzed-text', '7-reminder', '8-check-again'])
   assert.match(content, new RegExp(part), `Facebook result is missing ${part}`);
 const englishReminder = 'SuriPH can make mistakes. Read the full post, check its date and source, and compare it with reliable references before sharing or acting on it.';
 const tagalogReminder = 'Maaaring magkamali ang SuriPH. Basahin ang buong post, tingnan ang petsa at pinagmulan, at ikumpara ito sa mapagkakatiwalaang sanggunian bago ibahagi o aksyunan.';

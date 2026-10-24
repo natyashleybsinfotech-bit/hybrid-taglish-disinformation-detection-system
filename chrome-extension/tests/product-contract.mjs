@@ -18,6 +18,8 @@ assert.match(content, /function findPostContainer\(node\)/, 'Account-layout-inde
 assert.match(content, /FeedUnit/, 'FeedUnit-based Facebook layouts must be supported');
 assert.match(content, /Caption-first discovery supports Facebook feed variants/, 'Caption-first fallback must support feeds without article roles');
 assert.match(content, /Recover after an extension reload or an account switch/, 'Stale injection markers must be repaired');
+assert.match(content, /POST_ACTION_SELECTOR/, 'Facebook action rows must provide a layout-independent post fallback');
+assert.match(content, /SURIPH_RESCAN_CONTROLS/, 'The content script must support an explicit control rescan');
 assert.match(content, /current\.matches\?\.\(CAPTION_CONTROL_SELECTOR\)/, 'Actual DOM controls inside a caption must be skipped');
 assert.match(content, /boundaryDisplays/, 'Block boundaries inside Facebook captions must remain separated');
 assert.doesNotMatch(content, /replace\([^\n]{0,100}(?:See|see)\s+(?:more|less)/, 'User-authored See more/See less text must not be deleted by phrase matching');
@@ -39,6 +41,8 @@ assert.match(popup, /Warning score ng teksto/);
 assert.match(popup, /How the text was analyzed/);
 assert.match(popup, /Paano sinuri ang teksto/);
 assert.match(popup, /suriphLanguage/);
+assert.match(popup, /SURIPH_RESCAN_CONTROLS/, 'Opening the popup must rescan the active Facebook page');
+assert.match(popup, /getManifest\(\)\.version/, 'The popup must show the loaded extension version');
 assert.match(popup, /consentToStore: true/);
 assert.match(popup, /candidateState === 'submitted'/);
 assert.match(popup, /candidateLock\.current/, 'Candidate submission must use a synchronous duplicate-request guard');

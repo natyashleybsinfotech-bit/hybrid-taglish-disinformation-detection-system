@@ -9,9 +9,15 @@ const POST_TEXT_SELECTORS = [
   '[data-ad-rendering-role="story_message"]', '[data-testid="post_message"]',
   '[data-testid="post-content"]',
 ];
+const POST_ACTION_SELECTORS = [
+  '[role="button"][aria-label^="Comment" i]', '[role="button"][aria-label^="Share" i]',
+  '[role="button"][aria-label^="Send" i]', 'button[aria-label^="Comment" i]',
+  'button[aria-label^="Share" i]', 'button[aria-label^="Send" i]',
+];
 const CONTROL_ATTRIBUTE = 'data-suriph-control';
 const POST_SELECTOR = POST_SELECTORS.join(',');
 const POST_TEXT_SELECTOR = POST_TEXT_SELECTORS.join(',');
+const POST_ACTION_SELECTOR = POST_ACTION_SELECTORS.join(',');
 let extensionEnabled = true;
 let retrievalEnabled = true;
 let interfaceLanguage = 'en';
@@ -93,6 +99,12 @@ function findPosts() {
     // wrappers do not expose article roles or stable data-pagelet values.
     for (const message of root.querySelectorAll(POST_TEXT_SELECTOR)) {
       const post = findPostContainer(message);
+      if (post) posts.push(post);
+    }
+    // Action rows remain available in layouts where Facebook removes the
+    // usual article and caption attributes.
+    for (const action of root.querySelectorAll(POST_ACTION_SELECTOR)) {
+      const post = findPostContainer(action);
       if (post) posts.push(post);
     }
   }
@@ -335,7 +347,7 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto') {
   });
 }
 function injectControl(post) {
-  if (post.closest('#suriph-control-host') || post.querySelector(`[${CONTROL_ATTRIBUTE}]`)) return;
+  if (post.closest('#suriph-control-host') || post.hasAttribute(CONTROL_ATTRIBUTE) || post.querySelector(':scope > #suriph-control-host')) return;
   post.setAttribute(CONTROL_ATTRIBUTE, 'true');
   if (window.getComputedStyle(post).position === 'static') post.style.position = 'relative';
   const host = document.createElement('div'); host.id = 'suriph-control-host'; host.setAttribute('aria-label', 'SuriPH post screening control'); host.style.cssText = 'position:absolute;right:10px;top:10px;z-index:2147483646;';
@@ -343,7 +355,7 @@ function injectControl(post) {
   style.textContent = ':host{all:initial;display:block;pointer-events:auto;font-family:Arial,Helvetica,sans-serif}.wrap{width:34px;display:flex;flex-direction:column;gap:8px;pointer-events:auto}.wrap.expanded{position:relative;display:flex;flex-direction:column;width:560px;max-width:calc(100vw - 32px);max-height:calc(100vh - 64px);overflow:auto;padding:20px;border:1px solid #cbd5e1;border-radius:18px;background:#fff!important;color:#0f172a;box-shadow:0 24px 80px rgba(15,23,42,.4);pointer-events:auto}.wrap.expanded:before{content:none!important}.action{box-sizing:border-box;width:34px;height:34px;margin:0;border:0;border-radius:999px;background:#10b981;color:#052e24;font:700 15px Arial;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,.35);pointer-events:auto}.action:hover{background:#34d399}.expanded .action{order:3;width:100%;height:46px;margin-top:16px;border-radius:10px;font-size:16px}.action:disabled{opacity:.65;cursor:wait}.close{display:none;position:absolute;top:12px;right:12px;width:34px;height:34px;border:0;border-radius:9px;background:#334155;color:#fff;font:700 20px Arial;line-height:34px;cursor:pointer;z-index:3;pointer-events:auto}.expanded .close{display:block;font-size:0}.expanded .close:before{content:"X";font-size:18px}.close:hover{background:#1e293b}.message{order:1;color:#334155;font:14px/1.5 Arial;white-space:normal}.message:empty{display:none}.message[data-tone=loading]{display:flex;align-items:center;gap:10px;padding:20px 4px;justify-content:center}.message[data-tone=loading]:before{content:"";width:20px;height:20px;border:3px solid #cbd5e1;border-top-color:#10b981;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.message[data-tone=error]{color:#b91c1c}.result{order:2;display:flex;flex-direction:column;gap:10px;color:#0f172a;font:14px/1.5 Arial}.result a{color:#0369a1;text-decoration:underline;overflow-wrap:anywhere}.result details{padding:10px 12px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc}.result summary{cursor:pointer;color:#334155;font-weight:700}.result details div{margin-top:8px;white-space:pre-wrap;overflow-wrap:anywhere}.result span{display:block}.result small{display:block;color:#64748b}.result .context-box{padding:12px;border:1px solid #dbe4ee;border-radius:10px;background:#f8fafc}.result .sources{display:flex;flex-direction:column;gap:4px}.result .disclaimer{margin-top:4px}.wrap.expanded::-webkit-scrollbar{width:10px}.wrap.expanded::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:99px;border:3px solid #fff}';
   const wrap = document.createElement('div'); wrap.className = 'wrap'; const button = document.createElement('button'); button.className = 'action'; button.type = 'button'; button.textContent = 'S'; button.dataset.recheck = 'false'; button.title = tr('Check with SuriPH', 'Suriin gamit ang SuriPH'); const close = document.createElement('button'); close.type = 'button'; close.className = 'close'; close.textContent = '×'; close.title = tr('Close result', 'Isara ang resulta'); const message = document.createElement('div'); message.className = 'message'; const result = document.createElement('div'); result.className = 'message result'; close.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); wrap.classList.remove('expanded'); wrap.style.position = ''; wrap.style.display = ''; wrap.style.flexDirection = ''; wrap.style.removeProperty('background'); wrap.style.color = ''; button.style.order = ''; button.style.marginTop = ''; message.style.order = ''; message.style.color = ''; result.style.order = ''; message.replaceChildren(); result.replaceChildren(); button.disabled = false; button.textContent = 'S'; button.dataset.recheck = 'false'; delete button.dataset.previewConfirmed; delete button.dataset.resultPart; post.appendChild(host); host.style.cssText = 'position:absolute;right:10px;top:10px;z-index:2147483646;'; if (activeResultHost === host) activeResultHost = null; }); button.addEventListener('click', () => analyzePost(post, button, message, result)); wrap.append(close, button, message, result); shadow.append(style, wrap); post.appendChild(host);
 }
-function scanForControls() { if (extensionEnabled) for (const post of findPosts()) injectControl(post); }
+function scanForControls() { if (extensionEnabled) for (const post of findPosts()) injectControl(post); return document.querySelectorAll('#suriph-control-host').length; }
 function removeControls() { document.querySelectorAll('#suriph-control-host').forEach((host) => host.remove()); document.querySelectorAll(`[${CONTROL_ATTRIBUTE}]`).forEach((post) => post.removeAttribute(CONTROL_ATTRIBUTE)); }
 chrome.storage.local.get({ suriphEnabled: true, suriphRetrieveSources: true, suriphLanguage: 'en' }, (settings) => {
   extensionEnabled = settings.suriphEnabled !== false;
@@ -376,6 +388,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     extensionEnabled = Boolean(message.enabled); chrome.storage.local.set({ suriphEnabled: extensionEnabled });
     if (!extensionEnabled) removeControls(); else scanForControls();
     sendResponse({ ok: true });
+    return false;
+  }
+  if (message?.type === 'SURIPH_RESCAN_CONTROLS') {
+    sendResponse({ ok: true, controls: scanForControls() });
     return false;
   }
   return false;

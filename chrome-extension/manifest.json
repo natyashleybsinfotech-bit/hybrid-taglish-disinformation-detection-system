@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SuriPH",
-  "version": "1.3.7",
+  "version": "1.3.8",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "http://127.0.0.1:8000/*",

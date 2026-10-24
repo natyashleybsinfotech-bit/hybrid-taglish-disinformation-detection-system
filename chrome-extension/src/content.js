@@ -1,11 +1,17 @@
 // Inject controls proactively; page content is read only after a user click.
-const POST_SELECTORS = ['[role="article"]', 'article'];
+const POST_SELECTORS = [
+  '[role="article"]', 'article',
+  '[data-pagelet^="FeedUnit"]', '[data-pagelet*="FeedUnit_"]',
+  '[data-testid="fbfeed_story"]',
+];
 const POST_TEXT_SELECTORS = [
   '[data-ad-comet-preview="message"]', '[data-ad-preview="message"]',
   '[data-ad-rendering-role="story_message"]', '[data-testid="post_message"]',
   '[data-testid="post-content"]',
 ];
 const CONTROL_ATTRIBUTE = 'data-suriph-control';
+const POST_SELECTOR = POST_SELECTORS.join(',');
+const POST_TEXT_SELECTOR = POST_TEXT_SELECTORS.join(',');
 let extensionEnabled = true;
 let retrievalEnabled = true;
 let interfaceLanguage = 'en';
@@ -55,12 +61,49 @@ function localizedError(message) {
   if (/backend|service|unavailable|connection/i.test(message || '')) return 'Hindi magamit ang SuriPH service. Suriin ang backend at subukan muli.';
   return 'Hindi nakumpleto ng SuriPH ang request. Subukan muli.';
 }
+function captionGroupCount(container) {
+  const messages = [...(container.querySelectorAll?.(POST_TEXT_SELECTOR) || [])];
+  return messages.filter((message) => !messages.some((other) => other !== message && other.contains(message))).length;
+}
+function findPostContainer(node) {
+  if (!node?.closest) return null;
+  const explicit = node.closest(POST_SELECTOR);
+  if (explicit) return explicit;
+  const feed = node.closest('[role="feed"], [data-pagelet*="Feed" i], [role="main"]');
+  if (!feed) return null;
+
+  // Some Facebook accounts receive a feed layout without article semantics or
+  // FeedUnit pagelets. Walk from the recognized caption toward its feed and
+  // stop before an ancestor that contains captions from multiple posts.
+  let current = node;
+  for (let depth = 0; depth < 16 && current?.parentElement; depth += 1) {
+    const parent = current.parentElement;
+    if (parent.matches?.('[role="dialog"], [role="complementary"]')) return null;
+    if (parent === feed) return current;
+    if (captionGroupCount(parent) > 1) return current;
+    current = parent;
+  }
+  return null;
+}
 function findPosts() {
   const posts = [];
-  for (const root of rootsFrom()) for (const selector of POST_SELECTORS) for (const element of root.querySelectorAll(selector)) if (!element.hasAttribute(CONTROL_ATTRIBUTE)) posts.push(element);
+  for (const root of rootsFrom()) {
+    for (const selector of POST_SELECTORS) for (const element of root.querySelectorAll(selector)) posts.push(element);
+    // Caption-first discovery supports Facebook feed variants whose post
+    // wrappers do not expose article roles or stable data-pagelet values.
+    for (const message of root.querySelectorAll(POST_TEXT_SELECTOR)) {
+      const post = findPostContainer(message);
+      if (post) posts.push(post);
+    }
+  }
   const unique = [...new Set(posts)];
   return unique
     .filter((post) => {
+      const existingHost = post.querySelector?.('#suriph-control-host');
+      if (post.hasAttribute(CONTROL_ATTRIBUTE) && existingHost?.isConnected) return false;
+      // Recover after an extension reload or an account switch reuses a DOM
+      // node but drops the old shadow host.
+      if (post.hasAttribute(CONTROL_ATTRIBUTE) && !existingHost) post.removeAttribute(CONTROL_ATTRIBUTE);
       const text = normalize(post.innerText || post.textContent || '');
       if (post.closest('[role="dialog"], [role="complementary"], [aria-label*="chat" i], [aria-label*="conversation" i], [data-testid*="chat" i]')) return false;
       // Facebook search/group result cards are not posts and create visual clutter.
@@ -70,7 +113,7 @@ function findPosts() {
       return true;
     })
     // If selectors identify nested versions of one post, keep only the outer post container.
-    .filter((post) => !unique.some((other) => other !== post && other.contains(post) && other.matches('article, [role="article"]')));
+    .filter((post) => !unique.some((other) => other !== post && other.contains(post) && other.matches(POST_SELECTOR)));
 }
 function collectPostText(post) {
   const parts = [];
@@ -98,10 +141,10 @@ function postForSelection() {
   if (!selection?.rangeCount) return null;
   let node = selection.getRangeAt(0).commonAncestorContainer;
   if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
-  return node?.closest?.(POST_SELECTORS.join(',')) || null;
+  return findPostContainer(node);
 }
 function postNearestViewport() {
-  const activePost = document.activeElement?.closest?.(POST_SELECTORS.join(','));
+  const activePost = findPostContainer(document.activeElement);
   if (activePost) return activePost;
   const center = window.innerHeight / 2;
   return findPosts()

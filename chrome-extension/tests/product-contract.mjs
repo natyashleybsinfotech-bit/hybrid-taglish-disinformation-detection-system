@@ -14,6 +14,10 @@ for (const forbidden of ['tweetText', 'ytd-watch', 'reddit']) assert.ok(!content
 for (const forbidden of ['x.com', 'twimg.com', 'youtube.com', 'googlevideo.com', 'reddit.com', 'redd.it']) assert.ok(!background.includes(`'${forbidden}'`), `Unexpected media origin: ${forbidden}`);
 assert.match(content, /Fail closed[\s\S]{0,240}return '';/, 'Facebook extraction must fail closed without a recognized message node');
 assert.match(content, /function readableCaptionText\(node\)/, 'Recognized captions must preserve visible text boundaries');
+assert.match(content, /function findPostContainer\(node\)/, 'Account-layout-independent post discovery must be present');
+assert.match(content, /FeedUnit/, 'FeedUnit-based Facebook layouts must be supported');
+assert.match(content, /Caption-first discovery supports Facebook feed variants/, 'Caption-first fallback must support feeds without article roles');
+assert.match(content, /Recover after an extension reload or an account switch/, 'Stale injection markers must be repaired');
 assert.match(content, /current\.matches\?\.\(CAPTION_CONTROL_SELECTOR\)/, 'Actual DOM controls inside a caption must be skipped');
 assert.match(content, /boundaryDisplays/, 'Block boundaries inside Facebook captions must remain separated');
 assert.doesNotMatch(content, /replace\([^\n]{0,100}(?:See|see)\s+(?:more|less)/, 'User-authored See more/See less text must not be deleted by phrase matching');

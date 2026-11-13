@@ -18,7 +18,11 @@ from model_runtime import Prediction
 class ParticipantTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
-        self.patches = [patch.object(database.config, 'DATABASE_URL', ''), patch.object(database.config, 'DB_PATH', Path(self.directory.name)/'test.db')]
+        self.patches = [
+            patch.object(database.config, 'DATABASE_URL', ''),
+            patch.object(database.config, 'DB_PATH', Path(self.directory.name)/'test.db'),
+            patch.object(application.config, 'SCREENING_MODE', 'model'),
+        ]
         for item in self.patches: item.start()
         self.assertEqual(database.migrate()['status'], 'available')
         self.client = TestClient(application.app)

@@ -1,6 +1,9 @@
 # Pilot, expert testing and traceability
 
-This supersedes the older traceability file's training/activation and agreement-statistic
+The current local candidate and source behavior are documented in
+[the October 29 readiness handoff](../CURRENT-READINESS-20261029.md). The older
+598-record model comparison below is historical; it is not the candidate's
+3,470-record test result. This supersedes the older traceability file's training/activation and agreement-statistic
 claims. The PDF still describes some historical proposals. The user's final scope pins
 model_4, removes retraining/activation and the removed inter-rater statistic, and keeps
 survey collection outside the product. Record these changes in the final manuscript; do not silently imply the
@@ -40,7 +43,7 @@ when the test requires live behavior.
 
 | Objective / requirement family | Implemented function | Verification evidence | Boundary |
 | --- | --- | --- | --- |
-| Reproduce selected Taglish hybrid | Pinned encoder/tokenizers/features/scalers/LR, threshold 0.65 | HYBRID-VERIFICATION.json: 598 labels and probabilities within tolerance | Integration parity, not independent truth validation |
+| Reproduce selected Taglish hybrid | Local candidate threshold 0.4000000000000001; original rollback threshold 0.65 | CANDIDATE-HYBRID-VERIFICATION.json: 3,470 labels and probabilities within tolerance | Integration parity, not independent truth validation |
 | Expose interpretable measurements | Seven original unscaled values and definitions | test_participant; UI-VERIFICATION.json data-value checks | Measurements are not model contributions |
 | User-triggered acquisition | Manual, selected text/caption, image/video modules | INSTALLED-EXTENSION-VERIFICATION.json; MEDIA-VERIFICATION.json | Synthetic supported-origin Chromium capture passed; current third-party DOM and manual Chrome still require hands-on testing |
 | Independent contextual retrieval | Serper related reading; Google researcher review | PROVIDER-VERIFICATION.json; mocked failure/empty tests | Links do not prove relevance or verdict |

@@ -77,7 +77,7 @@ TOPIC_CATEGORIES = (
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
 SERPER_ENABLED = _env("SERPER_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
 SERPER_TIMEOUT_SECONDS = _env_int("SERPER_TIMEOUT_SECONDS", 8)
-SERPER_MAX_RESULTS = _env_int("SERPER_MAX_RESULTS", 3)
+SERPER_MAX_RESULTS = min(10, max(5, _env_int("SERPER_MAX_RESULTS", 5)))
 GOOGLE_FACT_CHECK_API_KEY = os.getenv("GOOGLE_FACT_CHECK_API_KEY", "").strip()
 GOOGLE_FACT_CHECK_ENABLED = _env("GOOGLE_FACT_CHECK_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 GOOGLE_FACT_CHECK_TIMEOUT_SECONDS = _env_int("GOOGLE_FACT_CHECK_TIMEOUT_SECONDS", 8)
@@ -89,9 +89,19 @@ OCR_LANGUAGES = tuple(
     if language.strip()
 )
 OCR_GPU = _env("SURI_OCR_GPU", "false").lower() in {"1", "true", "yes"}
-WHISPER_MODEL_NAME = _env("SURI_WHISPER_MODEL", "tiny")
+WHISPER_ENGINE = _env("SURI_WHISPER_ENGINE", "faster-whisper").strip().lower()
+WHISPER_MODEL_NAME = _env("SURI_WHISPER_MODEL", "turbo")
+# The screening product targets Filipino/Taglish speech. Whisper still emits
+# English words when they are spoken; this hint prevents observed translation
+# of a Filipino sentence in a mixed-language test clip. Set "auto" to opt out.
+WHISPER_LANGUAGE_HINT = _env("SURI_WHISPER_LANGUAGE_HINT", "tl").strip().lower()
+OCR_MIN_CONFIDENCE = 0.60
+TRANSCRIPT_MIN_AVG_LOGPROB = -1.0
+TRANSCRIPT_MAX_NO_SPEECH_PROB = 0.60
+TRANSCRIPT_MAX_COMPRESSION_RATIO = 2.4
 VIDEO_FRAME_INTERVAL_SECONDS = _env_int("SURI_VIDEO_FRAME_INTERVAL_SECONDS", 3)
 VIDEO_MAX_FRAMES = _env_int("SURI_VIDEO_MAX_FRAMES", 3)
+VIDEO_MAX_SECONDS = 180
 TEMP_MEDIA_DIR = Path(
     _env("SURI_TEMP_MEDIA_DIR", str(Path(tempfile.gettempdir()) / "suriph-media"))
 )
@@ -125,6 +135,9 @@ MODEL_ARTIFACT_DIR = (
 )
 MODEL_DEVICE = _env("SURI_MODEL_DEVICE", "auto")
 MODEL_CPU_THREADS = _env_int("SURI_MODEL_CPU_THREADS", 4)
+SCREENING_MODE = _env("SURI_SCREENING_MODE", "model").lower()
+if SCREENING_MODE not in {"model", "evidence_only"}:
+    raise RuntimeError("SURI_SCREENING_MODE must be 'model' or 'evidence_only'.")
 MAX_TEXT_CHARACTERS = 1_000_000
 MODEL_REQUIRED = _env("SURI_MODEL_REQUIRED", "true").lower() in {"1", "true", "yes", "on"}
 MODEL_WARMUP = _env("SURI_MODEL_WARMUP", "true" if APP_ENV == "production" else "false").lower() == "true"
@@ -149,6 +162,8 @@ def validate_runtime_config() -> None:
         errors.append("SURI_VIEWER_USERNAME is required for the AFP view-only account")
     if unsafe_secret(VIEWER_BOOTSTRAP_PASSWORD, 12):
         errors.append("SURI_VIEWER_PASSWORD must contain at least 12 characters")
+    if SCREENING_MODE != "model":
+        errors.append("Production requires SURI_SCREENING_MODE=model")
     if ADMIN_BOOTSTRAP_USERNAME == VIEWER_BOOTSTRAP_USERNAME:
         errors.append("Administrator and viewer usernames must differ")
     if ADMIN_BOOTSTRAP_PASSWORD == VIEWER_BOOTSTRAP_PASSWORD:

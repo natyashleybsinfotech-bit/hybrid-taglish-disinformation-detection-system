@@ -1,5 +1,7 @@
 # SuriPH deployment runbook
 
+**Current local candidate and deployment gate:** [10 November rehearsal](DEFENSE-REHEARSAL-20261110.md). The original model run and 0.65 threshold in the production example below are historical relative to the active local trial; the current workstation serves run `full-cleaned-20261023T022416Z` at threshold `0.40`. This candidate has not received model release approval. Do not represent the local trial or this prepared guide as a deployed service.
+
 ## Current release status
 
 The supplied model_4 hybrid pipeline from run `20261011T235112Z` now loads on CPU.
@@ -7,7 +9,7 @@ All 598 saved raw test inputs match reference labels and probabilities within th
 declared tolerance. See [HYBRID-INTEGRATION.md](HYBRID-INTEGRATION.md) for verified
 details, commands, changed files and remaining limitations.
 
-Local MariaDB schema version 5, administrator/viewer authentication, backend tests,
+Local MariaDB schema version 6, administrator/viewer authentication, backend tests,
 frontend builds and real API/extension transport have been checked. A connected
 installed-extension session was not available. Headless component screenshots were inspected. Docker is not installed
 on this workstation: container builds, production TLS and target-server load/backup-wrapper checks
@@ -71,7 +73,7 @@ local `.env`, virtualenv, `tools/`, development database, or `node_modules`.
 Generate settings from the repository root, replacing these example arguments:
 
 ```bash
-python3 scripts/prepare_deployment.py --api-domain api.yourdomain.ph --admin-domain admin.yourdomain.ph --email you@yourdomain.ph
+python3 scripts/prepare_deployment.py --model-profile YOUR_APPROVED_PROFILE_ID --api-domain api.yourdomain.ph --admin-domain admin.yourdomain.ph --email you@yourdomain.ph
 ```
 
 This creates ignored `.env.production` and `chrome-extension/.env.production` with
@@ -195,7 +197,7 @@ the pinned active classifier. This integration did not retrain or tune any model
 
 The migration service needs maintenance/root credentials only while it runs. The API
 has DML permissions and cannot create or drop tables. An existing installation must
-back up before schema v5; migration is additive and does not remove earlier records.
+back up before schema v6; migration is additive and does not remove earlier records.
 The Windows native migration/restart/restore check is recorded in
 `MARIADB-VERIFICATION.json`. The Docker wrapper still needs execution on Linux.
 
@@ -254,12 +256,19 @@ It did not execute these Docker commands, which remain an explicit release gate.
   produces no partial label and marks readiness false; recover/restart after diagnosis.
   A native compute call is not forcibly preempted mid-kernel.
 - Upload maximum: 50 MiB; image processing limit: 20 megapixels; video audio maximum:
-  120 seconds. Decoding is bounded and network protocols are disabled in FFmpeg.
+  180 seconds (3 minutes). Decoding is bounded and network protocols are disabled in FFmpeg.
   Frames are sampled, not every frame analyzed. Media support is experimental.
+  Video users must review the extracted speech and frame text before classification:
+  `POST /extract/video` returns no label; `POST /analyze/confirmed-video` accepts a
+  one-time review token and exact text. The old direct `/analyze/video` route returns
+  409. The default ASR is CPU INT8 faster-whisper `turbo` with a Filipino language
+  hint; benchmark and limits are in [video extraction validation](VIDEO-EXTRACTION-VALIDATION-20261103.md).
 - Provider calls target fixed HTTPS APIs, reject redirects, and bound response bodies
   to 2 MB. Result links are not fetched by the server. Default provider timeout: 8 seconds.
-- The extension uses a 120-second popup request timeout; selected in-page video processing
-  has a five-minute outer timeout. A timeout never generates a substitute prediction.
+- The extension uses a 120-second timeout for text and image requests and a seven-minute
+  timeout for video processing requests. In-page video capture rejects videos longer than
+  3 minutes and has a ten-minute outer timeout including playback and processing.
+  A timeout never generates a substitute prediction.
 - Explicit HTTPS CORS origin in production, HttpOnly/Secure/SameSite=Strict admin cookie,
   POST origin checks, role checks, no browser localStorage tokens. Serve API/dashboard
   on sibling subdomains of the same site. Use the same hostname spelling locally.
@@ -285,3 +294,5 @@ backup and needs an explicit recovery decision. Keep the API stopped on restore 
 `docker compose stop` preserves volumes. Never use `down -v` as an update or rollback.
 If a process is unhealthy but still running, Docker does not restart it merely because
 the health check failed; investigate the error and restart deliberately after resolving it.
+
+The model profile must be selected explicitly. The current full-cleaned local-trial profile is not production-approved. The generator refuses it rather than silently selecting the historical classifier. Do not substitute a different model merely to pass deployment checks.

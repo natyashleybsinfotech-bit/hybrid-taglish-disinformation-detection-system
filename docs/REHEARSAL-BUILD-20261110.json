@@ -1,0 +1,142 @@
+﻿{
+    "date":  "2026-11-10",
+    "git_head":  "6cff5e9ada71855b7ff245dd274ae45e5b381d9e",
+    "working_tree_clean":  false,
+    "extension_version":  "1.3.15",
+    "model_classifier":  "model_4_full_dataset_CANDIDATE.joblib",
+    "model_run":  "full-cleaned-20261023T022416Z",
+    "model_sha256":  "c2d7df1c519c4022c395a29e1d469e3089452fa8a9b6a15a2079eaa0216ea376",
+    "model_threshold":  0.4000000000000001,
+    "model_runtime_versions":  {
+                                   "torch":  "2.11.0",
+                                   "transformers":  "5.20.1",
+                                   "scikit-learn":  "1.6.1",
+                                   "numpy":  "2.1.3",
+                                   "spacy":  "3.8.16",
+                                   "lingua-language-detector":  "2.1.1",
+                                   "joblib":  "1.6.0"
+                               },
+    "database_status":  "available",
+    "files":  [
+                  {
+                      "path":  "admin-dashboard/dist/assets/index-BRmw4sGz.js",
+                      "sha256":  "9C39C3B4AAE7E7540A7B9E1AD81AA921263140CBBD2080D7DCAC352F6C86D523"
+                  },
+                  {
+                      "path":  "admin-dashboard/dist/assets/index-C5TXZMJm.css",
+                      "sha256":  "C1000A8A233FF19B1972D2B9E16A009F0AF1A4AD00DD23AB70D6A9D539CC05E8"
+                  },
+                  {
+                      "path":  "admin-dashboard/dist/favicon.svg",
+                      "sha256":  "61BC9A161DE58248288E6905425D7180F0624C2865007B97D763FDAC12043A66"
+                  },
+                  {
+                      "path":  "admin-dashboard/dist/icons.svg",
+                      "sha256":  "B45FA506195CFCDEF406BA9F0C77B36DDC1A7C224040926EC70ABC2FDEA7B93A"
+                  },
+                  {
+                      "path":  "admin-dashboard/dist/index.html",
+                      "sha256":  "A84A5BDE9C2B03D07B8613293F8222B1278C19221633E433B34BF39681F254A0"
+                  },
+                  {
+                      "path":  "backend-api/config.py",
+                      "sha256":  "CE4FE7608CD235306BACDBD966C1D774DBC183E9105DAF429B8D29C5F9441CF3"
+                  },
+                  {
+                      "path":  "backend-api/requirements-candidate.txt",
+                      "sha256":  "3CD00BED7067F5EBD1B6C4E34327F74E74DDB662A5BFBADEE2C5C67FD4E8FF85"
+                  },
+                  {
+                      "path":  "backend-api/src/app.py",
+                      "sha256":  "0CC92DD5A5A013205664FB43ECEED78EF42526D1822CCD68B2C696B3191466A8"
+                  },
+                  {
+                      "path":  "backend-api/src/article_reader.py",
+                      "sha256":  "47842C65782E5CEEC957CE01D3C53E07B78FE16FF01073870E88F36C38AEC342"
+                  },
+                  {
+                      "path":  "backend-api/src/database.py",
+                      "sha256":  "62E97886F8AAE5CF5005698494EB741A33CE2930572178F78650AFA01D7DF72E"
+                  },
+                  {
+                      "path":  "backend-api/src/deployment_check.py",
+                      "sha256":  "03071A1F1DFACAE19CA7E358CE052ADDE9216A339CE75622EC12E66E4F334CC5"
+                  },
+                  {
+                      "path":  "backend-api/src/evidence_decision.py",
+                      "sha256":  "F8CE1F773ADF17764DD6F3087BF15CAA3492014B08FDEA963B02282D04ECA7F9"
+                  },
+                  {
+                      "path":  "backend-api/src/fact_check.py",
+                      "sha256":  "AB47AB2BF8F04AE98490B90DF1F97C791E737DE1D8252D867676C7884CED71C8"
+                  },
+                  {
+                      "path":  "backend-api/src/feature_display.py",
+                      "sha256":  "4B40A4D1D9B31BFEE7A76A517AED89CA9760581E4D93CAE568DDD75FC62B8CAC"
+                  },
+                  {
+                      "path":  "backend-api/src/hybrid_pipeline.py",
+                      "sha256":  "9762E83EBAC081D4887CF96ED47AC0163934910D357BCB419D8C0914CA107A43"
+                  },
+                  {
+                      "path":  "backend-api/src/manage.py",
+                      "sha256":  "F6D73CC876D9C56DA0D1980D3716B6AA705FEE1C73CEF409CCBBC78DBFEAF87D"
+                  },
+                  {
+                      "path":  "backend-api/src/media_processing.py",
+                      "sha256":  "FE5B191DFEBD1615E1B4DB46B4DB6CB83043931A3076EE31F23E1154D9D567F9"
+                  },
+                  {
+                      "path":  "backend-api/src/model_runtime.py",
+                      "sha256":  "7C8B9EC59DE4504146111D72B7A2DD9C642B98D6B1C74431AEBE8369181843FA"
+                  },
+                  {
+                      "path":  "backend-api/src/provider_http.py",
+                      "sha256":  "2D173880E204539E940B990D556CFD18A8B021A638B605DB98180BED95944A37"
+                  },
+                  {
+                      "path":  "backend-api/src/research_store.py",
+                      "sha256":  "BA4919C4AC34507088E7C36ECA6E007E522B06AB05CBCCC99C3B032926F5F0D3"
+                  },
+                  {
+                      "path":  "backend-api/src/retrieval.py",
+                      "sha256":  "7E8F59F67021B2C277690531B0C555E9575CACD99223C5E724C2D60B7FA161C1"
+                  },
+                  {
+                      "path":  "backend-api/src/topic_classifier.py",
+                      "sha256":  "88AB14B6F9F4A5F796EDC9C541F4C486F8A6C0FA8F13F9D2CC6B048C12FF31A0"
+                  },
+                  {
+                      "path":  "backend-api/src/traffic_limits.py",
+                      "sha256":  "77A7DFB283118014E6C8FE845028AB3648D05927EF53F6C5BFD6493C821E6921"
+                  },
+                  {
+                      "path":  "chrome-extension/dist/assets/background.js-CTR-PsWK.js",
+                      "sha256":  "C21BEE014061F79276D1C5B994ADCB2FC29C2AF80F46BEED6CCBF893CF1E687E"
+                  },
+                  {
+                      "path":  "chrome-extension/dist/assets/content.js-D9vRp5s_.js",
+                      "sha256":  "1AC99A7F38AC9B640A046BDB616EDC81ABFC6B5EF610EB25226D37BDA181BA40"
+                  },
+                  {
+                      "path":  "chrome-extension/dist/assets/index.html-BJkH8LH_.js",
+                      "sha256":  "299AB1EFC609E03F5E64EDDE3853E32AB49D0A64A0FB7DFAE70AB848E49F57A9"
+                  },
+                  {
+                      "path":  "chrome-extension/dist/assets/index-Bk0uvYmr.css",
+                      "sha256":  "1C4819B0437F8F6E8657C18CE6D1909DEC7B030124AB2459A62D595D53B0167D"
+                  },
+                  {
+                      "path":  "chrome-extension/dist/index.html",
+                      "sha256":  "A553B831A112D6E1FD08E2195F7CE332298C4B9328C53B2379AD27AD25209076"
+                  },
+                  {
+                      "path":  "chrome-extension/dist/manifest.json",
+                      "sha256":  "3083143E74DD4D51076E3AC38142DBF5192C3631FA0807722D33D4DDDDC206BC"
+                  },
+                  {
+                      "path":  "chrome-extension/dist/service-worker-loader.js",
+                      "sha256":  "70E1C7BC5950679FAEB0E1764F37456C48F51466F1467D84F13836E81D31726B"
+                  }
+              ]
+}

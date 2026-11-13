@@ -1,5 +1,7 @@
 # Draft evaluation instruments — not validated
 
+**Historical draft.** The team's attached revised 45-item questionnaire supersedes the item sets and response scale below for the upcoming AFP and BSIT sessions. Use [the 10 November acceptance record](QUESTIONNAIRE-ACCEPTANCE-20261110.md): both links carry the same 45 numbered statements, **3 = Moderately Agree**, and a separate **N/A = not tested or observed** option. Do not publish or merge the older draft items/scale with the revised instrument. Expert/adviser review and participant ratings are still pending.
+
 Basis: revised paper PDF printed pages 87–93 (PDF pages 92–98), separate BSIT and AFP
 groups, observable quality dimensions and five-point agreement scale. The paper names
 six core dimensions; its broader methodology also mentions compatibility and flexibility.

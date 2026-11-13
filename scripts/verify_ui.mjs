@@ -30,8 +30,10 @@ async function capture(html, shot, name, width, height) {
     await send('Runtime.evaluate',{expression:'document.fonts.ready',awaitPromise:true});
     const measured=await send('Runtime.evaluate',{expression:'JSON.stringify({width:innerWidth,clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth})',returnByValue:true});
     const layout=JSON.parse(measured.result.value);assert.equal(layout.width,width);assert.ok(layout.scrollWidth<=layout.clientWidth,`${name} horizontal overflow`);
-    const png=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+    const contentHeight = name.includes('media') ? Math.ceil((await send('Page.getLayoutMetrics')).cssContentSize.height) : height;
+    const png=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:name.includes('media'), ...(name.includes('media') ? {clip:{x:0,y:0,width:layout.clientWidth,height:contentHeight,scale:1}} : {})});
     await writeFile(shot,Buffer.from(png.data,'base64'));
+    if(name.includes('media')) { const bottom=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true,clip:{x:0,y:Math.max(0,contentHeight-1100),width:layout.clientWidth,height:Math.min(1100,contentHeight),scale:1}}); await writeFile(shot.replace('.png','-text-details.png'),Buffer.from(bottom.data,'base64')); }
     return layout;
   } finally {
     socket?.close();
@@ -42,16 +44,23 @@ for(const [name, project, component, width, height] of [
   ['popup-empty','chrome-extension','<Popup />',390,900],
   ['popup-result-en','chrome-extension','<main className="popup-shell"><Result result={result} language="en" consent={false} setConsent={()=>{}} candidateState="idle" onSubmitCandidate={()=>{}} /></main>',390,1450],
   ['popup-result-tl-narrow','chrome-extension','<main className="popup-shell"><Result result={result} language="tl" consent={false} setConsent={()=>{}} candidateState="idle" onSubmitCandidate={()=>{}} /></main>',320,1450],
+  ['popup-result-flagged-en','chrome-extension','<main className="popup-shell"><Result result={result} language="en" consent={false} setConsent={()=>{}} candidateState="idle" onSubmitCandidate={()=>{}} /></main>',390,1450],
+  ['popup-result-flagged-tl-narrow','chrome-extension','<main className="popup-shell"><Result result={result} language="tl" consent={false} setConsent={()=>{}} candidateState="idle" onSubmitCandidate={()=>{}} /></main>',320,1450],
+  ['popup-result-media-en','chrome-extension','<main className="popup-shell"><Result result={result} language="en" /></main>',390,2200],
+  ['popup-result-media-tl-narrow','chrome-extension','<main className="popup-shell"><Result result={result} language="tl" /></main>',320,2200],
   ['popup-narrow','chrome-extension','<Popup />',320,900],
   ['admin-login','admin-dashboard','<Login onLogin={()=>{}} />',1280,900],
   ['admin-login-narrow','admin-dashboard','<Login onLogin={()=>{}} />',390,900],
 ]) {
   const base=path.join(root,project), require=createRequire(path.join(base,'package.json'));
   const esbuild=createRequire(path.join(root,'chrome-extension/package.json'))('esbuild');
-  const source=`import React from 'react';import {renderToStaticMarkup} from 'react-dom/server';${project==='chrome-extension' ? "import Popup,{Result} from './src/Popup.jsx';" : "import Login from './src/pages/Login.jsx';"} const result=${JSON.stringify(result)};export default renderToStaticMarkup(${component});`;
+  const viewResult=name.includes('media') ? {...result, related_sources:[{url:'https://example.org/report',source:'Example publisher',content_status:'inaccessible'}], extraction:{caption_text:'A complete public video caption.',transcript_text:'Basahin muna ang buong balita.',frame_ocr_text:'Check the original source.',transcript_status:'completed',quality_notice:'Compare with the original video.',discarded_ocr_detections:2}}
+    : name.includes('flagged') ? {...result,internal_label:'Misleading',model_score:0.76,decision_source:'model'} : result;
+  const source=`import React from 'react';import {renderToStaticMarkup} from 'react-dom/server';${project==='chrome-extension' ? "import Popup,{Result} from './src/Popup.jsx';" : "import Login from './src/pages/Login.jsx';"} const result=${JSON.stringify(viewResult)};export default renderToStaticMarkup(${component});`;
   const built=await esbuild.build({stdin:{contents:source,resolveDir:base,loader:'jsx'},jsx:'automatic',bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env':'{}'},banner:{js:"import {createRequire} from 'node:module';const require=createRequire(import.meta.url);"}});
   const modulePath=path.join(output,name+'.mjs');await writeFile(modulePath,built.outputFiles[0].text);
   const {default:markup}=await import(pathToFileURL(modulePath));
+  if(name.includes('media')) { assert.ok(markup.includes('Basahin muna ang buong balita.')); assert.ok(markup.includes('Check the original source.')); assert.ok(markup.includes(name.includes('-tl-') ? 'Mga salitang narinig sa video' : 'Speech heard in the video')); assert.ok(markup.includes('href="https://example.org/report"')); }
   if(name.startsWith('popup-result')) for(const item of result.linguistic_indicators) {assert.ok(markup.includes(`data-value="${item.value}"`));assert.ok(markup.includes(name.includes('-tl-') ? item.display_name_tagalog : item.display_name));}
   const assets=path.join(base,'dist/assets'), cssFile=(await readdir(assets)).find(file=>file.endsWith('.css'));
   const css=await readFile(path.join(assets,cssFile),'utf8');
@@ -63,5 +72,5 @@ for(const [name, project, component, width, height] of [
   const png=await readFile(shot);assert.ok(png.length>10000);
   reports.push({view:name,width,height,layout,screenshot:`verification/ui/${name}.png`,rendered:true});
 }
-await writeFile(path.join(root,'docs/UI-VERIFICATION.json'),JSON.stringify({actual_component_rendering:true,actual_api_feature_values_matched:true,bilingual_narrow_layout:true,installed_extension_e2e:false,browser:'headless Chrome',views:reports},null,2));
+await writeFile(path.join(root,'docs/UI-VERIFICATION.json'),JSON.stringify({actual_component_rendering:true,actual_api_feature_values_matched:true,controlled_flagged_visual_fixture:true,bilingual_narrow_layout:true,installed_extension_e2e:false,browser:'headless Chrome',views:reports},null,2));
 console.log(JSON.stringify(reports));

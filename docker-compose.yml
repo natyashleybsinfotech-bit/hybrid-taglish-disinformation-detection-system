@@ -38,11 +38,11 @@ services:
     logging: *logging
     volumes:
       - suriph-model-cache:/app/data/runtime-models
-      - "./backend-api/models/TRAINING RESULTS/models/model_4.joblib:/app/artifacts/models/model_4.joblib:ro"
-      - "./backend-api/models/TRAINING RESULTS/models/contextual_encoder:/app/artifacts/models/contextual_encoder:ro"
-      - "./backend-api/models/TRAINING RESULTS/models/tagalog_tokenizer:/app/artifacts/models/tagalog_tokenizer:ro"
-      - "./backend-api/models/TRAINING RESULTS/models/feature_config.json:/app/artifacts/models/feature_config.json:ro"
-      - "./backend-api/models/TRAINING RESULTS/run_manifest.json:/app/artifacts/run_manifest.json:ro"
+      - "${SURI_RELEASE_ARTIFACT_ROOT:?Select the release model explicitly}/models/model_4.joblib:/app/artifacts/models/model_4.joblib:ro"
+      - "${SURI_RELEASE_ARTIFACT_ROOT:?Select the release model explicitly}/models/contextual_encoder:/app/artifacts/models/contextual_encoder:ro"
+      - "${SURI_RELEASE_ARTIFACT_ROOT:?Select the release model explicitly}/models/tagalog_tokenizer:/app/artifacts/models/tagalog_tokenizer:ro"
+      - "${SURI_RELEASE_ARTIFACT_ROOT:?Select the release model explicitly}/models/feature_config.json:/app/artifacts/models/feature_config.json:ro"
+      - "${SURI_RELEASE_ARTIFACT_ROOT:?Select the release model explicitly}/run_manifest.json:/app/artifacts/run_manifest.json:ro"
     ports:
       - "127.0.0.1:8000:8000"
     healthcheck:

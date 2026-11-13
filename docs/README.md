@@ -1,9 +1,12 @@
 # Documentation index
 
+**Current local status:** [14 November source-preview and score clarification](SOURCE-PREVIEW-AND-SCORE-20261114.md), [13 November video mismatch review](VIDEO-MISMATCH-REVIEW-20261113.md), [12 November extraction repair](EXTRACTION-REPAIR-20261112.md), [10 November defense rehearsal](DEFENSE-REHEARSAL-20261110.md), [revised 45-item questionnaire acceptance record](research/QUESTIONNAIRE-ACCEPTANCE-20261110.md), and [rehearsal build manifest](REHEARSAL-BUILD-20261110.json). Earlier dated readiness and survey drafts are historical where they differ.
+
 | Need | Start here |
 | --- | --- |
-| Install and run locally | [START_HERE](../START_HERE.md) |
-| Completed checks and remaining release gates | [Release readiness](RELEASE-READINESS.md) |
+| Current status, local startup and manuscript corrections | [October 29 readiness](CURRENT-READINESS-20261029.md), [START_HERE](../START_HERE.md) |
+| Historical release checks and remaining public-release gates | [October 22 release readiness](RELEASE-READINESS.md) |
+| Frozen human review batch and instructions | [Batch manifest](research/EVALUATION-BATCH-MANIFEST.json), [review instructions](research/HUMAN-EVALUATION-INSTRUCTIONS.md), [media rehearsal](research/MEDIA-SUPPLEMENT-REHEARSAL.json) |
 | Model contract, artifacts, threshold, parity and observed scope bias | [Local candidate trial and rollback](LOCAL-CANDIDATE-TRIAL.md), [component hash comparison](CANDIDATE-COMPONENT-COMPARISON.json), [candidate supplied-case result](CANDIDATE-REGRESSION-VERIFICATION.json), [candidate 3,470-record result](CANDIDATE-HYBRID-VERIFICATION.json), [stable hybrid integration](HYBRID-INTEGRATION.md), [stable 598-record result](HYBRID-VERIFICATION.json), [prediction-path diagnostic](PREDICTION-PATH-DIAGNOSTIC.json), [Facebook-only regression investigation](FACEBOOK-CLASSIFICATION-REGRESSION.json), [news-style path check](NEWS-STYLE-DIAGNOSTIC.json), [short-input diagnostic](MODEL-SANITY-DIAGNOSTIC.json) |
 | VPS, Compose, database, HTTPS, backups and restore | [Deployment guide](DEPLOYMENT.md) |
 | Separate survey plan and participant tasks | [Participant guide](research/PARTICIPANT-GUIDE.md) |
@@ -12,7 +15,7 @@
 | Earlier requirements and agent instructions | [Prototype instructions](references/SuriPH_Codex_Prototype_Instructions.docx), [initial prototype](references/SuriPH_Sprint1_Working_Prototype.docx), [prototype v2](references/SuriPH_Sprint1_Working_Prototype_v2.docx), [final document](references/final.docx) |
 | Historical system design | [SDD](sdd.docx); its preserved generator is in `tools/`, with npm configuration here |
 | UI and browser inspection | [UI report](UI-VERIFICATION.json), [current popup regression](EXTENSION-POPUP-VERIFICATION.json), [synthetic Facebook modal](FACEBOOK-MODAL-VERIFICATION.json), [Google Chrome/Facebook status](CHROME-FACEBOOK-VERIFICATION.json), [earlier isolated Edge extension](INSTALLED-EXTENSION-VERIFICATION.json), [extension failure states](EXTENSION-FAILURE-VERIFICATION.json), [administrator browser flow](ADMIN-BROWSER-VERIFICATION.json), [screenshots](verification/ui/) |
-| Database, providers, media and resources | [MariaDB](MARIADB-VERIFICATION.json), [provider availability](PROVIDER-VERIFICATION.json), [retrieval relevance regression](RETRIEVAL-RELEVANCE-VERIFICATION.json), [media](MEDIA-VERIFICATION.json), [API resources](RESOURCE-MEASUREMENTS.json), [live stack](LIVE-STACK-PERFORMANCE.json) |
+| Database, providers, media and resources | [MariaDB](MARIADB-VERIFICATION.json), [provider availability](PROVIDER-VERIFICATION.json), [retrieval relevance regression](RETRIEVAL-RELEVANCE-VERIFICATION.json), [current multi-video extraction validation](VIDEO-EXTRACTION-VALIDATION-20261103.md), [historical exact-reel audit](VIDEO-TRANSCRIPTION-AUDIT-20261102.md), [media](MEDIA-VERIFICATION.json), [API resources](RESOURCE-MEASUREMENTS.json), [live stack](LIVE-STACK-PERFORMANCE.json) |
 | Repository layout and preservation decisions | [Project structure](PROJECT-STRUCTURE.md), [move inventory](CLEANUP-MOVES.json) |
 
 The supplied training notebook, manifest, feature configuration, encoder, tokenizers,
@@ -25,8 +28,8 @@ The full-cleaned candidate run is stored separately under the ignored
 `backend-api/models/local-trials/full-cleaned-20261023T022416Z/` directory. Its
 classifier and raw records are also local-only and unchanged.
 
-Historical documents describe earlier designs. The current integration contract and
-release evidence take precedence for operating this deployment. Existing research
+Historical documents describe earlier designs. The October 29 readiness handoff
+takes precedence for current local operation. Existing research
 papers and prototype instructions have not been rewritten.
 
 The extension and administrator dashboard do not collect, display or export participant

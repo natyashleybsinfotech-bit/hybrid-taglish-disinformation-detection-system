@@ -1,0 +1,83 @@
+{
+  "batch_id": "suriph-human-eval-v1-20261029",
+  "model_run": "full-cleaned-20261023T022416Z",
+  "selection": "Four deterministic held-out records per inherited-label/length stratum; inherited labels are not ground truth",
+  "text_cases": 24,
+  "media_cases": 4,
+  "training_or_validation_claim_group_overlap": 0,
+  "diagnostic_case_overlap": 0,
+  "source_file_sha256": {
+    "full_text_label.csv": "bc81ee1f80fbc0af000e0c3217a189a836380fc4be1ae3c665cb8c44b46f642c",
+    "partitions.csv": "f49a5e7c7ec02f33054c2fa1a5c4a8ef5bb6fffcb6447242ea5da1388c4a8f67",
+    "test_predictions.csv": "c07d80b6de0d9586652cfda3560e61b3087fd74aaf3476d8bf42d61c4071a551"
+  },
+  "record_ids": [
+    "0c59f95848191716e56d59a7947c1e78613c4783ed6eb2ad837c73871599f01f",
+    "4e621220ebd8082981229fc16364dfb1eae932403c2d52baeeec9cc1f867a279",
+    "0b4c3cbb07ed8d5c91a4bda1aa6f6c2597c562764bdbdaea01402f5072c831c6",
+    "5c78d804a6a38be481bf3674eed64e2563a1bf869fd1ffbef3c71478cb7a3462",
+    "b8867f1fc10f606a7dd0364cdf0ba426064e93dbdf4adc7e7145b41914479814",
+    "5d49fb904ceb0e285bc28d12aed2eb7f1e36f68abcba3ccf960b4a354a384073",
+    "13b45967a73fee1481da6aae12e6e5722a48850cdda82cb206c18312c8d51110",
+    "17803acb34c0387e52842acd0edddeeeffbc36d3b2adb5adcc980410335136b1",
+    "72d556db39cd0d295580ef46534c0044bdb785f3d05f054890a8cae2be6899d4",
+    "241cc0f88bb8cc17479289164f4ca6f7fa4f548a37032c417d0b2f3699a11a67",
+    "b666551d2af5a223b24ab69dce8648b9f04b9f919f129d49e987d927ba1a18e2",
+    "75e2a73eaf0bdb5bec1a5ac74311072edefd941cf8f2484fa06796e8cdeceeb3",
+    "80bbdb73cad0a9df57d45f6d028c62ab613ef0df1637dda5be28d3ccf8ab8c93",
+    "f5f3134a61ef4fd98a8a6acb1cc454c86a25e8b2a8112cd680d3ff0c4ba961c8",
+    "dab086a6af6bb84f6d39fc7bddfe427395564acb676977a05686a3917c9a0c9b",
+    "4207954332cfbf68cdf1944a94b786b65e1c04cdbd2cc40d8cf938ae7e85508e",
+    "d5fb206002620b4ab6f8398cceb339085528b648b7b5e389ed490700a690acc7",
+    "8b267ca981672979b148769e3e17ee445bdaac567ad6b74ab3b3e3bca00184f1",
+    "4a786224182cf08dd8e6014d2cd5def8386db315835ed71a8653aec287e4a637",
+    "6c38b8a316a772932246a2a823bced7b32f8ae7e36f1af3c3f1682b6b29a87dd",
+    "308c1d23a2acfb264d05be4fc707b86b371e28b22993c065512f1e4e1efbb329",
+    "00d40d0465035a94a043e5c9ed9e58713647ac3f931b8e785119a0f631b5db81",
+    "856a0d5774b02e4120add77da31dc987db3f0cfe30ab8ce4f33dadd0e9b73cd0",
+    "8810041035d639eb31eea766b9fffba5642ccfbcf245e3797498261a63b723a2"
+  ],
+  "private_review_file": "research-data/evaluation-20261029/review_batch.csv",
+  "human_judgments_recorded": 0,
+  "ready_for_accuracy_claim": false,
+  "media_supplement": [
+    {
+      "case_id": "M001",
+      "mode": "image",
+      "paired_text_case": "S001",
+      "record_id": "0c59f95848191716e56d59a7947c1e78613c4783ed6eb2ad837c73871599f01f",
+      "sha256": "94a897d432f333d70e8868349029198d74a37405c0948ee4c355528a4e8a7c97"
+    },
+    {
+      "case_id": "M002",
+      "mode": "image",
+      "paired_text_case": "S013",
+      "record_id": "80bbdb73cad0a9df57d45f6d028c62ab613ef0df1637dda5be28d3ccf8ab8c93",
+      "sha256": "7ec7078fbaab269e8a26047bd2c195b912a445d5069c1ab7a72f042dcde6c84f"
+    },
+    {
+      "case_id": "M003",
+      "mode": "video",
+      "paired_text_case": "S002",
+      "record_id": "4e621220ebd8082981229fc16364dfb1eae932403c2d52baeeec9cc1f867a279",
+      "sha256": "bf34635cd61238ff94bdd833d1ceb7509b3e75707fc3bf6d7b2efd2f9269f55c"
+    },
+    {
+      "case_id": "M004",
+      "mode": "video",
+      "paired_text_case": "S014",
+      "record_id": "f5f3134a61ef4fd98a8a6acb1cc454c86a25e8b2a8112cd680d3ff0c4ba961c8",
+      "sha256": "655c589866e5c3b6782e569a1efa36181aa3add6484327bd0d58f6fbccb8d6af"
+    }
+  ],
+  "media_note": "Synthetic renderings of four selected text claims; dependent paired observations, not four independent accuracy cases or natural Facebook media",
+  "amendments": [
+    {
+      "reason": "First video fixtures had no audio stream and the supported video route returned HTTP 422; silent audio track added before human review",
+      "previous_video_sha256": {
+        "M003": "dcb5c8330679dd970a8e955284d7fd3e1bba10e5150312dd57a037d4b2b44fb1",
+        "M004": "6eb34ab386bf27882934604941a08d21e013c053b28eda8d83571d0b8d6676b8"
+      }
+    }
+  ]
+}

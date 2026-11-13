@@ -1,6 +1,6 @@
 {
   "passed": true,
-  "browser": "Microsoft Edge (isolated off-screen profile)",
+  "browser": "Google Chrome (isolated off-screen profile)",
   "actual_dashboard_and_api": true,
   "admin_login": "passed",
   "session_cookie_reload": "passed",

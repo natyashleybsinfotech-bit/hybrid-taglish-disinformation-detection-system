@@ -24,6 +24,7 @@ class ProductionConfigTests(unittest.TestCase):
             CORS_ORIGINS=("https://admin.suriph.ph",), TRUSTED_HOSTS=("api.suriph.ph",),
             DB_ENGINE="mariadb", DATABASE_URL="mysql+pymysql://suriph:abcdefghijklmnop12345@database/suriph",
             MODEL_REQUIRED=True, MODEL_WARMUP=True, MODEL_PROFILE="20261011T235112Z",
+            SCREENING_MODE="model",
         )
         return patch.multiple(config, **(values | overrides))
 
@@ -62,7 +63,7 @@ class DeploymentGeneratorTests(unittest.TestCase):
             root = Path(directory)
             (root / "chrome-extension").mkdir()
             (root / ".env.production.example").write_text((source.parents[1] / ".env.production.example").read_text(), encoding="utf-8")
-            args = [str(source), "--api-domain", "api.suriph.ph", "--admin-domain", "admin.suriph.ph", "--email", "ops@suriph.ph"]
+            args = [str(source), "--api-domain", "api.suriph.ph", "--admin-domain", "admin.suriph.ph", "--email", "ops@suriph.ph", "--model-profile", "20261011T235112Z"]
             output = io.StringIO()
             with patch.object(module, "ROOT", root), patch.object(sys, "argv", args), contextlib.redirect_stdout(output):
                 module.main()
@@ -74,9 +75,18 @@ class DeploymentGeneratorTests(unittest.TestCase):
                     self.assertEqual(len(values[key]), 64)
                     self.assertNotIn(values[key], output.getvalue())
                 self.assertIn("https://api.suriph.ph", (root / "chrome-extension" / ".env.production").read_text())
+                self.assertEqual(values['SURI_MODEL_PROFILE'], '20261011T235112Z')
+                self.assertEqual(values['SURI_RELEASE_ARTIFACT_ROOT'], './backend-api/models/TRAINING RESULTS')
                 with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                     module.main()
                 self.assertEqual((root / ".env.production").read_text(), saved)
+
+    def test_unapproved_candidate_cannot_silently_fall_back_to_old_release(self):
+        source = Path(__file__).resolve().parents[2] / 'scripts/prepare_deployment.py'
+        spec = importlib.util.spec_from_file_location('prepare_deployment_guard', source)
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        with self.assertRaisesRegex(ValueError, 'no alternate model was selected'):
+            module.release_profile('full-cleaned-20261023T022416Z')
 
 
 class TrafficLimitTests(unittest.IsolatedAsyncioTestCase):
@@ -98,20 +108,42 @@ class TrafficLimitTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_busy_screening_is_rejected_and_capacity_recovers(self):
         entered, release = asyncio.Event(), asyncio.Event()
+        active = 0
+        capacity = 2
+
         async def downstream(scope, receive, send):
-            entered.set()
-            await release.wait()
-        limiter = TrafficLimits(downstream, concurrency=1)
+            nonlocal active
+            active += 1
+            if active == capacity:
+                entered.set()
+            try:
+                await release.wait()
+                await send({"type": "http.response.start", "status": 200, "headers": []})
+                await send({"type": "http.response.body", "body": b"ok"})
+            finally:
+                active -= 1
+
+        limiter = TrafficLimits(downstream)
+        self.assertEqual(limiter.concurrency, capacity)
         scope = {"type": "http", "method": "POST", "path": "/analyze", "client": ("client", 0)}
         messages = []
+
         async def send(message):
             messages.append(message)
-        task = asyncio.create_task(limiter(scope, None, send))
+
+        tasks = [asyncio.create_task(limiter(scope, None, send)) for _ in range(capacity)]
         await entered.wait()
-        await limiter(scope, None, send)
-        self.assertEqual(messages[0]["status"], 503)
+        for path in ('/analyze', '/extract/video', '/analyze/confirmed-video', '/related-sources'):
+            messages.clear()
+            await limiter(scope | {'path': path}, None, send)
+            self.assertEqual(messages[0]["status"], 503, path)
+
         release.set()
-        await task
+        await asyncio.gather(*tasks)
+        self.assertEqual(limiter.active, 0)
+        messages.clear()
+        await limiter(scope, None, send)
+        self.assertEqual(messages[0]["status"], 200)
         self.assertEqual(limiter.active, 0)
 
 

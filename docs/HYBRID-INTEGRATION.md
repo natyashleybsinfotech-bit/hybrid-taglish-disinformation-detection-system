@@ -4,7 +4,13 @@ Verified locally, with cleanup checks completed October 20, 2026. The actual fro
 produces verified predictions on CPU. This does not establish that its predictions
 are always factually correct, nor does it complete production hosting or Chrome UI QA.
 
-## Active model and verification evidence
+## Historical model and verification evidence
+
+This section describes the original `20261011T235112Z` rollback profile. The
+prepared workstation currently runs the local candidate described in
+[the October 29 readiness handoff](CURRENT-READINESS-20261029.md). Its threshold
+is 0.4000000000000001; the older 0.65 figures below must not be presented as
+the active candidate's test result.
 
 - Only classifier: `models/model_4.joblib`.
 - Training run: `20261011T235112Z`.
@@ -170,8 +176,9 @@ The post-context panel contains only metadata and acquisition details obtained f
 selected Facebook post, or identifies manual input as manually entered. It does not
 invent claim-by-claim explanations. Public lookup uses Serper only and returns related
 reading from approved publishers. Google Fact Check is available only through the
-administrator evidence-review endpoint. Neither provider generates or changes classifier
-labels or scores, and a provider failure does not change the prediction. `POST
+administrator evidence-review endpoint. Full readable article assertions pass through
+the conservative evidence gate described in `EVIDENCE-DECISION-20261029.md`; provider
+failure does not change the model prediction. `POST
 /related-sources` supports a later source lookup and never invokes classification.
 Approved-domain results are additionally filtered and ranked by overlap between informative
 terms in the supplied post and each result's title and snippet. Normal post-sized queries
@@ -181,7 +188,7 @@ does not qualify a link; the endpoint returns `no_results` when no candidate pas
 relevance gate. If the first result set has no qualifying candidate, one focused retry uses
 concise event terms and approved Philippine publisher domains; the same relevance gate is
 applied to the retry.
-Extension version 1.3.1 enables its visible Serper setting once on install/update because
+Extension version 1.3.9 keeps its visible Serper setting enabled after install/update because
 public Facebook screening is expected to return related sources. The user can turn it off
 before analysis; the API itself still defaults to no external lookup when omitted.
 

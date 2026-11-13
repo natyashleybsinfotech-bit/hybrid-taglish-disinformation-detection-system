@@ -9,8 +9,10 @@ from urllib import error, parse, request
 import config
 try:
     from .provider_http import open_provider, read_json, safe_link
+    from .retrieval import _informative_terms, _is_relevant
 except ImportError:
     from provider_http import open_provider, read_json, safe_link
+    from retrieval import _informative_terms, _is_relevant
 
 
 def _tokens(value: str) -> set[str]:
@@ -52,6 +54,15 @@ def search_fact_checks(query: str) -> dict:
         for review in claim.get("claimReview", []):
             url = str(review.get("url", "")).strip()
             if not safe_link(url) or url in seen_urls:
+                continue
+            # A search API can return a review of a different claim. Apply the
+            # same topic, person, amount and explicit-date checks as article
+            # discovery before displaying its rating next to this post.
+            relevant, _ = _is_relevant(
+                {"title": review.get("title") or claim_text, "snippet": claim_text, "link": url},
+                _informative_terms(query), query,
+            )
+            if not relevant:
                 continue
             publisher = review.get("publisher") or {}
             matches.append({

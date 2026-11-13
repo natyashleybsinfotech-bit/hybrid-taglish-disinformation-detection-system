@@ -38,7 +38,7 @@ from sqlalchemy.pool import NullPool
 
 import config
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 metadata = MetaData()
 
 schema_migrations = Table(
@@ -184,6 +184,20 @@ research_records = Table(
     Column("usefulness", Integer, nullable=True),
 )
 
+screening_decisions = Table(
+    "ScreeningDecisions", metadata,
+    Column("screening_decision_id", Integer, primary_key=True, autoincrement=True),
+    Column("text_sha256", String(64), nullable=False),
+    Column("model_label", String(40), nullable=False),
+    Column("model_score", Float, nullable=False),
+    Column("evidence_assessment", String(40), nullable=False),
+    Column("source_urls_json", Text, nullable=False),
+    Column("final_label", String(40), nullable=False),
+    Column("final_reason", Text, nullable=False),
+    Column("evidence_adjusted", Boolean, nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.now()),
+)
+
 _engine: Engine | None = None
 _engine_key: str | None = None
 _engine_lock = Lock()
@@ -306,9 +320,32 @@ def migrate() -> dict[str, Any]:
             if 5 not in applied:
                 connection.execute(insert(schema_migrations).values(version=5))
                 newly_applied.append(5)
+            if 6 not in applied:
+                connection.execute(insert(schema_migrations).values(version=6))
+                newly_applied.append(6)
         return {"status": "available", "applied_versions": newly_applied}
     except (SQLAlchemyError, RuntimeError, OSError):
         return {"status": "unavailable", "applied_versions": []}
+
+
+def save_screening_decision(result: dict) -> int:
+    """Store decision trace without retaining submitted post text or page identity."""
+    with _get_engine().begin() as connection:
+        inserted = connection.execute(insert(screening_decisions).values(
+            text_sha256=hashlib.sha256(result["analyzed_text"].encode("utf-8")).hexdigest(),
+            model_label=result["model_public_label"], model_score=result["model_score"],
+            evidence_assessment=result["evidence_relationship"],
+            source_urls_json=json.dumps([item["url"] for item in result["related_sources"] if item.get("url")]),
+            final_label=result["final_label"], final_reason=result["final_reason"],
+            evidence_adjusted=result["evidence_adjusted"],
+        ))
+        return int(inserted.inserted_primary_key[0])
+
+
+def list_screening_decisions(limit: int = 100) -> list[dict]:
+    with _get_engine().connect() as connection:
+        rows = connection.execute(select(screening_decisions).order_by(screening_decisions.c.screening_decision_id.desc()).limit(limit)).mappings()
+        return [_serialize_dates(dict(row) | {"source_urls": json.loads(row["source_urls_json"])}) for row in rows]
 
 
 def hash_password(password: str, *, iterations: int = 260_000) -> str:

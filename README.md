@@ -1,12 +1,15 @@
 # SuriPH
 
-Start with [START_HERE.md](START_HERE.md) and the [release evidence](docs/RELEASE-READINESS.md).
+Start with the [local setup and demo guide](START_HERE.md). The
+[October 29 readiness report](docs/CURRENT-READINESS-20261029.md) and older
+[release evidence](docs/RELEASE-READINESS.md) are historical records; check their
+dates and superseding notes before relying on their versions or test counts.
 Use the [documentation index](docs/README.md) to find the paper, training references,
 setup, research materials and [project layout](docs/PROJECT-STRUCTURE.md).
 
-SuriPH is a deployable Taglish content-screening system composed of a FastAPI service, a Facebook-only Google Chrome extension, and an administrator dashboard. It returns exactly two public labels: **Potentially Misleading** or **No Misleading Information Detected**. The pinned model_4 prediction is the fallback. A closely matching published fact-check can set either label from its rating. One relevant official primary source or at least two relevant reports from independent approved publishers can corroborate the core claim as No Misleading Information Detected. One ordinary news link, an irrelevant match, or absence of search results never overrides model_4.
+SuriPH is a Taglish screening prototype composed of a FastAPI service, a Facebook-only Google Chrome extension, and an administrator dashboard. It returns exactly two public labels: **Potentially Misleading** or **No Misleading Information Detected**. The selected classifier screens text and extracted caption/image/video content; when requested, readable publisher evidence can adjust a prediction only under the documented corroboration rules. A direct speech/frame mismatch now requires a person to review the extracted video text before classification. Neither a model score nor a source link proves a claim, and results can be wrong. Search previews and inaccessible pages are not evidence; the model score is shown only in expandable analysis details and is not the probability that a claim is false. Insufficient evidence must be treated as unverified, not as a factual verdict. See [the evidence decision process](docs/EVIDENCE-DECISION-20261029.md).
 
-The classifier is loaded from a versioned model bundle. The API never falls back to random, hash-based, or mock verdicts. If the bundle is missing or incompatible, screening returns an error and the readiness endpoint fails.
+Local development defaults to `SURI_SCREENING_MODE=model`; set `SURI_SCREENING_MODE=evidence_only` only to explicitly disable classifier inference. Production requires model mode. OCR and speech recognition remain active in either mode. A local-trial model profile is not deployment-approved: its held-out scores measure agreement with inherited dataset labels, not independently verified real-world Facebook accuracy.
 
 ## Repository layout
 
@@ -62,9 +65,9 @@ remain disabled so they cannot replace model_4.
 threshold and readiness. A load/inference failure returns 503 for prediction and
 false readiness. No alternative classifier or fabricated prediction is used.
 
-## Evidence-assisted two-label decision
+## Related-source context
 
-When the visible evidence option is enabled, the API queries Serper and Google Fact Check alongside model inference. A fact-check override requires a similarity of at least 0.70, at least three matched informative terms, a published rating, and a safe source URL. Source corroboration requires at least two independently filtered publisher domains; headlines or snippets containing debunking markers do not count as support. The response identifies `decision_source`, `decision_basis`, the original `model_public_label`, and whether evidence adjusted the final label. The saved model probability and threshold remain unchanged and are shown separately from the final evidence-assisted label.
+The Facebook extension enables related-source search by default. Direct API callers must explicitly set `retrieve_sources`; API requests do not send text to a search provider unless requested. Serper provides up to 20 candidates, then the service fetches and checks up to 5–10 readable article bodies (configured maximum is clamped to 5–10) against the claim's material details. When source lookup is enabled, HTTPS links found in the Facebook post are prioritized within the same bounded article-fetch limit, but only on curated trusted-publisher domains. Their readable article body must corroborate a publisher headline that directly states the complete claim before that headline can contribute to evidence. Queries use plain claim terms; social domains are filtered locally instead of with search operators that may be rejected by some Serper account tiers. Results are restricted to a curated set of 60 local and international news, wire-service, and fact-checking publisher domains (including GMA, ABS-CBN, Inquirer, Rappler, VERA Files, Philstar, Manila Bulletin, Manila Standard, BusinessMirror, BusinessWorld, SunStar, Reuters, AP, BBC, CNN, NPR, The Guardian, Al Jazeera, &ASIAN, and others). Matching Philippine news and fact-checking publishers are preferred; international approved publishers are used if no Philippine match is found. Results are kept diverse by publisher; unsupported, social, and unrelated pages are excluded. In retrieval, “Department of Justice” and “DOJ” count as one relevance anchor, so a generic DOJ page cannot qualify merely because its name is repeated in a title and preview. If an approved publisher blocks article reading, its link and search preview may still be shown, clearly labeled as unverified and never used as evidence. This is a vetted publisher list, not a claim that every website is reliable or that every news domain is covered; not every Facebook post is necessarily reported by these publishers. Search cleanup ignores common photo/news bylines and post-date labels while retaining and matching years stated in the claim; English/Filipino forms such as `isapribado` and `maisapribado` are normalized for retrieval. An evidence override now requires two independent curated publishers with readable full articles directly supporting the complete claim and its material details, and no readable trusted article directly contradicting it. Contradictions can override a model warning only when two independent trusted publishers directly support the contradiction and no trusted source supports the claim. Multiple URLs from the same publisher, near-identical syndicated article bodies, untrusted domains, headlines alone, search snippets, and merely related articles do not count as corroboration. When sources are insufficient, conflicting, or inaccessible, the final label stays one of the two model screening labels and is explicitly unverified, not a factual verdict. Google Fact Check remains an administrator review tool.
 
 ## Local development
 
@@ -92,6 +95,8 @@ Set-Location .\backend-api
 ..\.venv-candidate-20261023-isolated\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log
 ```
 
+Local development loads the selected classifier at startup and fails readiness if it cannot load. The Facebook caption remains included alongside image OCR or analyzed video transcript/frame text when the caption is complete. If a Facebook caption is collapsed, a media check analyzes only the extracted media and says the caption was omitted. Videos with a detected speech/frame mismatch are sent to a review step and are not classified until confirmed. Source search is enabled by the extension when selected by the user; direct API callers must explicitly set `retrieve_sources`. A local-trial profile must not be presented as deployment-approved or guaranteed accurate.
+
 In a second terminal:
 
 ```powershell
@@ -99,6 +104,8 @@ Set-Location .\admin-dashboard
 npm.cmd ci
 npm.cmd run dev
 ```
+
+Open the admin console at `http://127.0.0.1:5173/` and sign in with your configured local administrator account.
 
 The dataset review workflows remain available, but this deployment cannot queue
 training or switch its active classifier. Historical registry records do not control
@@ -114,9 +121,10 @@ npm.cmd run build
 
 Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `chrome-extension/dist`.
 After every rebuild, click **Reload** on SuriPH in `chrome://extensions` and refresh every
-open Facebook tab so the version 1.3.2 content script replaces the old one. Version 1.3.2
+open Facebook tab so the version 1.3.14 content script replaces the old one. Version 1.3.14
 enables related-source lookup once on upgrade; the visible checkbox can turn it off before
 analysis. Up to 500 characters are sent to Serper only when this setting is enabled.
+Video audio processing accepts clips up to 3 minutes and 50 MiB.
 
 ## Production deployment
 
@@ -169,4 +177,5 @@ Before release, also run representative Filipino, English, and Taglish samples t
 
 - Production Compose uses MariaDB 11.4.13. Local development and tests may leave `SURI_DB_HOST` empty to use SQLite.
 - The classifier loads its supplied encoder/tokenizers locally and never downloads replacement weights. OCR and Whisper may download/cache weights unless pre-populated in `backend-api/data/runtime-models`.
+- Facebook in-page video analysis shows a result after speech and on-screen-text extraction when the two agree; a detected mismatch opens a review step before classification. All extraction remains fallible, and a matching topic does not prove a word-perfect transcript. See [video extraction validation](docs/VIDEO-EXTRACTION-VALIDATION-20261103.md) for ASR benchmarks and remaining limitations.
 - Model scores are predictions, not calibrated certainty or factual verification. Retrieved links require independent review.

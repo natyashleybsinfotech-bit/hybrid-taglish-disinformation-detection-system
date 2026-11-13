@@ -1,0 +1,30 @@
+{
+  "synthetic_fixtures": true,
+  "natural_taglish_accuracy_established": false,
+  "reference": "Read the full article before sharing. Check the original source.",
+  "spoken_video": {
+    "transcript": "Read the full article before sharing.\nCheck the original source.",
+    "frame_text": "Read the full article before sharing.",
+    "word_error_rate": 0.0,
+    "transcript_segments": [
+      {
+        "start_seconds": 0.0,
+        "end_seconds": 2.08,
+        "text": "Read the full article before sharing."
+      },
+      {
+        "start_seconds": 2.92,
+        "end_seconds": 4.2,
+        "text": "Check the original source."
+      }
+    ],
+    "sampled_frames": 2
+  },
+  "silent_video": {
+    "transcript": "",
+    "status": "no_reliable_speech",
+    "frame_text": "Read the full article before sharing.",
+    "no_invented_speech": true
+  },
+  "passed": true
+}

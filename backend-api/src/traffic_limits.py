@@ -19,7 +19,10 @@ class TrafficLimits:
         if not self.enabled or scope["type"] != "http" or scope["method"] != "POST":
             return await self.app(scope, receive, send)
         path = scope["path"]
-        screening = path in {"/analyze", "/predict", "/candidates", "/analyze/image", "/analyze/video"}
+        screening = path in {
+            "/analyze", "/predict", "/candidates", "/analyze/image", "/analyze/video",
+            "/extract/video", "/analyze/confirmed-video", "/related-sources",
+        }
         login = path == "/admin-api/login"
         if not (screening or login):
             return await self.app(scope, receive, send)

@@ -90,7 +90,7 @@ def main():
         assert database.migrate()['applied_versions']==[]
         research_store.change(receipt['record_id'],receipt['withdrawal_token'],withdraw=True)
         assert not research_store.export_rows()
-        report={'passed':True,'engine':'MariaDB 11.4.13 native Windows','schema_version':5,'actual_provision_command':'passed','empty_migration':'passed','idempotent_migration':'passed','runtime_ddl_denied':'passed','transaction_rollback':'passed','restart_persistence':'passed','database_outage':'passed','logical_gzip_restore_to_isolated_database':'passed','withdrawal_after_restore':'passed','production_docker_wrapper_tested':False}
+        report={'passed':True,'engine':'MariaDB 11.4.13 native Windows','schema_version':database.SCHEMA_VERSION,'actual_provision_command':'passed','empty_migration':'passed','idempotent_migration':'passed','runtime_ddl_denied':'passed','transaction_rollback':'passed','restart_persistence':'passed','database_outage':'passed','logical_gzip_restore_to_isolated_database':'passed','withdrawal_after_restore':'passed','production_docker_wrapper_tested':False}
         (ROOT/'docs/MARIADB-VERIFICATION.json').write_text(json.dumps(report,indent=2),encoding='utf-8');print(json.dumps(report,indent=2))
     finally:
         if database._engine:database._engine.dispose()

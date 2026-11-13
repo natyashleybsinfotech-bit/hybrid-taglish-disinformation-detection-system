@@ -4,9 +4,19 @@ import argparse
 import os
 import re
 import secrets
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+REGISTRY = ROOT / 'backend-api/src/model_profiles.json'
+
+
+def release_profile(profile_id):
+    registry = json.loads(REGISTRY.read_text(encoding='utf-8'))['profiles']
+    profile = registry.get(profile_id)
+    if not profile or not profile.get('deployment_approved'):
+        raise ValueError('This model profile is not approved for production. No settings were generated and no alternate model was selected.')
+    return profile
 
 
 def domain(value):
@@ -23,7 +33,12 @@ def main():
     parser.add_argument("--api-domain", required=True, type=domain)
     parser.add_argument("--admin-domain", required=True, type=domain)
     parser.add_argument("--email", required=True)
+    parser.add_argument("--model-profile", required=True, help="Explicit release profile; never defaults to a different historical model")
     args = parser.parse_args()
+    try:
+        profile = release_profile(args.model_profile)
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.api_domain == args.admin_domain:
         parser.error("API and admin must use different subdomains")
     if not re.fullmatch(r"[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", args.email):
@@ -33,6 +48,8 @@ def main():
     if output.exists() or extension.exists():
         parser.error("Production settings already exist; edit them explicitly instead of rotating live credentials")
     values = {
+        "SURI_MODEL_PROFILE": args.model_profile,
+        "SURI_RELEASE_ARTIFACT_ROOT": './backend-api/' + profile['artifact_directory'],
         "PUBLIC_API_URL": f"https://{args.api_domain}",
         "API_DOMAIN": args.api_domain,
         "ADMIN_DOMAIN": args.admin_domain,

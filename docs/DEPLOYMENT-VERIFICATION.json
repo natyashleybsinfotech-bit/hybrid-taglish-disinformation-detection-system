@@ -1,6 +1,9 @@
 {
   "static_checks_passed": true,
   "artifact_sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+  "checked_template_profile": "20261011T235112Z",
+  "running_model_verified_by_this_check": false,
+  "explicit_release_profile_required": true,
   "artifact_mounts": 5,
   "api_workers": 1,
   "retired_runtime_imports": 0,

@@ -34,6 +34,7 @@ def main():
     artifact_mounts = [entry for entry in mounts if ":/app/artifacts/" in entry]
     assert len(artifact_mounts) == 5
     for entry in artifact_mounts:
+        entry = entry.replace('${SURI_RELEASE_ARTIFACT_ROOT:?Select the release model explicitly}', './backend-api/models/TRAINING RESULTS')
         source, target, mode = entry.split(":")
         assert (ROOT / source).exists(), f"Required local artifact missing: {source}"
         assert target.startswith("/app/artifacts/") and mode == "ro"
@@ -65,6 +66,8 @@ def main():
     assert "OnCalendar=*-*-* 02:00:00" in maintenance_timer and "Persistent=true" in maintenance_timer
     docker_available = shutil.which("docker") is not None
     result = {"static_checks_passed": True, "artifact_sha256": digest,
+              "checked_template_profile": "20261011T235112Z", "running_model_verified_by_this_check": False,
+              "explicit_release_profile_required": True,
               "artifact_mounts": 5, "api_workers": 1, "retired_runtime_imports": 0,
               "database_exposed": False, "container_bundled_model_tree": False, "docker_build_tested": False,
               "compose_stack_tested": False, "tls_tested": False,

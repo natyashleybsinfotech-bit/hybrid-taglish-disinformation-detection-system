@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-29",
+  "scope": "Synthetic held-out text renderings through the actual local candidate image/video HTTP routes; not factual accuracy or natural Facebook media",
+  "first_run": [
+    {"case_id": "M001", "mode": "image", "http_status": 200, "extraction_status": "completed"},
+    {"case_id": "M002", "mode": "image", "http_status": 200, "extraction_status": "completed"},
+    {"case_id": "M003", "mode": "video", "http_status": 422, "error": "FFmpeg could not process the submitted video.", "cause": "Fixture omitted the audio stream required by the video acquisition path"},
+    {"case_id": "M004", "mode": "video", "http_status": 422, "error": "FFmpeg could not process the submitted video.", "cause": "Fixture omitted the audio stream required by the video acquisition path"}
+  ],
+  "repair": "Add a silent audio track to M003 and M004 before human review; retain their old hashes in the manifest amendment",
+  "retest": [
+    {"case_id": "M003", "mode": "video", "http_status": 200, "extraction_status": "completed", "extracted_characters": 211, "sampled_frames": 1},
+    {"case_id": "M004", "mode": "video", "http_status": 200, "extraction_status": "completed", "extracted_characters": 218, "sampled_frames": 1}
+  ]
+}

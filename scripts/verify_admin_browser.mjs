@@ -110,7 +110,7 @@ try {
   assert.equal(sessionReload, true);
   assert.equal((await evaluate(client, 'document.body.innerText')).includes('Participant research'), false);
   await evaluate(client, 'history.pushState({},"","/research"); window.dispatchEvent(new PopStateEvent("popstate")); true');
-  await waitFor(client, 'location.pathname==="/"');
+  await waitFor(client, 'location.pathname==="/performance"');
   const retiredExport = await evaluate(client, `fetch('http://127.0.0.1:8000/admin-api/research-export',{credentials:'include'}).then(r=>r.status)`, true);
   assert.equal(retiredExport, 404);
   await clickText(client, 'Log out');

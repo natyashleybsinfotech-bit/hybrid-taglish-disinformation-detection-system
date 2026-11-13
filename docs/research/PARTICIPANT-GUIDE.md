@@ -32,7 +32,7 @@ duration, not bodies, raw text or credentials; the server/network may process co
 information. The extension no longer stores previous input or results on disk.
 
 Related-source search is a separate visible choice that is enabled initially in version
-1.3.1. It can be turned off before analysis. When enabled, up to 500 cleaned
+1.3.9. It can be turned off before analysis. When enabled, up to 500 cleaned
 characters are sent as a search query to Serper. The choice persists
 on the device and also applies to the in-page S button until switched off. Provider
 processing is outside the study's database. Opening a retrieved link contacts that
@@ -83,5 +83,5 @@ AFP-only tasks: inspect readiness/model identity; try viewer access to a protect
 review migration, rollback, backup/restore and performance evidence; observe two accepted
 concurrent requests and a busy response; identify what remains unverified on the target server.
 
-Answer the appropriate draft questionnaire after tasks. Provide comments without names,
+Answer the revised 45-item questionnaire after the demonstrated tasks using the separate AFP or BSIT link. The scale is 5 Strongly agree, 4 Agree, 3 Moderately Agree, 2 Disagree, 1 Strongly disagree, and a separate N/A for an item not tested or observed. Rate the actual experience independently; survey ratings are not model-performance measurements. Provide comments without names,
 private content or classified/institutional details. Do not report invented participant scores.

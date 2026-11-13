@@ -1,10 +1,21 @@
 # Start here — SuriPH research prototype
 
+**Current extension build: 1.3.29.** On 14 November, the backend suite passed **188 tests**, the extension passed **20 behavior tests** and its product contract, and the extension build passed. `/ready` returned true with MariaDB and the pinned model. A local text/image/video smoke check passed using a synthetic English speech clip: repeated text returned the same label and score, image OCR matched its known text, and the confirmed video transcript matched its known audio (21.46 seconds). Three simultaneous short-text requests returned HTTP 200 in 203 ms total on this workstation. A separate [live-stack report](docs/LIVE-STACK-PERFORMANCE.json) used longer synthetic text payloads and measured three concurrent HTTP 200 responses in 4.90 seconds. Those workloads are not directly comparable; neither is an SLA or a target-server capacity result. These are local functional/latency checks, not natural Taglish/news-video or factual-classification accuracy results.
+
+**Still unresolved:** material speech-recognition errors in the GMA news clip; known classifier false positives and no independent real-world accuracy result; the user's installed Google Chrome/Facebook rehearsal and accessibility checks; Linux/Docker deployment; and institutional review before participant research. A known true health claim was classified as Potentially Misleading when lookup was off; with lookup on, a readable CDC article directly supporting it corrected the final label. This is one checked case, not a general accuracy guarantee. Keep related-source lookup enabled for the demo and compare each result with the full source. Do not claim every transcript or prediction is accurate, survey approval, or public readiness. Videos whose speech and sampled on-screen text disagree now stop for human text review before classification; that safeguard does not correct a misheard transcript when the screen text cannot reveal it.
+
+On the first API start during this rehearsal, Windows Application Control blocked a native Python module and `/ready` returned 503. A fresh process start succeeded without changing the security policy. If this recurs, retain the error and ask the machine administrator; do not disable or bypass Application Control.
+
+For item 2.5, the current acceptance checklist describes simultaneous requests against capacity, not a numeric response-time target. The production traffic guard admits two concurrent screening requests and returns HTTP 503 with a retry hint for excess requests; a backend test verifies rejection and recovery. A separate local smoke run returned HTTP 200 for three short-text requests in 203 ms total, but that does not measure saturation, establish target-server capacity, or set an SLA. Confirm the evaluator's pass criterion and demonstrate the target server before marking the item passed. Items 6.5 and 8.4 also require a deployed HTTPS service and a second supported Chrome setup, respectively. The current loopback HTTP rehearsal cannot be reported as passing those items.
+
+**Current change records:** [14 November source-preview and score clarification](docs/SOURCE-PREVIEW-AND-SCORE-20261114.md), [video mismatch review, evidence wording, tests and remaining limits](docs/VIDEO-MISMATCH-REVIEW-20261113.md). **Historical records:** [consolidated software status](docs/FINAL-SOFTWARE-STATUS-20261112.md), [readable-source and Windows dependency repair](docs/FINISHING-REPAIR-20261112.md), [model/source/admin refinement](docs/SYSTEM-REFINEMENT-20261112.md), [speech comparison](docs/SPEECH-IMPROVEMENT-20261112.md), and [defense rehearsal](docs/DEFENSE-REHEARSAL-20261110.md). Their test counts and extension versions refer to the earlier snapshots they describe. The [questionnaire checklist](docs/research/QUESTIONNAIRE-ACCEPTANCE-20261110.md), [November 2 findings](docs/FINISHING-STATUS-20261102.md), and [October 29 readiness checklist](docs/CURRENT-READINESS-20261029.md) remain historical research context.
+
 **Implemented and locally tested; deployment prepared; not publicly deployed.**
 See [the release evidence and GO/NO-GO gate](docs/RELEASE-READINESS.md) before inviting participants.
 The [documentation index](docs/README.md) maps research references, setup and deployment.
-The stable hybrid model is verified; the prepared workstation currently selects the
-new local-trial candidate described in [LOCAL-CANDIDATE-TRIAL.md](docs/LOCAL-CANDIDATE-TRIAL.md).
+The active hybrid's saved-output parity is verified, but factual accuracy is not.
+The prepared workstation selects the local-trial candidate described in
+[LOCAL-CANDIDATE-TRIAL.md](docs/LOCAL-CANDIDATE-TRIAL.md); it is not approved for production.
 An earlier isolated Edge Chromium extension rehearsal
 passed; Linux containers, production HTTPS and a manual Google Chrome/Facebook study
 session still need completion.
@@ -51,7 +62,7 @@ npm.cmd run build
 Open `chrome://extensions`, enable Developer mode, **Load unpacked**, select
 `chrome-extension/dist`. Reload existing installs and supported pages after a build.
 Manual text works from the popup; selection/caption extraction is supported only on
-Facebook. Media extraction is experimental and has only synthetic smoke evidence.
+Facebook. Media extraction remains experimental; [three natural news-video checks](docs/VIDEO-EXTRACTION-VALIDATION-20261103.md) exposed transcription errors. A speech/frame mismatch now triggers review before classification; matched-but-wrong transcripts remain possible. The installed Google Chrome/Facebook media flow still needs the user's live observation.
 No Chrome Web Store publication has occurred.
 
 Check the API:
@@ -62,10 +73,13 @@ Invoke-RestMethod http://127.0.0.1:8000/analyze -Method Post -ContentType applic
 ```
 
 The default request saves nothing and does not query an external evidence provider.
-Version 1.3.4 retains the visible evidence choice enabled after install/update. Public
-Facebook screening requests approved-publisher reports and published fact-checks by default.
-The final output still has exactly two labels. Strong fact-check evidence or at least two
-independent corroborating reports can override the model label; otherwise model_4 decides.
+Version 1.3.27 retains the visible related-source choice enabled after install/update. Public
+Facebook screening requests related reports from approved publishers by default.
+The final output has exactly two labels. Only sufficient claim-specific evidence from readable articles can change the model prediction; merely related links cannot.
+When evidence is insufficient, the model prediction remains visible and is
+explicitly identified as unverified. Media results separate caption, speech,
+and sampled frame text; uncertain speech quality can stop the request without
+producing a prediction. See the current handoff for the measured checks and limits.
 Users can turn evidence lookup off before analysis. A separate explicit-consent
 action can submit the analyzed text to the private human-review queue; it does not add the
 text to a dataset. Participant surveys and responses are handled separately from the
@@ -90,7 +104,7 @@ docker compose --env-file .env.local-stack ps
 API: `http://127.0.0.1:8000`; dashboard: `http://127.0.0.1:8080`.
 The named database volume belongs to project `suriph-local`; no database port is exposed.
 The API account has SELECT/INSERT/UPDATE/DELETE only. The separate one-shot migration
-service provisions it and applies schema v5. Root/maintenance credentials are cleared
+service provisions it and applies schema v6. Root/maintenance credentials are cleared
 from the running API environment. Do not start two local APIs on port 8000.
 
 Stop without deleting data:
@@ -104,7 +118,7 @@ docker compose --env-file .env.local-stack stop
 From the project root (local model artifacts and test records required):
 
 ```powershell
-.\.venv-candidate-20261023-isolated\Scripts\python.exe -B -m unittest discover -s backend-api/tests -p 'test_*.py' -v
+.\.venv-candidate-20261023-isolated\Scripts\python.exe -B -m pytest backend-api/tests -q
 .\.venv-candidate-20261023-isolated\Scripts\python.exe -B backend-api/scripts/verify_candidate_regressions.py
 .\.venv-candidate-20261023-isolated\Scripts\python.exe -B backend-api/scripts/verify_hybrid.py
 .\.venv\Scripts\python.exe -B backend-api/scripts/diagnose_prediction_path.py

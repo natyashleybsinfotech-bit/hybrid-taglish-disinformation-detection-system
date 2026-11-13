@@ -1,7 +1,7 @@
 {
   "passed": true,
   "engine": "MariaDB 11.4.13 native Windows",
-  "schema_version": 5,
+  "schema_version": 6,
   "actual_provision_command": "passed",
   "empty_migration": "passed",
   "idempotent_migration": "passed",

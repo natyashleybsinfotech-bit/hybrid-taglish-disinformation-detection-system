@@ -1,5 +1,9 @@
 # Release evidence and GO/NO-GO — October 22, 2026
 
+**Historical snapshot.** [The October 29 readiness handoff](CURRENT-READINESS-20261029.md)
+supersedes this page's active-model, extension-version and automatic evidence-override
+descriptions. Keep the measurements below as dated evidence only.
+
 **Implemented:** the fixed hybrid runtime, feature display, separate optional evidence
 lookup, MariaDB schema v5, administration and deployment scripts. Participant survey
 collection is outside the extension and administrator dashboard.

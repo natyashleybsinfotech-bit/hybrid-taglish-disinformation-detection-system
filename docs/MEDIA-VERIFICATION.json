@@ -3,12 +3,12 @@
   "accuracy_study": false,
   "image": {
     "passed": true,
-    "seconds": 5.081993599998896,
+    "seconds": 34.808971599999495,
     "expected_phrase_present": true
   },
   "video": {
     "passed": true,
-    "seconds": 14.053943400000207,
+    "seconds": 37.076299799999106,
     "transcript_expected_word": true,
     "ocr_expected_word": true,
     "sampled_frames": 2

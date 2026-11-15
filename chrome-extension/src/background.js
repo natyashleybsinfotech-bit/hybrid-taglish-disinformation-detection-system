@@ -18,7 +18,9 @@ chrome.runtime.onConnect.addListener(port => {
     if (message?.type === 'PING' || started || message?.type !== 'ANALYZE_VIDEO') return;
     started = true;
     if (message.videoUrl) {
-      postMedia('analyze/video', message.videoUrl, message.payload || {})
+      postMedia('analyze/video', message.videoUrl, message.payload || {}, phase => {
+        if (connected) port.postMessage({ type: 'VIDEO_PROGRESS', phase });
+      })
         .then(result => { if (connected) port.postMessage({ ok: true, result }); })
         .catch(error => { if (connected) port.postMessage({ ok: false,
           fallback_to_capture: error.fallback_to_capture === true,
@@ -67,7 +69,62 @@ async function postRelatedSources(payload) {
   catch (_) { throw new Error('Related-source lookup is unavailable. The prediction is unchanged.'); }
   const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Source lookup failed with status ${response.status}.`); return body;
 }
-async function postMedia(path, url, payload) {
+async function readMediaPart(response, maxBytes) {
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) throw new Error('Media exceeds the 50 MiB limit.');
+  if (!response.body?.getReader) {
+    const blob = await response.blob();
+    if (blob.size > maxBytes) throw new Error('Media exceeds the 50 MiB limit.');
+    return blob;
+  }
+  const reader = response.body.getReader(); const chunks = []; let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) throw new Error('Media exceeds the 50 MiB limit.');
+      chunks.push(value);
+    }
+  } catch (error) { await reader.cancel().catch(() => {}); throw error; }
+  finally { reader.releaseLock(); }
+  return new Blob(chunks, { type: response.headers.get('content-type') || '' });
+}
+async function completeVideoDownload(response, url, signal) {
+  const maxBytes = 50 * 1024 * 1024;
+  const invalid = () => Object.assign(new Error('The direct video download was incomplete or changed. Use complete playback capture or the original file.'), { fallback_to_capture: true });
+  if (response.status === 200) return readMediaPart(response, maxBytes);
+  if (response.status !== 206) throw invalid();
+  const rangeOf = item => {
+    const match = /^bytes (\d+)-(\d+)\/(\d+)$/i.exec(item.headers.get('content-range') || '');
+    if (!match) throw invalid();
+    const [start, end, total] = match.slice(1).map(Number);
+    if (![start, end, total].every(Number.isSafeInteger) || total <= 0 || start > end || end >= total) throw invalid();
+    if (total > maxBytes) throw new Error('Media exceeds the 50 MiB limit.');
+    return { start, end, total };
+  };
+  const first = rangeOf(response);
+  if (first.start !== 0) throw invalid();
+  const validator = response.headers.get('etag') || response.headers.get('last-modified');
+  // Multiple requests need a stable object validator. An unvalidated complete
+  // range is safe to read in one response; unvalidated fragments are not joined.
+  if (first.end + 1 < first.total && (!validator || validator.startsWith('W/'))) throw invalid();
+  const type = response.headers.get('content-type') || 'video/mp4';
+  const parts = []; let received = 0; let range = first;
+  for (let request = 0; request < 64; request++) {
+    if (range.start !== received || range.total !== first.total) throw invalid();
+    const part = await readMediaPart(response, range.end - range.start + 1);
+    if (part.size !== range.end - range.start + 1) throw invalid();
+    parts.push(part); received += part.size;
+    if (received === first.total) return new Blob(parts, { type });
+    response = await fetch(url, { credentials: 'include', signal,
+      headers: { Range: `bytes=${received}-${Math.min(received + 4 * 1024 * 1024 - 1, first.total - 1)}`, 'If-Range': validator } });
+    if (response.status !== 206 || (response.headers.get('etag') || response.headers.get('last-modified')) !== validator) throw invalid();
+    range = rangeOf(response);
+  }
+  throw invalid();
+}
+async function postMedia(path, url, payload, onProgress = () => {}) {
   let mediaResponse;
   const parsed = new URL(url); const host = parsed.hostname.toLowerCase();
   const fetchFailure = message => Object.assign(new Error(message), { fallback_to_capture: true });
@@ -76,15 +133,18 @@ async function postMedia(path, url, payload) {
   const timer = setTimeout(() => controller.abort(), path.includes('video') ? 30000 : 120000);
   let blob;
   try {
+    if (path.includes('video')) onProgress('downloading');
     mediaResponse = await fetch(url, { credentials: 'include', signal: controller.signal });
     if (!mediaResponse.ok) throw fetchFailure(`Post media fetch failed (${mediaResponse.status}).`);
-    if (path.includes('video') && mediaResponse.status !== 200) throw fetchFailure('The media server returned only part of the video.');
-    blob = await mediaResponse.blob();
+    blob = path.includes('video')
+      ? await completeVideoDownload(mediaResponse, url, controller.signal)
+      : await readMediaPart(mediaResponse, 50 * 1024 * 1024);
     if (!blob.size) throw fetchFailure('The post media was empty.');
   } catch (error) {
+    if (error.message === 'Media exceeds the 50 MiB limit.') throw error;
     if (error.fallback_to_capture) throw error;
     throw fetchFailure('Post media could not be fetched. The platform may be protecting or expiring this media URL.');
-  } finally { clearTimeout(timer); }
+  } finally { clearTimeout(timer); controller.abort(); }
   if (blob.size > 50 * 1024 * 1024) throw new Error('Media exceeds the 50 MiB limit.');
   if (path.includes('video') && !blob.type.startsWith('video/')) {
     const head = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
@@ -99,6 +159,7 @@ async function postMedia(path, url, payload) {
   if (payload.text) form.append('post_text', payload.text); if (payload.context) form.append('context_json', JSON.stringify(payload.context));
   form.append('retrieve_sources', String(payload.retrieve_sources === true));
   let response;
+  if (path.includes('video')) onProgress('extracting');
   try { response = await boundedFetch(`${API_BASE}/${path}`, { method: 'POST', body: form }, path.includes('video') ? 420000 : 120000); }
   catch (_) { throw new Error('SuriPH backend is unavailable. Check the configured API connection.'); }
   const body = await response.json().catch(() => ({}));

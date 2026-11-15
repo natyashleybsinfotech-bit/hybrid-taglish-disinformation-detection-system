@@ -268,7 +268,8 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(result["related_sources"], [])
 
     def test_missing_key_is_non_fatal(self):
-        with patch.object(retrieval.config, "SERPER_API_KEY", ""):
+        # Exercise the missing-key path independently of the developer's .env.
+        with patch.object(retrieval.config, "SERPER_ENABLED", True), patch.object(retrieval.config, "SERPER_API_KEY", ""):
             result = retrieval.retrieve_related_sources("sample")
         self.assertEqual(result["retrieval_status"], "unavailable_not_configured")
         self.assertEqual(result["related_sources"], [])

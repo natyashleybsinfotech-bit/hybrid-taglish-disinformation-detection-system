@@ -16,6 +16,34 @@ from model_runtime import Prediction, ModelRuntime
 
 
 class ApiTests(unittest.TestCase):
+    def test_evidence_override_exports_passages_and_preserves_original_model(self):
+        claim = 'The city opened three public schools in Manila on Monday.'
+        self.retrieval_mock.return_value = {
+            'retrieval_status': 'available', 'focused_used': False,
+            'related_sources': [
+                {'url': 'https://www.philstar.com/report', 'title': 'School opening',
+                 'article_text': claim + ' Families attended the opening ceremony.'},
+                {'url': 'https://tribune.net.ph/report', 'title': 'Three schools opened',
+                 'article_text': claim + ' The education office welcomed the development.'},
+            ],
+        }
+        application.classify.return_value = Prediction(
+            internal_label='Misleading', public_label='Potentially Misleading',
+            confidence=.9, model_score=.9, predicted_class=1,
+            model_status='ready', model_name='Test model', model_version='test-1',
+        )
+        response = self.client.post('/analyze', json={'text': claim, 'retrieve_sources': True})
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['final_label'], 'No Misleading Information Detected')
+        self.assertEqual(body['model_public_label'], 'Potentially Misleading')
+        self.assertEqual(body['model_score'], .9)
+        self.assertIsNone(body['final_confidence'])
+        self.assertEqual(body['verification_status'], 'evidence_assessed')
+        self.assertTrue(all(s['evidence_excerpt'] == claim and s['used_for_decision'] for s in body['related_sources']))
+        self.assertTrue(all('article_text' not in s for s in body['related_sources']))
+        application.classify.assert_called_once()
+
     def test_trusted_article_link_from_post_is_checked_but_not_sufficient_alone(self):
         claim = "Scarlet Witch is returning in Avengers: Doomsday"
         url = "https://www.gmanetwork.com/news/lifestyle/hobbiesandactivities/1009209/scarlet-witch-is-returning-in-avengers-doomsday/story/"
@@ -293,7 +321,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(body["verification_status"], "evidence_assessed")
         self.assertNotIn("article_text", body["related_sources"][0])
 
-    def test_primary_cdc_article_is_not_enough_to_override_model_through_api(self):
+    def test_primary_cdc_direct_health_support_can_override_model_through_api(self):
         claim = "Drinking enough water helps prevent dehydration."
         application.classify.return_value = Prediction(
             internal_label="Misleading", public_label="Potentially Misleading", confidence=.87,
@@ -318,10 +346,14 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertEqual(body["model_public_label"], "Potentially Misleading")
-        self.assertEqual(body["public_label"], "Potentially Misleading")
+        self.assertEqual(body["public_label"], "No Misleading Information Detected")
         self.assertEqual(body["evidence_relationship"], "supports")
-        self.assertEqual(body["decision_source"], "screening_model")
-        self.assertEqual(body["verification_status"], "not_verified")
+        self.assertEqual(body["decision_source"], "verified_evidence")
+        self.assertEqual(body["verification_status"], "evidence_assessed")
+        self.assertEqual(body["evidence_rule"], "scoped_primary_authority")
+        self.assertEqual(body["model_score"], .87)
+        self.assertTrue(body["related_sources"][0]["used_for_decision"])
+        self.assertTrue(body["related_sources"][0]["evidence_excerpt"])
 
     def test_claim_mismatch_scenarios_stay_unverified_through_api(self):
         scenarios = {

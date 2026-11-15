@@ -1,0 +1,346 @@
+{
+  "purpose": "Read-only, hand-labeled, balanced probe of short/video-transcript-style statements. No training, tuning, or threshold change performed.",
+  "model": {
+    "classifier": "model_4.joblib",
+    "training_run_id": "20261011T235112Z",
+    "sha256": "72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c",
+    "decision_threshold": 0.65
+  },
+  "probe_size": 40,
+  "ground_truth_distribution": {
+    "Non-Misleading": 20,
+    "Misleading": 20
+  },
+  "confusion": {
+    "TN": 0,
+    "FP": 20,
+    "FN": 1,
+    "TP": 19
+  },
+  "accuracy": 0.475,
+  "false_positive_rate_on_non_misleading": 1.0,
+  "false_negative_rate_on_misleading": 0.05,
+  "rows": [
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "neutral schedule statement",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.999974789355809,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "neutral transit notice",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999660148673,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine weather forecast",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999994543018176,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine community announcement",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999368168568852,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "mundane school event recap",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999915626167136,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine local news",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999990361026,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "no-class-suspension notice",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999997455624586,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "generic health reminder",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999919788461036,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "personal anecdote, true-sounding",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9227444575684682,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine sports update",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999816248724747,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine LGU update",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999998000669963,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "celebratory, factual",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9995833025011303,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "neutral local development",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999945878726,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine institutional announcement",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999996766133,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "common-sense weather advisory",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9803653169861335,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine transport update",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999999022815,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine holiday notice",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999999710414,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine service announcement",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999996269882941,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine infrastructure update",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999996540512843,
+      "correct": false
+    },
+    {
+      "ground_truth": "Non-Misleading",
+      "note": "routine weather update",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9998083549657087,
+      "correct": false
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "classic too-good-to-be-true giveaway scam",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.999958894828723,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "dangerous health misinformation",
+      "predicted_label": "Non-Misleading",
+      "public_label": "No Misleading Information Detected",
+      "model_score": 0.13526092662334652,
+      "correct": false
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "debunked conspiracy claim",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.8039362929109773,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "panic-inducing financial hoax",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.99999666326392,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "unverified viral rumor framed as fact",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.999664493719944,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "well-known debunked conspiracy",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999983399197,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "false miracle-cure health claim",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999999997608053,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "fabricated political claim",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 1.0,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "classic forward-chain hoax",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.99918762864037,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "debunked anti-vaccine conspiracy",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999977133984485,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "false celebrity-attributed health claim",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9998479818549545,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "recurring viral hoax, falsely attributed to NASA",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999998446349193,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "fabricated policy claim",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9998893173366261,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "false, unverified health scare",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999998272440579,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "unverified alarming health rumor",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.8917076121841953,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "unverified conspiracy claim",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.999999959363736,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "false pandemic-era health claim",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999856648718471,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "unverified alarming financial rumor",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.999999999999041,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "unverified political conspiracy",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 0.9999229968569233,
+      "correct": true
+    },
+    {
+      "ground_truth": "Misleading",
+      "note": "classic tech-scare chain hoax",
+      "predicted_label": "Misleading",
+      "public_label": "Potentially Misleading",
+      "model_score": 1.0,
+      "correct": true
+    }
+  ],
+  "interpretation_note": "Unlike the earlier 10-item unlabeled probe, every statement here has a hand-assigned ground truth, so FP/TN here measure genuine bias toward the Misleading class on short inputs, not just a count of Misleading outputs."
+}

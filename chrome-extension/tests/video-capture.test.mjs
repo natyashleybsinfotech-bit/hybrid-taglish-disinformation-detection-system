@@ -43,3 +43,43 @@ test('changed source aborts the recording of the selected post', async t => {
   await Promise.resolve(); await Promise.resolve();
   video.currentSrc = 'blob:neighbor'; t.mock.timers.tick(100); await rejected;
 });
+
+test('skipping to the end cannot masquerade as a complete audio recording', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const video = new Video(); const task = captureVideoElement(video);
+  const rejected = assert.rejects(task, /seeked during capture/);
+  await Promise.resolve(); await Promise.resolve();
+  video.currentTime = video.duration; video.dispatchEvent(new Event('seeking'));
+  await rejected;
+});
+
+test('closing or replacing the request stops capture and restores playback options', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const video = new Video(); video.loop = true; video.autoplay = true;
+  let current = true;
+  const task = captureVideoElement(video, { shouldContinue: () => current });
+  const rejected = assert.rejects(task, /cancelled/);
+  await Promise.resolve(); await Promise.resolve();
+  current = false; t.mock.timers.tick(100); await rejected;
+  assert.equal(video.loop, true); assert.equal(video.autoplay, true);
+  assert.equal(video.paused, true); assert.equal(video.playbackRate, 2);
+});
+
+test('lost audio track fails instead of uploading a silent remainder', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const video = new Video(); const task = captureVideoElement(video);
+  const rejected = assert.rejects(task, /audio track ended/);
+  await Promise.resolve(); await Promise.resolve();
+  video.tracks[0].readyState = 'ended'; t.mock.timers.tick(100); await rejected;
+});
+
+test('capture progress reflects the selected playback, not a fabricated percent', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const video = new Video(); const readings = [];
+  const task = captureVideoElement(video, { onProgress: reading => readings.push(reading) });
+  await Promise.resolve(); await Promise.resolve();
+  video.currentTime = 1; t.mock.timers.tick(100);
+  assert.deepEqual(readings[0], { capturedSeconds: 1, durationSeconds: 2 });
+  video.currentTime = 2; video.ended = true; video.dispatchEvent(new Event('ended'));
+  await task;
+});

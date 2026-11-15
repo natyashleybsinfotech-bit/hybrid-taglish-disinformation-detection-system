@@ -18,13 +18,16 @@ _ASSERTION_VERBS = {
     "supports": "support", "supported": "support", "supporting": "support",
     "improves": "improve", "improved": "improve", "improving": "improve",
     "treats": "treat", "treated": "treat", "treating": "treat",
+    "creates": "create", "created": "create", "creating": "create", "creation": "create",
+    "adopts": "adopt", "adopted": "adopt", "adopting": "adopt", "adoption": "adopt",
+    "offers": "offer", "offered": "offer", "offering": "offer",
     "rollbacks": "rollback",
 }
 _MATERIAL_ACTIONS = {
     "seize", "destroy", "arrest", "kill", "shoot", "open", "approve", "file",
     "charge", "prevent", "cause", "reduce", "increase", "support", "improve",
     "treat", "cure", "recommend", "privatize", "return", "suspend", "resign",
-    "relationship", "spy", "rollback",
+    "relationship", "spy", "rollback", "create", "adopt", "offer",
 }
 
 
@@ -39,6 +42,8 @@ def _evidence_terms(text: str) -> set[str]:
 
 
 def _is_trusted_source(url: str | None) -> bool:
+    if urlparse(url or "").scheme not in {"http", "https"}:
+        return False
     host = (urlparse(url or "").hostname or "").casefold().removeprefix("www.")
     return any(host == suffix or host.endswith(f".{suffix}") for suffix in TRUSTED_DOMAIN_SUFFIXES)
 
@@ -50,6 +55,23 @@ def _publisher_key(url: str | None) -> str:
         if host == suffix or host.endswith(f".{suffix}")
     ]
     return max(matching_publishers, key=len, default=host)
+
+
+def _primary_authority_for_claim(url: str | None, claim: str) -> str | None:
+    """Narrow authority scopes; a generic government hostname is not sufficient."""
+    host = (urlparse(url or '').hostname or '').casefold().removeprefix('www.')
+    terms = _evidence_terms(claim)
+    health = {'water', 'dehydration', 'vaccine', 'vaccination', 'disease', 'health', 'infection', 'symptom'}
+    rules = {
+        'cdc.gov': ('CDC public-health guidance', health),
+        'who.int': ('WHO public-health guidance', health),
+        'doh.gov.ph': ('DOH public-health guidance', health),
+        'customs.gov.ph': ('Bureau of Customs report', {'customs'}),
+    }
+    for domain, (authority, subjects) in rules.items():
+        if (host == domain or host.endswith('.' + domain)) and terms & subjects:
+            return authority
+    return None
 
 
 def _words(value: str) -> list[str]:
@@ -119,11 +141,33 @@ def _negates_material_action(words: list[str], actions: set[str]) -> bool:
 
 
 def _sentences(value: str) -> list[str]:
-    return [part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", value) if part.strip()]
+    # Some readable publisher bodies concatenate paragraphs as "lives.In a ...".
+    # Recover those boundaries so one long block does not hide a direct claim.
+    # Protect common name/title abbreviations in both the post and article.
+    # Otherwise "Marcos Jr. signed" becomes two separate claims.
+    protected = re.sub(
+        r"\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|Atty|Sen|Rep|Gov|Pres|Gen|Sec|Engr)\.",
+        lambda match: match.group()[:-1] + "\ue000", value, flags=re.I,
+    )
+    return [part.strip().replace("\ue000", ".") for part in re.split(
+        r"(?<=[.!?])(?:\s+|(?=[A-Z]))|\n+", protected,
+    ) if part.strip()]
 
 
 def _material_numbers(value: str) -> set[str]:
-    return {number.replace(",", "") for number in re.findall(r"(?<!\d)\d[\d,]*(?:\.\d+)?(?!\d)", value)}
+    numbers = {number.replace(",", "") for number in re.findall(r"(?<!\d)\d[\d,]*(?:\.\d+)?(?!\d)", value)}
+    spelled = {
+        'zero': '0', 'one': '1', 'two': '2', 'three': '3', 'four': '4',
+        'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9',
+        'ten': '10', 'eleven': '11', 'twelve': '12', 'thirteen': '13',
+        'fourteen': '14', 'fifteen': '15', 'sixteen': '16', 'seventeen': '17',
+        'eighteen': '18', 'nineteen': '19', 'twenty': '20',
+        'isa': '1', 'isang': '1', 'dalawa': '2', 'dalawang': '2',
+        'tatlo': '3', 'tatlong': '3', 'apat': '4', 'limang': '5',
+        'lima': '5', 'anim': '6', 'pito': '7', 'walo': '8', 'siyam': '9', 'sampu': '10',
+    }
+    numbers.update(spelled[word] for word in _words(value) if word in spelled)
+    return numbers
 
 
 def _material_locations(value: str) -> set[str]:
@@ -153,20 +197,32 @@ def _material_support(claim: str, body: str) -> tuple[str, str]:
     claim_people = _person_entity_anchors(claim_text)
     claim_places = _material_locations(claim_text)
     claim_qualifiers = _claim_qualifiers(claim_text)
+    # For creation/adoption/offer news, the named actor before the action is
+    # material. A story about a different actor must not satisfy a headline.
+    claim_words = _words(claim_text)
+    first_action = next((index for index, word in enumerate(claim_words)
+                         if _ASSERTION_VERBS.get(_canonical_term(word), _canonical_term(word)) in actions), None)
+    actor_terms = (_evidence_terms(" ".join(claim_words[:first_action]))
+                   if first_action is not None and actions & {"create", "adopt", "offer"} else set())
     sentences = _sentences(body)
+    best_window = None
     for index in range(len(sentences)):
         for count in (1, 2, 3):
             window_parts = sentences[index:index + count]
             if len(window_parts) != count:
                 continue
             window = " ".join(window_parts)
+            if len(window) > 1600:
+                continue
             lowered = window.casefold()
             if (any(part.lstrip().startswith(('"', '“', "'", '‘', '>')) for part in window_parts)
-                    or '?' in window or re.search(r"\b(?:viral post|social media post|post claims?|rumou?rs?|hypothetical|debunked|false|fake|misleading|untrue|incorrect)\b", lowered)):
+                    or '?' in window or re.search(r"\b(?:if|whether|would|could|might|kung|sakali|viral post|social media post|post claims?|rumou?rs?|hypothetical|debunked|false|fake|misleading|untrue|incorrect)\b", lowered)):
                 continue
             terms = _evidence_terms(window)
             minimum_overlap = 2 if claim_numbers else 3
             if not actions <= terms or len(claim_terms & terms) < max(minimum_overlap, (len(claim_terms) * 3 + 3) // 4):
+                continue
+            if actor_terms and not actor_terms <= terms:
                 continue
             if not claim_numbers <= _material_numbers(window):
                 continue
@@ -185,13 +241,19 @@ def _material_support(claim: str, body: str) -> tuple[str, str]:
             )
             action_words = _words(action_context)
             window_qualifiers = _claim_qualifiers(action_context)
+            if (not re.search(r"\b(?:will|plans? to|proposes? to|aims? to|expected to|set to)\b", claim_text, re.I)
+                    and re.search(r"\b(?:will|plans? to|proposes? to|proposal|proposed|aims? to|expected to|set to)\b", action_context, re.I)):
+                continue
             if not claim_qualifiers <= window_qualifiers:
                 continue
             if not claim_qualifiers and window_qualifiers & {"umano", "alleged", "allegedly", "reportedly"}:
                 continue
             if not claim_qualifiers and _negates_material_action(action_words, actions):
                 continue
-            return "supports", window[:500]
+            if best_window is None or len(window) < len(best_window):
+                best_window = window
+    if best_window is not None:
+        return "supports", best_window
     return "related", "The readable article did not establish every material action, person, place, date, number and qualification in the claim."
 
 
@@ -202,6 +264,8 @@ def _article_relation(claim: str, body: str) -> tuple[str, str]:
         return "related", "The claim cannot be checked by the strict assertion gate."
     phrase = " ".join(claim_words)
     for sentence in _sentences(body):
+        if len(sentence) > 1600:
+            continue
         sentence_words = _words(sentence)
         joined = " ".join(sentence_words)
         # Match complete tokens; Monday must not match Mondayish, for example.
@@ -224,7 +288,7 @@ def _article_relation(claim: str, body: str) -> tuple[str, str]:
         # "not false", "not misleading" and discussions of misinformation do not.
         debunk = re.match(r"^(?:false|fake|misleading|untrue|incorrect|debunked|mali|peke|huwad)\s*:\s*", sentence, re.I)
         if debunk and prefix in {"false", "fake", "misleading", "untrue", "incorrect", "debunked", "mali", "peke", "huwad"}:
-            return "contradicts", sentence[:500]
+            return "contradicts", sentence
         # Mentioning an exact claim inside a question, hypothetical or embedded
         # quotation does not assert that it happened. Keep these as reading only.
         if prefix:
@@ -234,7 +298,7 @@ def _article_relation(claim: str, body: str) -> tuple[str, str]:
             continue
         if any(re.search(r"\b" + cue + r"\b", joined) for cue in ("false", "fake", "misleading", "untrue", "incorrect", "debunked", "mali", "peke", "huwad")):
             continue
-        return "supports", sentence[:500]
+        return "supports", sentence
     return _material_support(claim, body)
 
 
@@ -288,18 +352,68 @@ def _headline_has_body_corroboration(claim: str, title: str, body: str) -> bool:
     )
 
 
+def _assess_readable_claim(claim: str, body: str) -> tuple[str, str]:
+    """Check every stated sentence and detect opposed assertions in one article.
+
+    This remains a bounded lexical gate, not a general truth/entailment model.
+    Unmatched parts of a multi-sentence post prevent a support override.
+    """
+    claim_parts = _sentences(claim)
+    if not claim_parts:
+        return "unverified", "No claim text was supplied."
+    relations = []
+    passages = []
+    opposing_passages = []
+    for part in claim_parts:
+        relationship, passage = _article_relation(part, body)
+        observed = {relationship}
+        # Do not let an early assertion hide an explicit correction later on.
+        for sentence in _sentences(body):
+            sentence_relation, _ = _article_relation(part, sentence)
+            if sentence_relation in {"supports", "contradicts"}:
+                observed.add(sentence_relation)
+        if relationship == 'supports' and re.search(
+            r"\b(?:this|that|the)\s+(?:claim|statement|report)\s+(?:is|was)\s+(?:false|fake|incorrect|misleading|not\s+true)\b",
+            body, re.I,
+        ):
+            return 'conflicting', 'The article repeats an assertion but also explicitly describes the claim as false or misleading.'
+        if {"supports", "contradicts"} <= observed:
+            return "conflicting", "The article contains both supporting and opposing assertions for the same claim."
+        relations.append(relationship)
+        if relationship in {"supports", "contradicts"}:
+            passages.append(passage)
+        if relationship == "contradicts":
+            opposing_passages.append(passage)
+    if "contradicts" in relations:
+        return "contradicts", "\n".join(dict.fromkeys(opposing_passages))
+    if all(relationship == "supports" for relationship in relations):
+        return "supports", "\n".join(dict.fromkeys(passages))
+    return "related", "The readable article did not establish every statement in the submitted text."
+
+
 def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_check_matches: list[dict], claim: str = "") -> dict:
     assessments = []
     for source in related_sources:
         body = source.get("article_text", "") if source.get("content_status") == "readable" else ""
-        relationship, reason = _article_relation(claim, body) if body and claim else ("unverified", "The full article could not be assessed.")
+        relationship, reason = _assess_readable_claim(claim, body) if body and claim else ("unverified", "The full article could not be assessed.")
+        excerpt = reason if relationship in {"supports", "contradicts"} else ""
+        eligible = bool(excerpt)
+        # Relative dates need a resolved post-time comparison. Do not treat
+        # "next week" in an undated/older article as the same real event.
+        if re.search(r"\b(?:today|tomorrow|yesterday|tonight|(?:next|last|this|coming)\s+(?:week|month|year)|bukas|kahapon|ngayon|mamaya)\b", claim, re.I):
+            eligible = False
+            reason = "Relative event timing has not been aligned with the post date; this source cannot change the label."
         if (relationship == "related" and body and claim
                 and _headline_has_body_corroboration(claim, source.get("title", ""), body)):
             relationship = "supports"
             reason = "The publisher headline states the complete claim, and the readable article body corroborates its material details."
-        assessments.append({"url": source.get("url"), "relationship": relationship, "reason": reason})
-    supports = [item for item in assessments if item["relationship"] == "supports"]
-    contradicts = [item for item in assessments if item["relationship"] == "contradicts"]
+            # Headline/body term overlap may help readers find context, but does
+            # not provide a direct body passage proving all claim details.
+            eligible = False
+        assessments.append({"url": source.get("url"), "relationship": relationship, "reason": reason,
+                            "evidence_excerpt": excerpt, "decision_eligible": eligible})
+    supports = [item for item in assessments if item["relationship"] == "supports" and item["decision_eligible"]]
+    contradicts = [item for item in assessments if item["relationship"] == "contradicts" and item["decision_eligible"]]
     independent_supports = _independent_trusted_sources(supports, related_sources)
     independent_contradictions = _independent_trusted_sources(contradicts, related_sources)
     credible_supports = [
@@ -308,32 +422,41 @@ def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_che
     credible_contradictions = [
         item for item in contradicts if _is_trusted_source(item.get("url"))
     ]
-    sufficient_support = len(independent_supports) >= 2 and not credible_contradictions
-    sufficient_contradiction = len(independent_contradictions) >= 2 and not credible_supports
+    conflicted_articles = [item for item in assessments if item['relationship'] == 'conflicting' and _is_trusted_source(item.get('url'))]
+    primary_supports = [item for item in credible_supports if _primary_authority_for_claim(item.get('url'), claim)]
+    primary_contradictions = [item for item in credible_contradictions if _primary_authority_for_claim(item.get('url'), claim)]
+    sufficient_support = (bool(primary_supports) or len(independent_supports) >= 2) and not credible_contradictions and not conflicted_articles
+    sufficient_contradiction = (bool(primary_contradictions) or len(independent_contradictions) >= 2) and not credible_supports and not conflicted_articles
+    evidence_rule = 'model_fallback'
     if sufficient_support:
         label, internal, relationship = "No Misleading Information Detected", "Non-Misleading", "supports"
-        basis = "Two independent readable trusted publishers directly support the complete claim and its material details, with no readable trusted source directly contradicting it."
-        chosen = independent_supports
+        chosen = primary_supports if primary_supports else independent_supports
+        evidence_rule = 'scoped_primary_authority' if primary_supports else 'two_independent_publishers'
+        basis = ("A readable primary authority within its subject scope directly supports the complete claim and its material details, with no readable trusted contradiction."
+                 if primary_supports else "Two independent readable trusted publishers directly support the complete claim and its material details, with no readable trusted source directly contradicting it.")
     elif sufficient_contradiction:
         label, internal, relationship = "Potentially Misleading", "Misleading", "contradicts"
-        basis = "Two independent readable trusted publishers directly contradict the complete claim, with no readable trusted source supporting it."
-        chosen = independent_contradictions
+        chosen = primary_contradictions if primary_contradictions else independent_contradictions
+        evidence_rule = 'scoped_primary_authority' if primary_contradictions else 'two_independent_publishers'
+        basis = ("A readable primary authority within its subject scope directly contradicts the claim, with no readable trusted support."
+                 if primary_contradictions else "Two independent readable trusted publishers directly contradict the complete claim, with no readable trusted source supporting it.")
     else:
         label, internal = model_prediction["public_label"], model_prediction["internal_label"]
         relationship = (
-            "conflicting" if credible_supports and credible_contradictions
-            else "supports" if credible_supports
-            else "contradicts" if credible_contradictions
+            "conflicting" if conflicted_articles or (credible_supports and credible_contradictions)
+            else "supports" if any(item['relationship'] == 'supports' and _is_trusted_source(item.get('url')) for item in assessments)
+            else "contradicts" if any(item['relationship'] == 'contradicts' and _is_trusted_source(item.get('url')) for item in assessments)
             else "related" if any(item["relationship"] == "related" for item in assessments)
             else "unverified" if assessments or fact_check_matches
             else "not_assessed"
         )
-        basis = "Available evidence does not meet the two-independent-publisher threshold or is conflicting; the final label follows the hybrid model."
+        basis = "Not independently verified. Available evidence is insufficient or conflicting; the final label follows the original hybrid prediction. A missing source is not evidence that a claim is false."
         chosen = []
     return {
         "internal_label": internal, "public_label": label,
         "decision_source": "verified_evidence" if chosen else "screening_model",
         "decision_basis": basis, "evidence_relationship": relationship,
+        "evidence_rule": evidence_rule,
         "supporting_source_count": len(credible_supports), "strong_fact_check_matches": [],
         "evidence_assessments": assessments,
         "evidence_urls": [item["url"] for item in chosen],

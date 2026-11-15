@@ -91,6 +91,30 @@
       "rendered": true
     },
     {
+      "view": "popup-result-evidence-en",
+      "width": 390,
+      "height": 2200,
+      "layout": {
+        "width": 390,
+        "clientWidth": 390,
+        "scrollWidth": 390
+      },
+      "screenshot": "verification/ui/popup-result-evidence-en.png",
+      "rendered": true
+    },
+    {
+      "view": "popup-result-evidence-tl-narrow",
+      "width": 320,
+      "height": 2200,
+      "layout": {
+        "width": 320,
+        "clientWidth": 305,
+        "scrollWidth": 305
+      },
+      "screenshot": "verification/ui/popup-result-evidence-tl-narrow.png",
+      "rendered": true
+    },
+    {
       "view": "popup-narrow",
       "width": 320,
       "height": 900,

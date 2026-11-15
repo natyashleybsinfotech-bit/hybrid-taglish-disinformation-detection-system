@@ -1,6 +1,6 @@
 {
   "passed": true,
-  "extension_version": "1.3.37",
+  "extension_version": "1.3.39",
   "browser": "Microsoft Edge (isolated off-screen profile)",
   "unpacked_extension_loaded": true,
   "manifest_supported_facebook_origin": true,

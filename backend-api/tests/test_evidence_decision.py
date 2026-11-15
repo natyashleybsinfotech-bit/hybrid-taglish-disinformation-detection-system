@@ -255,7 +255,9 @@ class EvidenceDecisionTests(unittest.TestCase):
 
         result = apply_evidence(MODEL_YES, [source], [], claim)
 
-        self.assertEqual(result["public_label"], MODEL_YES["public_label"])
+        self.assertEqual(result["public_label"], MODEL_NO["public_label"])
+        self.assertEqual(result["evidence_rule"], "scoped_primary_authority")
+        self.assertEqual(result["decision_source"], "verified_evidence")
         self.assertEqual(result["evidence_relationship"], "supports")
 
     def test_exact_publisher_headline_needs_body_corroboration(self):

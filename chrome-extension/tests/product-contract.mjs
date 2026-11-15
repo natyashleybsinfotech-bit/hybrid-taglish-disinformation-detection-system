@@ -64,9 +64,11 @@ assert.match(popup, /generation !== requestGeneration.current/, 'A source respon
 assert.match(content, /captionLooksIncomplete\(post, text\)/, 'Collapsed captions must be detected before screening');
 assert.match(popup, /Only readable article content is assessed/, 'Popup must disclose that unreadable sources are not evidence');
 assert.match(popup, /Readable sources both support and contradict this claim/, 'Popup must explain why conflicting evidence did not change the model result');
-assert.match(popup, /two independent trusted publishers/, 'Popup must explain that two independent trusted publishers are required for an evidence override');
+assert.match(popup, /claim-specific authority or independent-publisher checks/, 'Popup must explain the authority/publisher evidence gate');
+assert.match(popup, /source\.evidence_excerpt/, 'Popup must render matching body passages');
 assert.match(content, /no readable source established the complete claim/, 'Facebook result must explain when displayed links are related or unreadable rather than proof');
-assert.match(content, /two independent trusted publishers/, 'Facebook result must explain that two independent trusted publishers are required for an evidence override');
+assert.match(content, /claim-specific authority or independent-publisher checks/, 'Facebook result must explain the authority/publisher evidence gate');
+assert.match(content, /item\.evidence_excerpt/, 'Facebook result must render matching body passages');
 assert.match(background, /SURIPH_LOOKUP_SOURCES/);
 assert.match(background, /\/related-sources/);
 assert.match(background, /suriphSourceDefaultVersion/);

@@ -18,6 +18,25 @@ except ImportError:
     from provider_http import NoRedirect, safe_link
 
 
+def _clean_article_body(body: str) -> str:
+    """Remove page interaction prompts accidentally included in article prose."""
+    cleaned = []
+    for paragraph in body.split("\n"):
+        paragraph = paragraph.strip()
+        if re.fullmatch(
+            r"Already have Rappler\+\?\s*Sign in to listen to groundbreaking journalism\.?",
+            paragraph, flags=re.I,
+        ):
+            continue
+        paragraph = re.sub(
+            r"^\s*(?:This is AI-generated\.\s*)?Read the article for full context\.\s*Report any errors\s*\.\s*",
+            "", paragraph, flags=re.I,
+        ).strip()
+        if paragraph:
+            cleaned.append(paragraph)
+    return "\n".join(cleaned)
+
+
 class ArticleParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -420,5 +439,8 @@ def read_article(url: str, *, allowed_host) -> dict:
     if not title or not paragraphs:
         structured = StructuredArticleParser()
         structured.feed(html)
-        return structured.article(current) or {"content_status": "inaccessible"}
-    return {"content_status": "readable", "title": title, "article_text": "\n".join(paragraphs)}
+        result = structured.article(current) or {"content_status": "inaccessible"}
+        if result["content_status"] == "readable":
+            result["article_text"] = _clean_article_body(result["article_text"])
+        return result
+    return {"content_status": "readable", "title": title, "article_text": _clean_article_body("\n".join(paragraphs))}

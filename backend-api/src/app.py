@@ -525,9 +525,14 @@ def _screen(
                 detail="Screening completed, but the candidate could not be saved for required review.",
             ) from None
     public_sources = [{key: value for key, value in source.items() if key != "article_text"} for source in retrieval["related_sources"]]
-    for source, assessment in zip(public_sources, decision["evidence_assessments"]):
-        source["relationship"] = assessment["relationship"]
-        source["relationship_reason"] = assessment["reason"]
+    assessments_by_url = {item["url"]: item for item in decision["evidence_assessments"]}
+    for source in public_sources:
+        assessment = assessments_by_url.get(source.get("url"), {})
+        source["relationship"] = assessment.get("relationship", "unverified")
+        source["relationship_reason"] = assessment.get("reason", "")
+        source["evidence_excerpt"] = assessment.get("evidence_excerpt", "")
+        source["decision_eligible"] = assessment.get("decision_eligible", False)
+        source["used_for_decision"] = source.get("url") in decision["evidence_urls"]
     result = {
         "timings_ms": {"inference": round(inference_ms, 3), "retrieval": round(retrieval_ms, 3)},
         **prediction,
@@ -547,6 +552,7 @@ def _screen(
         "verification_status": "evidence_assessed" if decision["decision_source"] == "verified_evidence" else "not_verified",
         "screening_mode": "evidence_only" if prototype_mode else "model",
         "decision_basis": decision["decision_basis"],
+        "evidence_rule": decision.get("evidence_rule", "model_fallback"),
         "evidence_relationship": decision["evidence_relationship"],
         "supporting_source_count": decision["supporting_source_count"],
         "evidence_adjusted": decision["evidence_adjusted"],

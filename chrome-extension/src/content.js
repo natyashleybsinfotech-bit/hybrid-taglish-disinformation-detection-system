@@ -480,15 +480,15 @@ function appendLookupChoice(container) {
   checkbox.addEventListener('change', () => { retrievalEnabled = checkbox.checked; chrome.storage.local.set({ suriphRetrieveSources: retrievalEnabled }); });
   label.append(checkbox, text); container.appendChild(label);
 }
-async function captureVisibleVideo(post) {
-  return captureVideoElement(findBestVideo(post));
+async function captureVisibleVideo(post, options) {
+  return captureVideoElement(findBestVideo(post), options);
 }
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer); let binary = ''; const chunkSize = 0x8000;
   for (let index = 0; index < bytes.length; index += chunkSize) binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
   return btoa(binary);
 }
-function analyzeCapturedVideo(videoBase64, payload, onResult, onError, videoUrl = null) {
+function analyzeCapturedVideo(videoBase64, payload, onResult, onError, videoUrl = null, onProgress = () => {}) {
   let port;
   try { port = chrome.runtime.connect({ name: 'SURIPH_VIDEO_ANALYSIS' }); }
   catch (error) { onError(error); return () => {}; }
@@ -506,6 +506,7 @@ function analyzeCapturedVideo(videoBase64, payload, onResult, onError, videoUrl 
   };
   port.onMessage.addListener(response => {
     if (finished) return;
+    if (response?.type === 'VIDEO_PROGRESS') { onProgress(response.phase); return; }
     if (!response?.ok) {
       const error = new Error(response?.error || 'Video analysis failed.');
       error.fallback_to_capture = response?.fallback_to_capture === true;
@@ -548,9 +549,9 @@ function renderRichResult(container, result) {
     : result.evidence_relationship === 'conflicting'
     ? (tl ? 'May nabasang source na sumusuporta at may sumasalungat sa claim. Hindi nalutas ang salungatan; hindi beripikado ang model result.' : 'Readable sources both support and contradict this claim. The conflict is unresolved; the model result is unverified.')
     : result.evidence_relationship === 'contradicts'
-    ? (tl ? 'May nababasang source na sumasalungat sa claim, pero kailangan ng dalawang magkahiwalay na mapagkakatiwalaang publisher para awtomatikong baguhin ang label. Model result pa rin ito at hindi beripikadong verdict.' : 'A readable source contradicts the claim, but two independent trusted publishers are required for an automatic verdict. The result remains an unverified model output.')
+    ? (tl ? 'May nababasang source na sumasalungat sa claim, pero kailangan ng sapat na ebidensiyang tumutukoy sa mismong claim para baguhin ang label. Model result pa rin ito at hindi beripikadong verdict.' : 'A readable source contradicts the claim, but sufficient claim-specific evidence is required to change the label. The result remains an unverified model output.')
     : Number(result.supporting_source_count) > 0
-    ? (tl ? 'May nababasang mapagkakatiwalaang source na sumusuporta, pero kailangan ng dalawang magkahiwalay na publisher at walang nababasang mapagkakatiwalaang source na sumasalungat bago baguhin ang label. Model result pa rin ito, hindi factual verdict.' : 'A readable trusted article appears to support the claim, but two independent trusted publishers and no readable trusted contradiction are required to change the label. The result remains an unverified model output, not a factual verdict.')
+    ? (tl ? 'May nababasang mapagkakatiwalaang source na sumusuporta, pero kailangan pang pumasa ang ebidensiya sa pagsusuri ng claim at pinagmulan, nang walang mapagkakatiwalaang salungatan. Model result pa rin ito, hindi factual verdict.' : 'A readable trusted article appears to support the claim, but the evidence must meet the claim-specific authority or independent-publisher checks without a trusted contradiction. The result remains an unverified model output, not a factual verdict.')
     : (result.related_sources || []).length > 0
     ? (tl ? 'May kaugnay na link sa ibaba, pero walang nababasang source na direktang nagpatunay sa buong claim. Hindi beripikado ang model result.' : 'The links below are related or unreadable; no readable source established the complete claim. The model result is unverified.')
     : result.internal_label === 'Misleading'
@@ -641,6 +642,14 @@ function renderRichResult(container, result) {
         : 'Search result preview only; the article could not be read, so this is not verified evidence.', 'display:block;margin-top:4px;');
       if (inaccessible && item.search_snippet) textNode(article, 'span', `${tl ? 'Search preview (hindi beripikado)' : 'Search preview (not verified)'}: ${item.search_snippet}`, 'display:block;margin-top:3px;');
       if (!inaccessible && item.snippet) textNode(article, 'span', item.snippet, 'margin-top:3px;');
+      if (!inaccessible && item.evidence_excerpt) {
+        const passage = document.createElement('details');
+        textNode(passage, 'summary', tl ? 'Basahin ang kaugnay na sipi' : 'Read the matching passage');
+        textNode(passage, 'blockquote', item.evidence_excerpt, 'white-space:pre-wrap;margin:8px 0;padding-left:12px;border-left:3px solid #0f766e;');
+        if (item.used_for_decision) textNode(passage, 'small', tl ? 'Ginamit sa final label; ihambing ang siping ito sa orihinal na post.' : 'Used for the final label; compare this passage with the original post.');
+        article.appendChild(passage);
+      }
+      if (item.relationship === 'conflicting') textNode(article, 'small', tl ? 'May magkasalungat na pahayag sa artikulo; hindi ginamit para baguhin ang label.' : 'Conflicting assertions in this article; not used to change the label.');
       state.appendChild(article);
     }
     if (rendered) return;
@@ -681,6 +690,10 @@ function renderRichResult(container, result) {
   const sourceOffset = (result.fact_check_matches || []).filter(item => safeUrl(item.url)).length;
   (result.related_sources || []).filter(item => safeUrl(item.url)).forEach((item, index) => {
     const card = sourceCards[sourceOffset + index]; if (!card) return;
+    if (item.relationship === 'supports' && item.decision_eligible === false) {
+      textNode(card, 'small', tl ? 'May kaugnay na suportang konteksto, pero hindi sapat para baguhin ang label.' : 'Supporting context was found, but it is insufficient to change the label.');
+      return;
+    }
     textNode(card, 'small', item.relationship === 'supports' ? (tl ? 'Sinusuportahan ang buong claim' : 'Supports the complete claim') : item.relationship === 'contradicts' ? (tl ? 'Sumasalungat sa buong claim' : 'Contradicts the complete claim') : item.content_status === 'inaccessible' ? (tl ? 'Hindi mabasa ang artikulo; walang excerpt' : 'Article inaccessible; no excerpt available') : (tl ? 'Kaugnay na balita; hindi pa napatunayan ang claim' : 'Related coverage; claim not established'));
   });
 
@@ -899,9 +912,14 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto', locked
     };
     const captureAndAnalyze = () => {
       if (timedOut || !isCurrent()) return;
-      videoPhase = tr('Recording this video from the beginning...', 'Nirerecord ang buong video mula sa simula...');
+      videoPhase = tr('Direct video access is unavailable. Capturing the selected video in real time; file upload avoids this wait.', 'Hindi direktang makuha ang video. Kinukuha ito habang nagpe-play; makakaiwas sa hintay na ito gamit ang file upload.');
       setMessage(message, videoPhase, 'loading');
-      captureVisibleVideo(post).then(blob => {
+      captureVisibleVideo(post, {
+        shouldContinue: () => !timedOut && isCurrent(),
+        onProgress: ({ capturedSeconds, durationSeconds }) => {
+          videoPhase = tr(`Capturing selected video: ${Math.floor(capturedSeconds)} / ${Math.ceil(durationSeconds)} seconds. Speech processing follows.`, `Kinukuha ang napiling video: ${Math.floor(capturedSeconds)} / ${Math.ceil(durationSeconds)} segundo. Susunod ang speech processing.`);
+        },
+      }).then(blob => {
         if (timedOut || !isCurrent() || collectPostText(post) !== text) return null;
         if (blob.size > 50 * 1024 * 1024) throw new Error('Media exceeds the 50 MiB limit.');
         videoPhase = tr('Transcribing speech and reading sampled frames...', 'Kinukuha ang salita at binabasa ang piling frame...');
@@ -920,7 +938,13 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto', locked
         if (timedOut || !isCurrent()) return;
         if (error.fallback_to_capture) captureAndAnalyze();
         else showRequestError(error);
-      }, media.video_url);
+      }, media.video_url, phase => {
+        if (timedOut || !isCurrent()) return;
+        videoPhase = phase === 'extracting'
+          ? tr('Video downloaded. Transcribing its audio and reading sampled frames...', 'Nakuha na ang video. Kinukuha ang salita sa audio at binabasa ang piling frame...')
+          : tr('Downloading the selected video without real-time playback...', 'Direktang kinukuha ang napiling video nang hindi hinihintay ang buong playback...');
+        setMessage(message, videoPhase, 'loading');
+      });
     } else captureAndAnalyze();
     return;
   }

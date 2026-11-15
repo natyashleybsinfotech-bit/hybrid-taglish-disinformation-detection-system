@@ -1,5 +1,25 @@
 # Start here — SuriPH research prototype
 
+**15 November check:** The original hybrid remains active. A focused evidence
+and article-excerpt repair passed 221 backend tests; the extension build and
+34 tests, admin lint/build/test, and local MariaDB/API readiness also passed.
+An actual API replay corrected one supported news claim from a raw model
+warning when two readable articles were retrieved. This is not a measured
+accuracy improvement. The original GMA video transcript still fails item 1.4;
+signed-in Chrome/Facebook, participant-survey and target-server deployment
+checks remain pending. See [the current readiness record](docs/DEFENSE-READINESS-20261115.md).
+
+**Latest evidence trial, 14 November: extension 1.3.39.** The original 4,000-row
+hybrid remains active. Matching readable body passages can determine the final
+label through a scoped primary authority or two independent publishers; otherwise
+the model result is explicitly unverified. Backend tests: 214 passed. Reload SuriPH
+in Chrome and refresh Facebook to use the new build. See
+[the current trial and readiness record](docs/EVIDENCE-TRIAL-AND-READINESS-20261114.md)
+for live source examples, completed checks, and remaining real-Facebook/video and
+server checks. The paragraphs below describe earlier repair snapshots.
+
+**Latest repair, 14 November: extension 1.3.38.** The actual Chrome install was reloaded from 1.3.36 to 1.3.38. The latest checks passed 200 backend tests, 35 extension behavior/contract tests, the product contract and the extension build. Validated HTTP-range downloads now avoid unnecessary playback capture when the complete media can be obtained. Known classifier and natural-speech errors remain unresolved; these passes do not make the system accuracy-verified or deployment-ready. See [the repair report](docs/MEDIA-AND-MODEL-REPAIR-20261114.md). The older rehearsal paragraph below records an earlier build.
+
 **Current extension build: 1.3.29.** On 14 November, the backend suite passed **188 tests**, the extension passed **20 behavior tests** and its product contract, and the extension build passed. `/ready` returned true with MariaDB and the pinned model. A local text/image/video smoke check passed using a synthetic English speech clip: repeated text returned the same label and score, image OCR matched its known text, and the confirmed video transcript matched its known audio (21.46 seconds). Three simultaneous short-text requests returned HTTP 200 in 203 ms total on this workstation. A separate [live-stack report](docs/LIVE-STACK-PERFORMANCE.json) used longer synthetic text payloads and measured three concurrent HTTP 200 responses in 4.90 seconds. Those workloads are not directly comparable; neither is an SLA or a target-server capacity result. These are local functional/latency checks, not natural Taglish/news-video or factual-classification accuracy results.
 
 **Still unresolved:** material speech-recognition errors in the GMA news clip; known classifier false positives and no independent real-world accuracy result; the user's installed Google Chrome/Facebook rehearsal and accessibility checks; Linux/Docker deployment; and institutional review before participant research. A known true health claim was classified as Potentially Misleading when lookup was off; with lookup on, a readable CDC article directly supporting it corrected the final label. This is one checked case, not a general accuracy guarantee. Keep related-source lookup enabled for the demo and compare each result with the full source. Do not claim every transcript or prediction is accurate, survey approval, or public readiness. Videos whose speech and sampled on-screen text disagree now stop for human text review before classification; that safeguard does not correct a misheard transcript when the screen text cannot reveal it.
@@ -14,8 +34,10 @@ For item 2.5, the current acceptance checklist describes simultaneous requests a
 See [the release evidence and GO/NO-GO gate](docs/RELEASE-READINESS.md) before inviting participants.
 The [documentation index](docs/README.md) maps research references, setup and deployment.
 The active hybrid's saved-output parity is verified, but factual accuracy is not.
-The prepared workstation selects the local-trial candidate described in
-[LOCAL-CANDIDATE-TRIAL.md](docs/LOCAL-CANDIDATE-TRIAL.md); it is not approved for production.
+The workstation now selects the original 4,000-row-dataset hybrid, training run
+`20261011T235112Z`, at the user's request on 14 November. Only `model_4.joblib`
+is active, with its original threshold `0.65`. The full-cleaned candidate is retained
+for historical comparison. Returning to this model does not fix its known false positives.
 An earlier isolated Edge Chromium extension rehearsal
 passed; Linux containers, production HTTPS and a manual Google Chrome/Facebook study
 session still need completion.
@@ -26,18 +48,18 @@ Run from `hybrid taglish-detector system`, not its parent folder. Preserve the e
 private `.env.local`; do not overwrite it with examples. Python 3.13 was tested here.
 
 ```powershell
-.\.venv-candidate-20261023-isolated\Scripts\python.exe -m pip install -r backend-api\requirements-test-candidate.txt
 .\scripts\start-mariadb.ps1
-cd backend-api
-..\.venv-candidate-20261023-isolated\Scripts\python.exe -m src.manage migrate
-..\.venv-candidate-20261023-isolated\Scripts\python.exe -m uvicorn src.app:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log
+.\scripts\start-original-model.ps1
 ```
 
-For a fresh candidate trial, first create `.venv-candidate-20261023-isolated` with
-`python -m venv .venv-candidate-20261023-isolated` and install
-`backend-api/requirements-candidate.txt`. The portable
+The original model uses `.venv` and `backend-api/requirements.txt`; do not use the
+candidate interpreter for it. The portable
 database scripts are specific to this prepared workstation; use Compose below for
 a reproducible fresh database. Never reuse its development login in production.
+
+The startup script explicitly selects the original profile, checks the classifier
+hash, and loads its encoder on CPU. Existing private database settings are preserved.
+No model was retrained, and no threshold or classification logic was changed.
 
 In a second terminal, from the project root:
 

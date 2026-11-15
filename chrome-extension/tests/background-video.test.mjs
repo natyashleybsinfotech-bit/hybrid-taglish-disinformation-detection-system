@@ -25,7 +25,7 @@ function startVideoRequest(videoUrl, fetchImpl) {
     name: 'SURIPH_VIDEO_ANALYSIS',
     onDisconnect: { addListener() {} },
     onMessage: { addListener(listener) { onMessage = listener; } },
-    postMessage(value) { resolveResult(value); },
+    postMessage(value) { if (value.type !== 'VIDEO_PROGRESS') resolveResult(value); },
   });
   onMessage({ type: 'ANALYZE_VIDEO', videoUrl,
     payload: { text: 'Exact selected caption', page_url: 'https://www.facebook.com/reel/123', retrieve_sources: true } });
@@ -103,4 +103,60 @@ test('a downloaded Facebook video without decodable audio permits playback captu
   assert.deepEqual(requested, [
     'https://cdn.fbcdn.net/video-only.mp4', 'http://127.0.0.1:8000/analyze/video',
   ]);
+});
+
+test('one complete HTTP range does not require real-time recording', async () => {
+  const result = await startVideoRequest('https://cdn.fbcdn.net/whole.mp4', async (url, options) => {
+    if (url.startsWith('https://')) return new Response(new Blob(['whole video'], { type: 'video/mp4' }), {
+      status: 206, headers: { 'Content-Range': 'bytes 0-10/11' },
+    });
+    assert.equal(await options.body.get('file').text(), 'whole video');
+    return new Response(JSON.stringify({ review_required: true }));
+  });
+  assert.equal(result.ok, true);
+});
+
+test('contiguous validated video ranges are assembled before transcription', async () => {
+  const requests = [];
+  const result = await startVideoRequest('https://cdn.fbcdn.net/ranged.mp4', async (url, options) => {
+    requests.push({ url, options });
+    if (url.startsWith('https://')) {
+      if (requests.length === 1) return new Response(new Blob(['first '], { type: 'video/mp4' }), {
+        status: 206, headers: { 'Content-Range': 'bytes 0-5/11', ETag: '"stable"' },
+      });
+      assert.equal(options.headers.Range, 'bytes=6-10');
+      assert.equal(options.headers['If-Range'], '"stable"');
+      return new Response(new Blob(['video'], { type: 'video/mp4' }), {
+        status: 206, headers: { 'Content-Range': 'bytes 6-10/11', ETag: '"stable"' },
+      });
+    }
+    assert.equal(await options.body.get('file').text(), 'first video');
+    return new Response(JSON.stringify({ review_required: true }));
+  });
+  assert.equal(result.ok, true); assert.equal(requests.length, 3);
+});
+
+test('changed validators or gapped ranges never reach the backend', async () => {
+  for (const headers of [
+    { 'Content-Range': 'bytes 6-10/11', ETag: '"different"' },
+    { 'Content-Range': 'bytes 7-10/11', ETag: '"stable"' },
+  ]) {
+    let requests = 0;
+    const result = await startVideoRequest('https://cdn.fbcdn.net/changed.mp4', async url => {
+      assert.ok(url.startsWith('https://')); requests++;
+      return requests === 1
+        ? new Response(new Blob(['first ']), { status: 206, headers: { 'Content-Range': 'bytes 0-5/11', ETag: '"stable"' } })
+        : new Response(new Blob(['video']), { status: 206, headers });
+    });
+    assert.equal(result.ok, false); assert.equal(result.fallback_to_capture, true);
+  }
+});
+
+test('oversized declared videos are rejected without downloading or capturing', async () => {
+  const result = await startVideoRequest('https://cdn.fbcdn.net/large.mp4', async url => {
+    assert.ok(url.startsWith('https://'));
+    return new Response(new Blob(['short']), { headers: { 'Content-Length': String(51 * 1024 * 1024) } });
+  });
+  assert.equal(result.ok, false); assert.equal(result.fallback_to_capture, false);
+  assert.match(result.error, /50 MiB/);
 });

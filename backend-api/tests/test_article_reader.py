@@ -16,6 +16,30 @@ class FakeResponse(io.BytesIO):
 
 
 class ArticleReaderTests(unittest.TestCase):
+    def test_page_prompt_is_not_part_of_matching_article_prose(self):
+        url = 'https://www.rappler.com/technology/example-story/'
+        report = 'MANILA, Philippines - President Marcos signed an order creating the National AI Council.'
+        html = ('<main><article><h1>National AI Council created</h1><p>'
+                'Read the article for full context. Report any errors . ' + report +
+                '</p></article></main>').encode()
+        with patch.object(article_reader.request, 'build_opener') as opener:
+            opener.return_value.open.return_value = FakeResponse(html)
+            result = article_reader.read_article(url, allowed_host=lambda host: host.endswith('rappler.com'))
+        self.assertEqual(result['content_status'], 'readable')
+        self.assertEqual(result['article_text'], report)
+
+    def test_rappler_separate_page_prompts_are_not_article_prose(self):
+        url = 'https://www.rappler.com/technology/example-story/'
+        report = 'MANILA, Philippines - President Marcos signed an order creating the National AI Council.'
+        html = ('<main><article><h1>National AI Council created</h1>'
+                '<p>Already have Rappler+? Sign in to listen to groundbreaking journalism.</p>'
+                '<p>This is AI-generated. Read the article for full context. Report any errors .</p>'
+                '<p>' + report + '</p></article></main>').encode()
+        with patch.object(article_reader.request, 'build_opener') as opener:
+            opener.return_value.open.return_value = FakeResponse(html)
+            result = article_reader.read_article(url, allowed_host=lambda host: host.endswith('rappler.com'))
+        self.assertEqual(result['article_text'], report)
+
     def test_known_publisher_body_layouts_keep_only_the_article(self):
         for host, body_class in article_reader.PublisherLayoutParser.BODY_CLASSES.items():
             with self.subTest(host=host):

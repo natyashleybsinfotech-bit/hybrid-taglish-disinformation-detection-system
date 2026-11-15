@@ -26,6 +26,53 @@ class ModelRuntimeTests(unittest.TestCase):
                 model_runtime.configure_model(path)
 
 class RetrievalTests(unittest.TestCase):
+    def test_focused_query_keeps_action_amount_and_surface_words(self):
+        claim = ('BREAKING NEWS: The Bureau of Customs destroyed P1.4 billion worth of smuggled '
+                 'vape products. Watch the video and follow this page for updates. '
+                 'Officials spoke at length while the public waited for details about the ceremony.')
+        focused = retrieval._focused_search_query(claim)
+        self.assertIn('destroyed', focused)
+        self.assertIn('P1.4 billion', focused)
+        self.assertIn('smuggled vape products', focused)
+        self.assertNotIn('Watch', focused)
+        self.assertTrue(retrieval._prefer_focused_first(claim))
+        self.assertFalse(retrieval._prefer_focused_first('BOC destroys P1.4 billion smuggled vape products.'))
+
+    def test_focused_query_keeps_person_suffix_with_action(self):
+        claim = ('President Ferdinand Marcos Jr. created the National AI Council and adopted an AI '
+                 'governance framework. Watch the full video and follow this page for updates. '
+                 'More details and links will be shared with readers later today.')
+        focused = retrieval._focused_search_query(claim)
+        self.assertIn('Marcos Jr', focused)
+        self.assertIn('created', focused)
+        self.assertIn('adopted', focused)
+
+    def test_focused_query_can_find_material_sentence_after_long_intro(self):
+        intro = ('Watch our page for updates and share this story with friends. ' * 11)
+        claim = intro + 'BOC destroyed P1.4 billion worth of smuggled vape products.'
+        self.assertNotIn('BOC', retrieval._search_query(claim))
+        focused = retrieval._focused_search_query(claim)
+        self.assertIn('BOC destroyed P1.4 billion', focused)
+
+    def test_long_caption_uses_compact_query_then_keeps_raw_fallback(self):
+        claim = ('BREAKING NEWS: The Bureau of Customs destroyed P1.4 billion worth of smuggled '
+                 'vape products. Watch the video for the complete story, follow this page for '
+                 'updates, and share with your friends. Officials discussed the shipment at '
+                 'length while the public waited for details about the ceremony.')
+        first = {'organic': [{'title': 'BOC destroys P1.4 billion smuggled vape products',
+                              'snippet': 'The Bureau of Customs destroyed smuggled vape products.',
+                              'link': 'https://www.philstar.com/boc-vape'}]}
+        second = {'organic': [{'title': 'Bureau of Customs destroys P1.4 billion smuggled vape products',
+                               'snippet': 'Officials destroyed the illicit vape shipment.',
+                               'link': 'https://tribune.net.ph/boc-vape'}]}
+        with patch.object(retrieval.config, 'SERPER_ENABLED', True), patch.object(
+            retrieval.config, 'SERPER_API_KEY', 'fixture-not-live'
+        ), patch.object(retrieval, '_serper_search', side_effect=[first, second]) as search:
+            result = retrieval.retrieve_related_sources(claim)
+        self.assertEqual(search.call_args_list[0].args[0], retrieval._focused_search_query(claim))
+        self.assertEqual(search.call_args_list[1].args[0], retrieval._search_query(claim))
+        self.assertEqual(len(result['related_sources']), 2)
+
     def test_headline_verb_inflection_finds_same_event_without_relaxing_subject(self):
         claim = 'The council approves a new education plan.'
         matching = {'title': 'Council approved new education plan',

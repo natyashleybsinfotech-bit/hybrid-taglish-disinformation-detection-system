@@ -9,6 +9,12 @@ accuracy improvement. The original GMA video transcript still fails item 1.4;
 signed-in Chrome/Facebook, participant-survey and target-server deployment
 checks remain pending. See [the current readiness record](docs/DEFENSE-READINESS-20261115.md).
 
+**Retrieval follow-up:** Long/noisy claims now use a compact primary search
+that keeps material actions and amounts; short claims keep their original
+wording first. The backend suite passed 230 tests. See
+[the query and source audit](docs/RETRIEVAL-AUDIT-20261115.md) and its private
+diagnostic script. Search coverage is not a factual-accuracy guarantee.
+
 **Latest evidence trial, 14 November: extension 1.3.39.** The original 4,000-row
 hybrid remains active. Matching readable body passages can determine the final
 label through a scoped primary authority or two independent publishers; otherwise

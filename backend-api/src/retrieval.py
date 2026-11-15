@@ -356,7 +356,7 @@ def _is_relevant(
     return matched_terms >= required_matches and title_matches >= title_required and aligned, score
 
 
-def _search_query(query: str) -> str:
+def _search_query(query: str, *, limit: int = 500) -> str:
     """Keep the claim searchable; social results are filtered after retrieval."""
     search_text = re.sub(
         r"https?://\S+|www\.\S+", " ",
@@ -368,21 +368,66 @@ def _search_query(query: str) -> str:
     search_text = re.sub(r"\bplanong\b", "target", search_text, flags=re.IGNORECASE)
     search_text = re.sub(r"\bisapribado\b", "maisapribado", search_text, flags=re.IGNORECASE)
     search_text = re.sub(r"\s+", " ", search_text).strip(" .-|\"")
-    return search_text[:500]
+    return search_text[:limit]
 
 
 def _focused_search_query(query: str) -> str:
-    """Use a short event search with original quantities; vet every hit later."""
-    # The former 14-site OR query omitted numbers and often returned nothing
-    # even for a readable article about the same event. Discovery can be broad
-    # because domain, article-body and evidence gates remain independent.
-    query = _without_post_metadata_dates(query)
-    terms = [term for term in _ordered_informative_terms(query) if term not in {
-        "seized", "seize", "seizure", "destroyed", "destroy", "arrested", "arrest",
-        "approved", "approve", "reported", "report", "said",
-    }][:8]
-    quantities = list(dict.fromkeys(re.findall(r"(?<!\d)\d[\d,]*(?:\.\d+)?(?!\d)", query)))[:3]
-    return " ".join([*terms[:2], *quantities, *terms[2:]]).strip()
+    """Search one material sentence with surface words and intact quantities.
+
+    Canonical terms are useful for relevance checks, but search providers may
+    not treat `illicit` as the same wording as a post's `smuggled`. Preserve
+    the post's words here; the article-body gate still decides evidential use.
+    """
+    # Scan beyond the raw provider query's 500-character limit so a material
+    # sentence after a social introduction can still be selected.
+    cleaned = _search_query(query, limit=4000)
+    protected = re.sub(
+        r"\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|Atty|Sen|Rep|Gov|Pres|Gen|Sec|Engr)\.",
+        lambda match: match.group()[:-1] + "\ue000", cleaned, flags=re.I,
+    )
+    segments = [part.strip().replace("\ue000", ".") for part in
+                re.split(r"(?<=[.!?])\s+|\n+", protected) if part.strip()]
+    if not segments:
+        return ""
+    actions = {
+        "destroy", "seize", "arrest", "open", "approve", "file", "charge",
+        "create", "adopt", "offer", "prevent", "cause", "reduce", "increase",
+        "support", "improve", "treat", "recommend", "return", "suspend",
+        "resign", "call", "calls", "calling",
+    }
+    def priority(part: str) -> tuple[int, int, int]:
+        terms = _informative_terms(part)
+        has_amount_or_number = bool(re.search(r"\d", part))
+        return (int(bool(terms & actions)), int(has_amount_or_number), min(len(terms), 20))
+    segment = max(segments, key=priority)
+    token_pattern = (
+        r"(?<!\w)(?:₱|php\s*|p\s*)\d[\d,]*(?:\.\d+)?"
+        r"(?:\s*(?:billion|million|thousand|bn|mn|b|m|k)\b)?"
+        r"|\d[\d,]*(?:\.\d+)?|[^\W_]+"
+    )
+    noise = {"breaking", "watch", "follow", "page", "subscribe", "click", "friends", "details"}
+    kept, seen = [], set()
+    for token in re.findall(token_pattern, segment, flags=re.I | re.UNICODE):
+        folded = token.casefold()
+        if (folded in noise or
+                (folded in RELEVANCE_STOP_WORDS and folded not in {"hindi", "umano", "not", "no"})):
+            continue
+        canonical = _canonical_term(folded)
+        if canonical in seen:
+            continue
+        seen.add(canonical)
+        kept.append(token)
+        if len(kept) >= 14:
+            break
+    return " ".join(kept)
+
+
+def _prefer_focused_first(query: str) -> bool:
+    """Long/social prose benefits from a compact primary query; short news
+    claims retain the original wording, which often retrieves better results.
+    """
+    cleaned = _search_query(query)
+    return len(cleaned) > 180 or len(re.findall(r"[^\W_]+", cleaned)) > 28
 
 
 def _is_blocked_domain(host: str, excluded_domain: str | None) -> bool:
@@ -465,19 +510,34 @@ def retrieve_related_sources(query: str, excluded_domain: str | None = None, *, 
         return {"retrieval_status": "disabled", "related_sources": []}
     if not config.SERPER_API_KEY:
         return {"retrieval_status": "unavailable_not_configured", "related_sources": []}
-    body = _serper_search(_focused_search_query(query) if focused else _search_query(query))
-    if body is None:
-        return {"retrieval_status": "unavailable", "related_sources": []}
     query_terms = _informative_terms(query)
     if not query_terms:
         return {"retrieval_status": "no_results", "related_sources": []}
+    focused_first = focused or _prefer_focused_first(query)
+    focused_query = _focused_search_query(query)
+    raw_query = _search_query(query)
+    if focused_first and not focused_query:
+        focused_first = False
+    primary_query = focused_query if focused_first else raw_query
+    if not primary_query:
+        return {"retrieval_status": "no_results", "related_sources": []}
+    body = _serper_search(primary_query)
+    if body is None:
+        return {"retrieval_status": "unavailable", "related_sources": []}
     candidates = _relevant_sources(body, query_terms, query, excluded_domain, excluded_urls)
-    focused_used = focused
-    if not candidates and not focused:
-        focused_body = _serper_search(_focused_search_query(query))
-        focused_used = True
-        if focused_body is not None:
-            candidates = _relevant_sources(focused_body, query_terms, query, excluded_domain, excluded_urls)
+    focused_used = focused_first
+    if len(candidates) < 2 and not focused:
+        alternate_query = raw_query if focused_first else focused_query
+        if alternate_query and alternate_query.casefold() != primary_query.casefold():
+            alternate_body = _serper_search(alternate_query)
+            focused_used = True
+            if alternate_body is not None:
+                alternate = _relevant_sources(alternate_body, query_terms, query, excluded_domain, excluded_urls)
+                seen_urls = {source['url'] for _score, source in candidates}
+                seen_hosts = {urlparse(source['url']).hostname for _score, source in candidates}
+                candidates.extend((score, source) for score, source in alternate
+                                  if source['url'] not in seen_urls
+                                  and urlparse(source['url']).hostname not in seen_hosts)
     # Prefer local reporting at equal relevance, but do not discard a direct
     # international health/source article just because one Philippine hit exists.
     # The readable body and claim gate still decide whether either is evidence.

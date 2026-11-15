@@ -21,6 +21,44 @@ def sources(body):
 
 
 class CompleteClaimEvidenceTests(unittest.TestCase):
+    def test_advocacy_article_is_support_for_call_not_enacted_pay_raise(self):
+        claim = 'ACT Teachers party-list calls for bigger education budget and higher teacher pay.'
+        body = ('The ACT Teachers Party-list staged a protest in Manila, calling for a higher '
+                'education budget and higher entry-level salaries for teachers.')
+        result = apply_evidence(MODEL, sources(body), [], claim)
+        self.assertEqual(result['public_label'], 'No Misleading Information Detected')
+        self.assertEqual(len(result['evidence_urls']), 2)
+        enacted = apply_evidence(MODEL, sources(body), [],
+                                 'The government approved a higher education budget and higher teacher salaries.')
+        self.assertEqual(enacted['decision_source'], 'screening_model')
+        denied = apply_evidence(MODEL, sources('The ACT Teachers Party-list is not calling for a '
+                                               'higher education budget or higher teacher salaries.'), [], claim)
+        self.assertEqual(denied['decision_source'], 'screening_model')
+
+    def test_headline_present_and_reported_past_actions_match_across_topics(self):
+        cases = (
+            ('The city opens three public schools in Manila.', 'The city opened three public schools in Manila.'),
+            ('The council approves a new education plan.', 'The council approved a new education plan.'),
+            ('The agency files charges against two officers.', 'The agency filed charges against two officers.'),
+            ('The health office recommends vaccines for adults.', 'The health office recommended vaccines for adults.'),
+        )
+        for claim, article in cases:
+            with self.subTest(claim=claim):
+                result = apply_evidence(MODEL, sources(article), [], claim)
+                self.assertEqual(result['public_label'], 'No Misleading Information Detected')
+                self.assertEqual(len(result['evidence_urls']), 2)
+
+    def test_action_inflection_does_not_accept_future_or_wrong_quantity(self):
+        claim = 'The city opens three public schools in Manila.'
+        for article in (
+            'The city will open three public schools in Manila.',
+            'The city opened four public schools in Manila.',
+            'The city did not open three public schools in Manila.',
+        ):
+            with self.subTest(article=article):
+                result = apply_evidence(MODEL, sources(article), [], claim)
+                self.assertEqual(result['decision_source'], 'screening_model')
+
     def test_person_suffix_does_not_split_one_material_claim(self):
         claim = 'President Ferdinand Marcos Jr. created the National AI Council.'
         result = apply_evidence(MODEL, sources(claim), [], claim)

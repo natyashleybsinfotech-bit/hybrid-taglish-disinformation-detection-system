@@ -1,7 +1,7 @@
 # Start here — SuriPH research prototype
 
-**15 November check:** The original hybrid remains active. A focused evidence
-and article-excerpt repair passed 221 backend tests; the extension build and
+**15 November check:** The original hybrid remains active. A cross-topic evidence
+and article-excerpt repair passed 226 backend tests; the extension build and
 34 tests, admin lint/build/test, and local MariaDB/API readiness also passed.
 An actual API replay corrected one supported news claim from a raw model
 warning when two readable articles were retrieved. This is not a measured

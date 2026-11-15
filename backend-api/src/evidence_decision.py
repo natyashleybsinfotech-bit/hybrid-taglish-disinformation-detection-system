@@ -11,6 +11,7 @@ except ImportError:
 
 
 _ASSERTION_VERBS = {
+    "advocates": "advocate", "advocated": "advocate", "advocating": "advocate",
     "prevents": "prevent", "prevented": "prevent", "preventing": "prevent",
     "causes": "cause", "caused": "cause", "causing": "cause",
     "reduces": "reduce", "reduced": "reduce", "reducing": "reduce",
@@ -27,11 +28,17 @@ _MATERIAL_ACTIONS = {
     "seize", "destroy", "arrest", "kill", "shoot", "open", "approve", "file",
     "charge", "prevent", "cause", "reduce", "increase", "support", "improve",
     "treat", "cure", "recommend", "privatize", "return", "suspend", "resign",
-    "relationship", "spy", "rollback", "create", "adopt", "offer",
+    "relationship", "spy", "rollback", "create", "adopt", "offer", "advocate",
 }
 
 
 def _evidence_terms(text: str) -> set[str]:
+    # A call for a change is evidence of advocacy, not proof that the change
+    # happened. Keep this action distinct from approve/implement/pay.
+    text = re.sub(r"\b(?:calls?|called|calling)\s+for\b", "advocates", text, flags=re.I)
+    text = re.sub(r"\b(?:pay|salaries|salary)\b", "salary", text, flags=re.I)
+    text = re.sub(r"\bteachers?\b", "teacher", text, flags=re.I)
+    text = re.sub(r"\b(?:bigger|larger|higher)\b", "higher", text, flags=re.I)
     text = re.sub(r"\b(?:has\s+)?called\s+it\s+quits\b", "resigned", text, flags=re.I)
     text = re.sub(r"\broll(?:s|ed|ing)?\s+back\b", "rollback", text, flags=re.I)
     text = re.sub(r"\bpump\s+prices?\b", "fuel price", text, flags=re.I)
@@ -134,7 +141,7 @@ def _negates_material_action(words: list[str], actions: set[str]) -> bool:
         if word not in negations:
             continue
         following = words[position + 1:position + 11]
-        if (any(_canonical_term(candidate) in actions for candidate in following)
+        if (bool(actions & _evidence_terms(" ".join(following)))
                 or any(candidate in expectation_verbs for candidate in following)):
             return True
     return False

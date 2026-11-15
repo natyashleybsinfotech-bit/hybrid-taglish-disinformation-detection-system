@@ -26,6 +26,33 @@ class ModelRuntimeTests(unittest.TestCase):
                 model_runtime.configure_model(path)
 
 class RetrievalTests(unittest.TestCase):
+    def test_headline_verb_inflection_finds_same_event_without_relaxing_subject(self):
+        claim = 'The council approves a new education plan.'
+        matching = {'title': 'Council approved new education plan',
+                    'snippet': 'The council approved the education plan after review.',
+                    'link': 'https://www.philstar.com/education-plan'}
+        unrelated = {'title': 'Council approved new transport plan',
+                     'snippet': 'The council approved transport changes after review.',
+                     'link': 'https://www.philstar.com/transport-plan'}
+        self.assertTrue(retrieval._is_relevant(matching, retrieval._informative_terms(claim), claim)[0])
+        self.assertFalse(retrieval._is_relevant(unrelated, retrieval._informative_terms(claim), claim)[0])
+
+    def test_local_result_does_not_hide_direct_international_health_article(self):
+        payload = {'organic': [
+            {'title': 'Can water prevent dehydration?',
+             'snippet': 'Local discussion asks whether water prevents dehydration.',
+             'link': 'https://www.philstar.com/water-question'},
+            {'title': 'Water can prevent dehydration',
+             'snippet': 'Drinking water can prevent dehydration.',
+             'link': 'https://www.cdc.gov/water-guidance'},
+        ]}
+        with patch.object(retrieval.config, 'SERPER_ENABLED', True), patch.object(
+            retrieval.config, 'SERPER_API_KEY', 'fixture-not-live'
+        ), patch.object(retrieval, 'open_provider', return_value=io.BytesIO(json.dumps(payload).encode())):
+            result = retrieval.retrieve_related_sources('Water prevents dehydration.')
+        self.assertEqual({item['url'] for item in result['related_sources']},
+                         {'https://www.philstar.com/water-question', 'https://www.cdc.gov/water-guidance'})
+
     def test_short_claim_requires_the_specific_subject_not_only_generic_topic(self):
         claim = 'Drinking enough water helps prevent dehydration.'
         generic = {'title': 'Drinking-water', 'snippet': 'Drinking water can prevent infections from unsafe water.', 'link': 'https://who.int/water'}
@@ -177,7 +204,7 @@ class RetrievalTests(unittest.TestCase):
             {"manilastandard.net", "businessmirror.com.ph", "apnews.com"},
         )
 
-    def test_related_lookup_prefers_philippine_publishers_to_international_sources(self):
+    def test_related_lookup_ranks_philippine_publishers_first_without_hiding_others(self):
         claim = "Manila police arrested a suspect after Batasan Hills shooting"
         local = {
             "title": claim,
@@ -198,7 +225,7 @@ class RetrievalTests(unittest.TestCase):
 
         self.assertEqual(
             [source["url"] for source in result["related_sources"]],
-            [local["link"]],
+            [local["link"], international["link"]],
         )
 
     def test_international_publishers_are_used_when_no_philippine_match_exists(self):

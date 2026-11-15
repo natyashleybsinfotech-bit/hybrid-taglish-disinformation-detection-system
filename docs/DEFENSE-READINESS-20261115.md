@@ -54,10 +54,58 @@ accepted three CDC/WHO-debunked COVID claims. Those cases were not an
 independently reviewed evaluation. Switching to that candidate would trade one
 error type for another, so it was not activated.
 
+## General action and source-discovery follow-up
+
+The user correctly challenged a one-post-only repair. A cross-topic controlled
+probe showed the same defect for four ordinary headline/report pairs:
+`opens/opened`, `approves/approved`, `files/filed`, and
+`recommends/recommended`. Before this repair, two directly supporting readable
+publisher bodies were marked merely related in **all four** pairs, leaving the
+raw warning. The shared search/evidence term normalization now treats those
+inflected actions consistently; after repair, all four pairs are assessed as
+supporting and satisfy the existing two-publisher rule. Future plans, negated
+actions and changed quantities remain blocked in regression tests. This is a
+software probe, not a real-world accuracy estimate.
+
+The search ranking no longer discards a direct international source merely
+because a Philippine result exists. Local publishers still win equal-relevance
+ties. A test covers a directly relevant CDC health result alongside a local
+question headline. No source is deemed true because of its domain or search
+preview; the readable body and claim-specific gate are still required.
+
+An advocacy claim exposed a separate, reusable semantic gap: `calls for` in a
+headline and `calling for` in a body were not recognized as the same action;
+`pay/salaries` and `teachers/teacher` also broke alignment. Those terms now
+normalize only in the evidence assessor. Advocacy remains distinct from an
+enacted pay raise, and a negative `not calling for` cannot become support.
+
+Six further live API checks used provider discovery with **no manually supplied
+links** (`tmp/general-fp-replay-20261115.json` before the advocacy edit and
+`tmp/general-fp-after-20261115.json` after the action/search edits):
+
+| Claim type | Raw model | Final after | Source observation |
+| --- | --- | --- | --- |
+| Hydration | Potentially Misleading | No Misleading Information Detected | Direct readable CDC support within its health scope. |
+| BOC vape destruction | Potentially Misleading | No Misleading Information Detected | Two readable independent supporting publishers. |
+| National AI Council | Potentially Misleading | No Misleading Information Detected | Two readable independent supporting publishers. |
+| ACT Teachers advocacy | Potentially Misleading | Potentially Misleading | One readable GMA article now correctly assessed as supporting; the evidence rule still falls back to the model because no second independent readable report was found. |
+| Vaccine microchip myth | Potentially Misleading | Potentially Misleading | No readable supporting evidence; no evidence override. |
+| Water-every-15-minutes COVID myth | Potentially Misleading | Potentially Misleading | Two readable articles were merely related under the current strict gate; no evidence override. |
+
+These six selected checks demonstrate behavior across topics, not a measured
+false-positive or false-negative rate. In particular, the ACT Teachers result
+is still a visible false-positive risk. The original classifier assigns very
+high misleading scores to several supported short statements. When the
+required readable evidence is missing, the two-label policy retains that
+model output with an explicit unverified explanation. Fixing that underlying
+generalization requires a separately reviewed labeled evaluation and model
+repair; inventing a new threshold or treating related links as proof would
+hide the problem.
+
 ## Build and test record
 
-- Backend: **221 passed** in the isolated Python environment; full result in
-  `tmp/backend-tests-20261115.log`. This includes mismatched actors, plans,
+- Backend: **226 passed** in the isolated Python environment; full result in
+  `tmp/backend-general-fp-20261115.log`. This includes mismatched actors, plans,
   negation, article prompt removal, photo-caption exclusion, no-source fallback
   and the original two-label contract.
 - Extension: production build passed, **34 tests** passed, product contract

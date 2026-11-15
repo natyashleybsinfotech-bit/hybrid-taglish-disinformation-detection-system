@@ -83,6 +83,23 @@ RELEVANCE_STOP_WORDS = {
     "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
 }
 CANONICAL_TERMS = {
+    # Match routine headline present tense to reported past tense during
+    # discovery and article assessment. This does not itself prove a claim.
+    "opens": "open", "opened": "open", "opening": "open",
+    "approves": "approve", "approved": "approve", "approving": "approve",
+    "files": "file", "filed": "file", "filing": "file",
+    "charges": "charge", "charged": "charge", "charging": "charge",
+    "recommends": "recommend", "recommended": "recommend", "recommending": "recommend",
+    "creates": "create", "created": "create", "creating": "create", "creation": "create",
+    "adopts": "adopt", "adopted": "adopt", "adopting": "adopt", "adoption": "adopt",
+    "offers": "offer", "offered": "offer", "offering": "offer",
+    "prevents": "prevent", "prevented": "prevent", "preventing": "prevent",
+    "causes": "cause", "caused": "cause", "causing": "cause",
+    "reduces": "reduce", "reduced": "reduce", "reducing": "reduce",
+    "increases": "increase", "increased": "increase", "increasing": "increase",
+    "supports": "support", "supported": "support", "supporting": "support",
+    "improves": "improve", "improved": "improve", "improving": "improve",
+    "treats": "treat", "treated": "treat", "treating": "treat",
     "boc": "customs", "lto": "transportation", "smuggled": "illicit",
     "suspend": "suspend", "suspends": "suspend", "suspended": "suspend",
     "suspending": "suspend", "suspension": "suspend", "suspensions": "suspend",
@@ -461,13 +478,13 @@ def retrieve_related_sources(query: str, excluded_domain: str | None = None, *, 
         focused_used = True
         if focused_body is not None:
             candidates = _relevant_sources(focused_body, query_terms, query, excluded_domain, excluded_urls)
-    local_candidates = [
-        candidate for candidate in candidates
-        if _is_philippine_publisher(urlparse(candidate[1]["url"]).hostname or "")
-    ]
-    if local_candidates:
-        candidates = local_candidates
-    candidates.sort(key=lambda candidate: candidate[0], reverse=True)
+    # Prefer local reporting at equal relevance, but do not discard a direct
+    # international health/source article just because one Philippine hit exists.
+    # The readable body and claim gate still decide whether either is evidence.
+    candidates.sort(key=lambda candidate: (
+        candidate[0],
+        _is_philippine_publisher(urlparse(candidate[1]["url"]).hostname or ""),
+    ), reverse=True)
     sources = [source for _score, source in candidates[:config.SERPER_MAX_RESULTS]]
     return {
         "retrieval_status": "available" if sources else "no_results",

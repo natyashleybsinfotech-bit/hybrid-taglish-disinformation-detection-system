@@ -21,6 +21,29 @@ def sources(body):
 
 
 class CompleteClaimEvidenceTests(unittest.TestCase):
+    def test_personal_expectation_requires_full_people_and_context(self):
+        claim = 'Mara and her husband Paolo Reyes are expecting their first child.'
+        article = 'Singer Mara and her husband, Paolo Reyes, recently announced that they are expecting their first child.'
+        result = apply_evidence(MODEL, sources(article), [], claim)
+        self.assertEqual(result['public_label'], 'No Misleading Information Detected')
+        for different in (
+            article.replace('Paolo Reyes', 'Marco Reyes'),
+            article.replace('first child', 'second child'),
+            article.replace('are expecting', 'are not expecting'),
+        ):
+            with self.subTest(article=different):
+                self.assertEqual(apply_evidence(MODEL, sources(different), [], claim)['decision_source'], 'screening_model')
+
+    def test_preparing_to_welcome_first_child_is_not_a_completed_birth(self):
+        claim = 'Mara and her husband Paolo Reyes are expecting their first child.'
+        body = 'Mara and her husband, Paolo Reyes, are preparing to welcome their first child.'
+        self.assertEqual(apply_evidence(MODEL, sources(body), [], claim)['public_label'], 'No Misleading Information Detected')
+        for change in ('welcomed their first child', 'are not preparing to welcome their first child',
+                       'are preparing to welcome their second child'):
+            different = 'Mara and her husband, Paolo Reyes, ' + change + '.'
+            with self.subTest(article=different):
+                self.assertEqual(apply_evidence(MODEL, sources(different), [], claim)['decision_source'], 'screening_model')
+
     def test_advocacy_article_is_support_for_call_not_enacted_pay_raise(self):
         claim = 'ACT Teachers party-list calls for bigger education budget and higher teacher pay.'
         body = ('The ACT Teachers Party-list staged a protest in Manila, calling for a higher '

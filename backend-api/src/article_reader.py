@@ -13,9 +13,9 @@ from urllib import error, request
 from urllib.parse import urlparse, urljoin
 
 try:
-    from .provider_http import NoRedirect, safe_link
+    from .provider_http import NoRedirect, safe_link, article_url_without_tracking
 except ImportError:
-    from provider_http import NoRedirect, safe_link
+    from provider_http import NoRedirect, safe_link, article_url_without_tracking
 
 
 def _clean_article_body(body: str) -> str:
@@ -67,11 +67,11 @@ class ArticleParser(HTMLParser):
         self.stack.append((tag, is_hidden, article_id))
         if is_hidden:
             self.hidden += 1
-        if tag == "p":
+        if tag in {"p", "figcaption"}:
             self.current = []
 
     def handle_endtag(self, tag):
-        if tag == "p" and self.current:
+        if tag in {"p", "figcaption"} and self.current:
             paragraph = " ".join(" ".join(self.current).split())
             if len(paragraph) >= 35:
                 self.paragraphs.append(paragraph)
@@ -95,7 +95,7 @@ class ArticleParser(HTMLParser):
         if "h1" in tags and "main" in tags and article_id and (self.primary_article is None or self.primary_article == article_id):
             self.primary_article = article_id
             self.title_parts.append(data)
-        if "p" in tags and self.primary_article is not None and article_id == self.primary_article:
+        if tags & {"p", "figcaption"} and self.primary_article is not None and article_id == self.primary_article:
             self.current.append(data)
 
     def _current_article(self):
@@ -268,6 +268,42 @@ class StructuredArticleBodyParser(HTMLParser):
             self.current.append(data)
 
 
+class ManilaTimesPhotoParser(HTMLParser):
+    """Read only the publisher's displayed photo story, not related galleries."""
+    def __init__(self):
+        super().__init__()
+        self.stack=[];self.titles=[];self.og_title='';self.body_count=0
+        self.parts=[];self.current=None
+    def handle_starttag(self,tag,attrs):
+        values=dict(attrs);classes=set(values.get('class','').split())
+        if tag=='meta' and values.get('property')=='og:title':
+            self.og_title=values.get('content','')
+        if tag in CustomsLayoutParser.VOID:return
+        title='article-title' in classes
+        body='article_body' in classes
+        hidden=(tag in {'script','style','aside','nav','footer'} or
+                bool(re.search(r'(?:^|[ _-])(?:related|advertisement|social|share)(?:$|[ _-])',values.get('class',''),re.I)))
+        if body:self.body_count+=1
+        self.stack.append((tag,title,body,hidden))
+        if tag=='figcaption' and any(row[2] for row in self.stack):self.current=[]
+    def handle_data(self,data):
+        if any(row[3] for row in self.stack):return
+        if any(row[1] for row in self.stack):self.titles.append(data)
+        if self.current is not None and any(row[0]=='figcaption' for row in self.stack):self.current.append(data)
+    def handle_endtag(self,tag):
+        if tag=='figcaption' and self.current is not None:
+            text=' '.join(' '.join(self.current).split())
+            if len(text)>=35:self.parts.append(text)
+            self.current=None
+        index=next((i for i in range(len(self.stack)-1,-1,-1) if self.stack[i][0]==tag),None)
+        if index is not None:del self.stack[index:]
+    def article(self):
+        title=' '.join(' '.join(self.titles).split())
+        normal=lambda s:' '.join(re.findall(r'[^\W_]+',s.casefold()))
+        if self.body_count!=1 or not title or normal(title)!=normal(self.og_title) or not self.parts:return None
+        return {'content_status':'readable','title':title,'article_text':'\n'.join(dict.fromkeys(self.parts))}
+
+
 class StructuredArticleParser(HTMLParser):
     """Read explicit same-page articleBody metadata, never search descriptions."""
 
@@ -293,7 +329,7 @@ class StructuredArticleParser(HTMLParser):
         def identity(value):
             if not isinstance(value, str):
                 return None
-            parsed = urlparse(value)
+            parsed = urlparse(article_url_without_tracking(value))
             if parsed.scheme != 'https' or not parsed.hostname:
                 return None
             host = parsed.hostname.casefold().removeprefix('www.')
@@ -383,8 +419,37 @@ class StructuredArticleParser(HTMLParser):
         return {'content_status': 'readable', 'title': title, 'article_text': body}
 
 
+def _photo_report_provenance(html, url, article):
+    """Require same-page publisher metadata plus a visible named photo credit.
+
+    Publication metadata establishes provenance, not the date of the event.
+    Claim/event dates still have to match the literal supporting caption.
+    """
+    body=article.get('article_text','')
+    credit=re.search(r'\bPHOTOS?\s+BY\s+([A-Z][A-Za-z.]+(?:\s+[A-Z][A-Za-z.]+){1,4})\s*$',body)
+    if not credit:return {}
+    parser=StructuredArticleParser();parser.feed(html)
+    def identity(value):
+        if not isinstance(value,str):return None
+        part=urlparse(value)
+        return (part.scheme,(part.hostname or '').lower().removeprefix('www.'),part.path.rstrip('/'))
+    target=identity(url)
+    normal=lambda s:' '.join(re.findall(r'[^\W_]+',s.casefold()))
+    for block in parser.blocks[:20]:
+        try:item=json.loads(block)
+        except ValueError:continue
+        if not isinstance(item,dict) or item.get('@type')!='NewsArticle' or str(item.get('articleSection','')).casefold()!='photos':continue
+        if identity(item.get('url'))!=target or normal(str(item.get('headline','')))!=normal(article['title']):continue
+        published=item.get('datePublished','')
+        if not isinstance(published,str) or not re.match(r'^20\d{2}-\d{2}-\d{2}T',published):continue
+        return {'content_kind':'publisher_photo_report','photo_credit':credit.group(1),
+                'date_published':published,'provenance_verified':True}
+    return {}
+
+
 def read_article(url: str, *, allowed_host) -> dict:
     """Read one bounded HTTPS article, allowing only same-publisher redirects."""
+    url = article_url_without_tracking(url)
     parsed = urlparse(url)
     if not safe_link(url) or parsed.scheme != "https" or not allowed_host(parsed.hostname or ""):
         return {"content_status": "inaccessible"}
@@ -437,6 +502,13 @@ def read_article(url: str, *, allowed_host) -> dict:
     title = " ".join(" ".join(parser.title_parts).split())
     paragraphs = parser.paragraphs[:80]
     if not title or not paragraphs:
+        if (parsed.hostname or '').lower().removeprefix('www.') == 'manilatimes.net' and '/photos/' in parsed.path:
+            photos = ManilaTimesPhotoParser()
+            photos.feed(html)
+            photo_article = photos.article()
+            if photo_article:
+                photo_article.update(_photo_report_provenance(html, current, photo_article))
+                return photo_article
         structured = StructuredArticleParser()
         structured.feed(html)
         result = structured.article(current) or {"content_status": "inaccessible"}

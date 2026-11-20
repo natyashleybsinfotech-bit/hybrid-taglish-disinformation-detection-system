@@ -1,5 +1,7 @@
 # SuriPH
 
+**Latest source snapshot (20 November 2026):** Read [the current implementation, test scope and unresolved issues](docs/CURRENT-SOURCE-20261120.md) first. It supersedes older runtime-selection descriptions below. The code is available for review; private configuration, data and model weights are excluded.
+
 Start with the [local setup and demo guide](START_HERE.md). The
 [October 29 readiness report](docs/CURRENT-READINESS-20261029.md) and older
 [release evidence](docs/RELEASE-READINESS.md) are historical records; check their

@@ -39,3 +39,9 @@ tmp/
 /tools/
 .run/
 /runtime/
+
+/backend-api/.env.local
+
+/backend-api/data/runtime-gemini/
+
+/runtime/gemini-backup-*/

@@ -21,7 +21,7 @@ assert.match(content, /const outerCaption = \[[\s\S]*?const outerAuthor =/, 'A n
 assert.match(content, /const captions = \[\.\.\.new Set\(\[[\s\S]*?querySelectorAll\('\[dir="auto"\]'\)/, 'Incomplete-caption checks must support Facebook fallback text containers');
 assert.match(content, /const payload = \{\s*text: submittedText, page_url: snapshot\.pageUrl/, 'Video analysis must retain the complete selected post caption');
 assert.match(content, /analyzeCapturedVideo\(arrayBufferToBase64\(arrayBuffer\), payload/, 'Captured video must use the same bound post payload');
-assert.match(content, /error\.fallback_to_capture\) captureAndAnalyze\(\)/, 'Direct video fetch failure must fall back to a complete capture');
+assert.match(content, /error\.fallback_to_capture\) showAcquisitionChoice\(\)/, 'Direct video fetch failure must let the user choose caption or complete capture');
 assert.match(background, /message\.videoUrl[\s\S]{0,100}postMedia\('analyze\/video'/, 'The background must try the selected direct video URL');
 assert.match(content, /media: selectedMedia/, 'Image screening must retain its selected post caption');
 assert.match(background, /form\.append\('post_text', payload\.text\)/, 'Image and video upload requests must forward the caption to the API');

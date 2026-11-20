@@ -170,6 +170,31 @@ class DatabaseTests(unittest.TestCase):
             self.assertEqual(imported["imported"], 1)
             self.assertEqual(sum(imported["partitions"].values()), 1)
 
+    def test_legacy_decision_migration_preserves_rows_and_accepts_no_score(self):
+        import sqlalchemy as sa
+        with tempfile.TemporaryDirectory() as directory, patch.object(database.config,"DATABASE_URL",""), patch.object(database.config,"DB_PATH",Path(directory)/"legacy.db"):
+            engine=database._get_engine()
+            legacy=database.screening_decisions.to_metadata(sa.MetaData())
+            legacy.c.model_score.nullable=False
+            legacy._columns.remove(legacy.c.ai_reported_score)
+            legacy._columns.remove(legacy.c.ai_reported_label)
+            legacy.create(engine)
+            row={"text_sha256":"a"*64,"model_label":"Potentially Misleading","model_score":0.8,"evidence_assessment":"unverified","source_urls_json":"[]","final_label":"Potentially Misleading","final_reason":"Legacy result","evidence_adjusted":False}
+            with engine.begin() as connection:
+                connection.execute(sa.insert(legacy).values(**row))
+            self.assertEqual(database.migrate()['status'],'available')
+            self.assertTrue(next(c for c in sa.inspect(engine).get_columns('ScreeningDecisions') if c['name']=='model_score')['nullable'])
+            self.assertEqual(database.list_screening_decisions()[0]['model_score'],0.8)
+            result={"analyzed_text":"Synthetic test text","model_public_label":"No Misleading Information Detected","model_score":None,"evidence_relationship":"unverified","related_sources":[],"final_label":"No Misleading Information Detected","final_reason":"Unverified automated prediction","evidence_adjusted":False,"ai_reported_score":74,"ai_reported_label":"No Misleading Information Detected"}
+            record_id=database.save_screening_decision(result)
+            rows=database.list_screening_decisions()
+            self.assertEqual(len(rows),2)
+            self.assertEqual(rows[0]['screening_decision_id'],record_id)
+            self.assertIsNone(rows[0]['model_score'])
+            self.assertEqual(rows[0]['ai_reported_score'],74)
+            self.assertEqual(rows[0]['ai_reported_label'],'No Misleading Information Detected')
+            self.assertEqual(database.migrate()['applied_versions'],[])
+
     def test_core_schema_is_versioned(self):
         schema = " ".join(table.name for table in database.metadata.sorted_tables)
         for table in ("AdminUsers", "CandidateSamples", "AuditLogs"):

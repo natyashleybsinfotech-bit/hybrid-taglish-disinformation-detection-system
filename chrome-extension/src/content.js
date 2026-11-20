@@ -1,6 +1,6 @@
 import modalCss from './modal.css?inline';
-import { captionForScreening, matchesSubmittedPost, matchesVideoPreview, postResultCacheKey, resolveMediaChoice } from './result_binding.js';
-import { incompleteVideoNotice, mergeRelatedSources, displayPostDate, displayPostRecency } from './result_updates.js';
+import { aiReportedScore, captionForScreening, matchesSubmittedPost, matchesVideoPreview, postResultCacheKey, resolveMediaChoice, usableVideoCaption } from './result_binding.js';
+import { evidenceReaderNotice, incompleteVideoNotice, mergeRelatedSources, displayPostDate, displayPostRecency } from './result_updates.js';
 import { captureVideoElement } from './video_capture.js';
 import { isRecommendationSurface } from './post_eligibility.js';
 
@@ -476,8 +476,9 @@ function appendLookupChoice(container) {
   const label = document.createElement('label');
   label.className = 'lookup-choice';
   const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = retrievalEnabled;
-  const text = document.createElement('span'); text.textContent = tr('Send this text to Serper to find related articles from approved publishers. Only directly supporting or contradicting readable evidence can affect the result; no classifier model is used.', 'Ipadala ang tekstong ito sa Serper upang maghanap ng kaugnay na artikulo mula sa aprubadong publisher. Tanging direktang sumusuporta o sumasalungat na mababasang ebidensiya ang maaaring makaapekto sa resulta; walang classifier model na ginagamit.');
+  const text = document.createElement('span'); text.textContent = tr('Find related articles using Serper and compare readable articles with this claim. A related link alone does not verify the claim.', 'Maghanap ng kaugnay na artikulo gamit ang Serper at ikumpara ang nabasang artikulo sa claim. Hindi sapat ang kaugnay na link para beripikahin ang claim.');
   checkbox.addEventListener('change', () => { retrievalEnabled = checkbox.checked; chrome.storage.local.set({ suriphRetrieveSources: retrievalEnabled }); });
+  const disclosure = document.createElement('details'); disclosure.className = 'privacy-notice'; const privacyTitle = document.createElement('summary'); privacyTitle.textContent = tr('Privacy and data processing', 'Privacy at pagproseso ng data'); const privacyText = document.createElement('p'); privacyText.textContent = tr('Processing depends on the configured service. Local model classification stays on the configured SuriPH server. If cloud classification or audio transcription is enabled, confirmed text or video audio is sent to Google Gemini. Source search sends a query to Serper; enabled cloud evidence checking sends readable articles for comparison. Do not submit private information.', 'Depende sa configuration ang pagproseso. Sa SuriPH server ginagawa ang local model classification. Kung naka-on ang cloud classification o audio transcription, ipinapadala ang kinumpirmang teksto o audio sa Google Gemini. Ipinapadala ang source query sa Serper, at ang nabasang artikulo sa cloud evidence checker kung naka-on ito. Huwag magsumite ng pribadong impormasyon.'); disclosure.append(privacyTitle, privacyText); container.appendChild(disclosure);
   label.append(checkbox, text); container.appendChild(label);
 }
 async function captureVisibleVideo(post, options) {
@@ -557,13 +558,28 @@ function renderRichResult(container, result) {
     : result.internal_label === 'Misleading'
     ? (tl ? 'May nakitang warning signs sa teksto na maaaring nagpapahiwatig ng misleading na impormasyon.' : 'The text check found warning signs that may indicate misleading information.')
     : (tl ? 'Walang sapat na warning signs na nakita sa pagsusuri ng teksto.' : 'The text check did not find enough warning signs to flag this post.');
-  const explanation = section('2-explanation'); sectionTitle(explanation, 'info', tl ? 'Bakit ito ang resulta' : 'Why this result'); textNode(explanation, 'p', result.decision_source === 'verified_evidence' ? (result.evidence_relationship === 'supports' ? (tl ? 'May nabasang ebidensiyang sumusuporta sa buong claim at konteksto nito.' : 'Readable evidence supports the complete claim and its context.') : (tl ? 'May nabasang source na direktang sumasalungat sa buong claim.' : 'A readable source directly contradicts the complete claim.')) : fallbackReason);
+  const readerNotice = evidenceReaderNotice(result, tl ? 'tl' : 'en');
+  const explanation = section('2-explanation'); sectionTitle(explanation, 'info', tl ? 'Bakit ito ang resulta' : 'Why this result'); textNode(explanation, 'p', result.decision_source === 'verified_evidence' ? (result.evidence_relationship === 'supports' ? (tl ? 'May nabasang ebidensiyang sumusuporta sa buong claim at konteksto nito.' : 'Readable evidence supports the complete claim and its context.') : (tl ? 'May nabasang source na direktang sumasalungat sa buong claim.' : 'A readable source directly contradicts the complete claim.')) : (readerNotice || fallbackReason));
+  const reportedScore = aiReportedScore(result);
+  if (reportedScore) {
+    const scoreBox = document.createElement('div'); scoreBox.className = 'ai-score';
+    textNode(scoreBox, 'strong', `${reportedScore.value}%`, 'font-size:32px;line-height:1.2;');
+    textNode(scoreBox, 'p', `${tl ? 'AI-reported confidence para sa' : 'AI-reported confidence for'} ${reportedScore.label}`);
+    if (reportedScore.label !== label) textNode(scoreBox, 'small', tl ? 'Binago ng source review ang final label sa itaas. Para sa paunang prediction ang score na ito.' : 'Source review changed the final label above. This score belongs to the initial prediction.');
+    textNode(scoreBox, 'small', tl ? 'Sariling pagtataya ng AI; hindi measured accuracy o patunay na totoo o mali ang claim. Hiwalay ang evidence status.' : 'The AI’s own estimate; not measured accuracy or proof that a claim is true or false. Evidence status is separate.');
+    explanation.insertBefore(scoreBox, explanation.querySelector('p'));
+  }
+  const aiExplanation = tl ? result.evidence_explanation_tl : result.evidence_explanation_en;
+  if ((result.decision_source === 'verified_evidence' && aiExplanation) || result.screening_mode === 'gemini') {
+    const paragraph = [...explanation.children].find(node => node.tagName === 'P');
+    if (paragraph) paragraph.textContent = result.decision_source === 'verified_evidence' ? aiExplanation : (tl ? result.classifier_reason_tl : result.classifier_reason_en);
+  }
   if (result.screening_mode === 'evidence_only') {
     textNode(explanation, 'p', tl ? 'Naka-off ang classifier. Evidence retrieval lang ang ginamit; hindi factual verdict ang hindi pa beripikadong warning.' : 'The classifier is off. This uses evidence retrieval only; an unverified warning is not a factual verdict.');
   } else if (result.decision_source !== 'verified_evidence') {
     textNode(explanation, 'p', tl ? 'Hindi pa verified ang resultang ito gamit ang sapat na ebidensiya; model prediction ito.' : 'This result is not verified by sufficient evidence; it is a model prediction.');
   }
-  const context = result.context_explanation || {}; const materialKey = String(context.checked_material || '').toLowerCase(); const hasCaption = Boolean(result.extraction?.caption_text?.trim()); const checkedMaterial = materialKey.includes('video audio transcript') || materialKey.includes('video-frame ocr') ? (hasCaption ? (tl ? 'Caption, salita, at tekstong lumabas sa video' : 'Caption, spoken audio, and text shown in the video') : (tl ? 'Salita at tekstong lumabas sa video' : 'Spoken audio and text shown in the video')) : materialKey.includes('image ocr') ? (hasCaption ? (tl ? 'Caption at tekstong nakita sa image' : 'Caption and text found in the image') : (tl ? 'Tekstong nakita sa image' : 'Text found in the image')) : materialKey.includes('caption') ? (tl ? 'Caption ng post' : 'Post caption') : materialKey.includes('selected') ? (tl ? 'Piniling teksto' : 'Selected text') : context.checked_material; const contextBox = section('3-post-context', 'context-box'); sectionTitle(contextBox, 'context', tl ? 'Tungkol sa post' : 'About this post'); const contextRows = [[tl ? 'Nag-post' : 'Posted by', context.author || (tl ? 'Hindi available' : 'Not available')], [tl ? 'Petsa ng post' : 'Post date', displayPostDate(context, interfaceLanguage)], [tl ? 'Gaano kabago' : 'How recent', displayPostRecency(context, interfaceLanguage)], [tl ? 'Sinuring content' : 'Content checked', checkedMaterial || (tl ? 'Hindi available' : 'Not available')]]; for (const [name, value] of contextRows) { const row = textNode(contextBox, 'p', `${name}: ${value}`); row.className = 'context-row'; }
+  const context = result.context_explanation || {}; const materialKey = String(context.checked_material || '').toLowerCase(); const hasCaption = Boolean(result.extraction?.caption_text?.trim()); const checkedMaterial = result.extraction?.caption_fallback_used === true ? (tl ? 'Caption lang ng video' : 'Video caption only') : materialKey.includes('video audio transcript') || materialKey.includes('video-frame ocr') ? (hasCaption ? (tl ? 'Caption, salita, at tekstong lumabas sa video' : 'Caption, spoken audio, and text shown in the video') : (tl ? 'Salita at tekstong lumabas sa video' : 'Spoken audio and text shown in the video')) : materialKey.includes('image ocr') ? (hasCaption ? (tl ? 'Caption at tekstong nakita sa image' : 'Caption and text found in the image') : (tl ? 'Tekstong nakita sa image' : 'Text found in the image')) : materialKey.includes('caption') ? (tl ? 'Caption ng post' : 'Post caption') : materialKey.includes('selected') ? (tl ? 'Piniling teksto' : 'Selected text') : context.checked_material; const contextBox = section('3-post-context', 'context-box'); sectionTitle(contextBox, 'context', tl ? 'Tungkol sa post' : 'About this post'); const contextRows = [[tl ? 'Nag-post' : 'Posted by', context.author || (tl ? 'Hindi available' : 'Not available')], [tl ? 'Petsa ng post' : 'Post date', displayPostDate(context, interfaceLanguage)], [tl ? 'Gaano kabago' : 'How recent', displayPostRecency(context, interfaceLanguage)], [tl ? 'Sinuring content' : 'Content checked', checkedMaterial || (tl ? 'Hindi available' : 'Not available')]]; for (const [name, value] of contextRows) { const row = textNode(contextBox, 'p', `${name}: ${value}`); row.className = 'context-row'; }
   const original = safeUrl(context.original_post_url); if (original) { const link = document.createElement('a'); link.href = original; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = tl ? 'Buksan ang orihinal na post' : 'Open original post'; contextBox.appendChild(link); }
 
   const featureDescriptions = {
@@ -575,7 +591,19 @@ function renderRichResult(container, result) {
     emotional_language_frequency: tl ? 'Mga salitang nagpapahayag ng matinding emosyon.' : 'Words that express strong emotion.',
     urgency_cue_frequency: tl ? 'Mga salitang nag-uudyok na kumilos agad.' : 'Words that urge readers to act quickly.',
   };
-  const features = document.createElement('details'); features.dataset.resultPart = '4-features'; sectionTitle(features, 'features', tl ? 'Paano sinuri ang teksto' : 'How the text was analyzed', 'summary'); textNode(features, 'p', result.screening_mode === 'evidence_only' ? (tl ? 'Naka-off ang text classifier. Ipinapakita sa ibaba kung anong teksto ang nakuha mula sa caption, image, o video.' : 'The text classifier is off. The extracted caption, image, or video text is shown below.') : (tl ? 'Inilalarawan ng mga sukat na ito ang paraan ng pagkakasulat at paggamit ng wika. Hindi nila pinatutunayan nang mag-isa kung totoo o mali ang post.' : 'These measurements describe the writing style and language. They do not prove by themselves that a post is true or false.')); if (result.screening_mode !== 'evidence_only') { textNode(features, 'p', `${tl ? 'Orihinal na model label' : 'Original model label'}: ${result.model_public_label || displayLabel(result)} · ${pct(Number(result.model_score))} ${tl ? 'model score para sa Misleading' : 'Misleading model score'}`); textNode(features, 'small', tl ? 'Hindi ito posibilidad na mali ang claim.' : 'This is not the chance that the claim is false.'); for (const item of result.linguistic_indicators || []) { const row = document.createElement('div'); row.style.cssText = 'padding:8px 0;border-top:1px solid #e2e8f0;'; textNode(row, 'b', `${tl ? item.display_name_tagalog : item.display_name}: ${pct(Number(item.value))}`); textNode(row, 'small', featureDescriptions[item.name] || ''); features.appendChild(row); } } container.appendChild(features);
+  if (result.screening_mode === 'gemini') {
+    const identity = document.createElement('details'); identity.dataset.resultPart = '4-features'; sectionTitle(identity, 'features', tl ? 'Paano sinuri ang teksto' : 'How the text was analyzed', 'summary');
+    textNode(identity, 'p', tl ? 'Mga sukat ito ng paraan ng pagkakasulat at paggamit ng wika. Hindi ito feature importance, AI confidence, o patunay na totoo o mali ang post.' : 'These measurements describe writing style and language. They are not feature importance, AI confidence, or proof that a post is true or false.');
+    for (const item of result.linguistic_indicators || []) {
+      const row = document.createElement('div'); row.dataset.feature = item.name; row.dataset.value = item.value; row.style.cssText = 'padding:8px 0;border-top:1px solid #e2e8f0;';
+      textNode(row, 'b', `${tl ? item.display_name_tagalog : item.display_name}: ${pct(Number(item.value))}`);
+      textNode(row, 'small', featureDescriptions[item.name] || ''); identity.appendChild(row);
+    }
+    if (!result.linguistic_indicators?.length) textNode(identity, 'p', tl ? 'Hindi available ang mga sukat sa check na ito. Subukan ang bagong check.' : 'Language measurements are unavailable for this check. Try a new check.');
+    container.appendChild(identity);
+  } else {
+  const features = document.createElement('details'); features.dataset.resultPart = '4-features'; sectionTitle(features, 'features', tl ? 'Paano sinuri ang teksto' : 'How the text was analyzed', 'summary'); textNode(features, 'p', result.screening_mode === 'evidence_only' ? (tl ? 'Naka-off ang text classifier. Ipinapakita sa ibaba kung anong teksto ang nakuha mula sa caption, image, o video.' : 'The text classifier is off. The extracted caption, image, or video text is shown below.') : (tl ? 'Inilalarawan ng mga sukat na ito ang paraan ng pagkakasulat at paggamit ng wika. Hindi nila pinatutunayan nang mag-isa kung totoo o mali ang post.' : 'These measurements describe the writing style and language. They do not prove by themselves that a post is true or false.')); if (result.screening_mode !== 'evidence_only') { textNode(features, 'p', `${tl ? 'Orihinal na model label' : 'Original model label'}: ${result.model_public_label || label} · ${pct(Number(result.model_score))} ${tl ? 'model score para sa Misleading' : 'Misleading model score'}`); textNode(features, 'small', tl ? 'Hindi ito posibilidad na mali ang claim.' : 'This is not the chance that the claim is false.'); for (const item of result.linguistic_indicators || []) { const row = document.createElement('div'); row.style.cssText = 'padding:8px 0;border-top:1px solid #e2e8f0;'; textNode(row, 'b', `${tl ? item.display_name_tagalog : item.display_name}: ${pct(Number(item.value))}`); textNode(row, 'small', featureDescriptions[item.name] || ''); features.appendChild(row); } } container.appendChild(features);
+  }
 
   const sources = section('5-related-sources', 'sources'); sectionTitle(sources, 'sources', tl ? 'Mga nahanap na source' : 'Sources found'); textNode(sources, 'p', result.decision_source === 'verified_evidence' ? (tl ? 'Inihambing ang buong claim sa nababasang nilalaman ng mga artikulo.' : 'The complete claim was compared with readable article content.') : (tl ? 'Hindi patunay sa buong claim ang link o search preview. Sinusuri lang ang nababasang laman ng artikulo; ihambing ang mga detalye nito sa post.' : 'A link or search preview does not verify the full claim. Only readable article content is assessed; compare its details with the post.'));
   const renderSourceState = () => {
@@ -686,6 +714,19 @@ function renderRichResult(container, result) {
     }
   };
   renderSourceState();
+  if (result.search_grounding) {
+    const grounding = document.createElement('div');
+    textNode(grounding,'h4',tl ? 'Mga search reference' : 'Search references');
+    textNode(grounding,'p',tl ? 'Mga reference mula sa search grounding; hiwalay sa nasuring article passages.' : 'Search-grounding references; separate from checked article passages.');
+    for (const item of result.search_grounding.sources || []) {
+      const href=safeUrl(item.url); if (!href) continue;
+      const link=document.createElement('a'); link.href=href; link.textContent=item.title;link.target='_blank';link.rel='noopener noreferrer';grounding.appendChild(link);grounding.appendChild(document.createElement('br'));
+    }
+    if (result.search_grounding.search_suggestions_html) {
+      const frame=document.createElement('iframe');frame.title='Search suggestions';frame.setAttribute('sandbox','allow-popups allow-popups-to-escape-sandbox');frame.referrerPolicy='no-referrer';frame.srcdoc=result.search_grounding.search_suggestions_html;frame.style.cssText='width:100%;height:140px;border:0;';grounding.appendChild(frame);
+    }
+    sources.appendChild(grounding);
+  }
   const sourceCards = sources.querySelectorAll('.source-state > article');
   const sourceOffset = (result.fact_check_matches || []).filter(item => safeUrl(item.url)).length;
   (result.related_sources || []).filter(item => safeUrl(item.url)).forEach((item, index) => {
@@ -693,6 +734,10 @@ function renderRichResult(container, result) {
     if (item.relationship === 'supports' && item.decision_eligible === false) {
       textNode(card, 'small', tl ? 'May kaugnay na suportang konteksto, pero hindi sapat para baguhin ang label.' : 'Supporting context was found, but it is insufficient to change the label.');
       return;
+    }
+    if (item.content_status !== 'inaccessible') {
+      const detail = tl ? item.relationship_reason_tl : item.relationship_reason;
+      if (detail) textNode(card, 'p', detail);
     }
     textNode(card, 'small', item.relationship === 'supports' ? (tl ? 'Sinusuportahan ang buong claim' : 'Supports the complete claim') : item.relationship === 'contradicts' ? (tl ? 'Sumasalungat sa buong claim' : 'Contradicts the complete claim') : item.content_status === 'inaccessible' ? (tl ? 'Hindi mabasa ang artikulo; walang excerpt' : 'Article inaccessible; no excerpt available') : (tl ? 'Kaugnay na balita; hindi pa napatunayan ang claim' : 'Related coverage; claim not established'));
   });
@@ -714,7 +759,8 @@ function renderRichResult(container, result) {
     ];
     for (const [title, text] of parts) if (text?.trim()) { textNode(analyzed, 'h4', title); textNode(analyzed, 'p', text, 'white-space:pre-wrap;overflow-wrap:anywhere;'); }
     if (Array.isArray(extraction.frame_ocr_regions) && extraction.frame_ocr_regions.length) { const timed = document.createElement('details'); const heading = document.createElement('summary'); heading.textContent = tl ? 'Teksto ayon sa oras ng frame' : 'Frame text by timestamp'; timed.appendChild(heading); for (const region of extraction.frame_ocr_regions) if (region.text) textNode(timed, 'p', `${Number(region.sample_seconds || 0).toFixed(1)}s: ${region.text}`); analyzed.appendChild(timed); }
-    if ('transcript_text' in extraction && !extraction.transcript_text) textNode(analyzed, 'p', tl ? 'Walang malinaw na salita na nakuha mula sa audio. Hindi pinunan ng gawa-gawang transcript.' : 'No reliable speech was extracted from the audio. No transcript was invented.');
+    if (extraction.caption_only === true) textNode(analyzed, 'p', tl ? 'Caption ng post lang ang sinuri. Hindi sinuri ang audio o mga frame ng video.' : 'Only the post caption was checked. Video audio and frames were not analyzed.');
+    if ('transcript_text' in extraction && !extraction.transcript_text && extraction.transcript_status !== 'not_requested') textNode(analyzed, 'p', tl ? 'Walang malinaw na salita na nakuha mula sa audio. Hindi pinunan ng gawa-gawang transcript.' : 'No reliable speech was extracted from the audio. No transcript was invented.');
     if (extraction.quality_notice) textNode(analyzed, 'small', tl ? 'Ihambing ang nakuha sa orihinal na video. Maaaring may maling salita o hindi nakuha; piling video frames lang ang sinuri.' : 'Compare the extracted text with the original video. Words may be missed or misread; only sampled frames were checked.');
     if (extraction.discarded_ocr_detections > 0) textNode(analyzed, 'small', tl ? 'Hindi isinama ang ilang tekstong hindi malinaw basahin.' : 'Some low-confidence image text was excluded.');
     const combined = document.createElement('details'); textNode(combined, 'summary', tl ? 'Pinagsamang tekstong sinuri' : 'Combined text used for the check'); combined.appendChild(combinedText); analyzed.appendChild(combined);
@@ -722,6 +768,41 @@ function renderRichResult(container, result) {
   const reminder = section('7-reminder', 'disclaimer'); const infoMark = document.createElement('span'); infoMark.className = 'section-icon'; infoMark.appendChild(makeIcon('info')); reminder.appendChild(infoMark); reminder.appendChild(document.createTextNode(tl ? 'Maaaring magkamali ang SuriPH. Basahin ang buong post, tingnan ang petsa at pinagmulan, at ikumpara ito sa mapagkakatiwalaang sanggunian bago ibahagi o aksyunan.' : 'SuriPH can make mistakes. Read the full post, check its date and source, and compare it with reliable references before sharing or acting on it.'));
   container.dataset.tone = result.internal_label === 'Misleading' ? 'warn' : 'safe';
 }
+function renderVideoAcquisitionChoice({ post, button, message, result, snapshot, isCurrent, showRequestError, selectedVideo, selectedVideoSource }) {
+  result.replaceChildren();
+  const card = document.createElement('section'); card.className = 'review-card';
+  const title = document.createElement('strong'); title.textContent = tr('Direct video access is unavailable', 'Hindi direktang makuha ang video');
+  const note = document.createElement('p'); note.textContent = tr(
+    'Choose the complete post caption, or capture the selected video while it plays. No audio has been analyzed yet.',
+    'Piliin ang kumpletong caption, o kunin ang napiling video habang nagpe-play ito. Wala pang nasuring audio.');
+  card.append(title, note);
+  const canUseCaption = usableVideoCaption(snapshot.submittedText, !snapshot.captionOmitted);
+  const choices = document.createElement('div'); choices.className = 'choice-grid';
+  const choose = (label, mode) => {
+    const action = document.createElement('button'); action.type = 'button';
+    action.className = mode === 'caption' ? 'primary-button' : 'secondary-button'; action.textContent = label;
+    action.disabled = mode === 'caption' && !canUseCaption;
+    action.addEventListener('click', () => {
+      if (!isCurrent()) return;
+      if (!post.isConnected || collectPostText(post) !== snapshot.text || location.href !== snapshot.pageUrl
+          || findBestVideo(post) !== selectedVideo || (selectedVideo?.currentSrc || selectedVideo?.src || '') !== selectedVideoSource) {
+        showRequestError(new Error('The selected post or video changed. Check it again.')); return;
+      }
+      analyzePost(post, button, message, result, 'video', { ...snapshot, videoAcquisitionChoice: mode });
+    });
+    choices.appendChild(action);
+  };
+  choose(tr('Caption only', 'Caption lang'), 'caption');
+  choose(tr('Caption and video', 'Caption at video'), 'capture');
+  card.appendChild(choices);
+  const help = document.createElement('p'); help.className = 'chooser-note';
+  help.textContent = canUseCaption
+    ? tr('If speech is unclear, only the complete caption will be checked. Text checked will show the basis used.', 'Kung hindi malinaw ang speech, kumpletong caption lang ang susuriin. Makikita sa Tekstong sinuri ang ginamit na basehan.')
+    : tr('No complete, informative caption is available. Video capture is required; a collapsed caption is not used as a fallback.', 'Walang kumpleto at sapat na caption. Kailangan ang video capture; hindi gagamitin ang putol na caption bilang fallback.');
+  card.appendChild(help); appendLookupChoice(card); result.appendChild(card);
+  button.disabled = false; button.textContent = tr('Check again', 'Suriin muli'); setMessage(message, '');
+}
+
 function renderVideoReview({ post, button, message, result, preview, snapshot, isCurrent, showRequestError }) {
   const extraction = preview?.extraction;
   if (!matchesVideoPreview(preview, {
@@ -848,10 +929,10 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto', locked
   }
   result.replaceChildren();
   button.disabled = true; button.textContent = tr('Checking…', 'Sinusuri…'); setMessage(message, tr('SuriPH is checking this post and its available context…', 'Sinusuri ng SuriPH ang post at available na konteksto…'), 'loading');
-  const progress = [tr('SuriPH is reading the post context...', 'Binabasa ng SuriPH ang konteksto ng post...'), mediaChoice === 'video' ? tr('SuriPH is processing video frames and speech...', 'Pinoproseso ng SuriPH ang mga frame at salita sa video...') : mediaChoice === 'image' ? tr('SuriPH is reading the image and its text...', 'Binabasa ng SuriPH ang image at teksto nito...') : tr('SuriPH is checking the post and its context...', 'Sinusuri ng SuriPH ang post at konteksto nito...')];
+  const progress = [tr('SuriPH is reading the post context...', 'Binabasa ng SuriPH ang konteksto ng post...'), screeningMode === 'video' ? tr('SuriPH is processing video frames and speech...', 'Pinoproseso ng SuriPH ang mga frame at salita sa video...') : screeningMode === 'image' ? tr('SuriPH is reading the image and its text...', 'Binabasa ng SuriPH ang image at teksto nito...') : tr('SuriPH is checking the post and its context...', 'Sinusuri ng SuriPH ang post at konteksto nito...')];
   let progressIndex = 0; let videoPhase = null; const startedAt = Date.now(); setMessage(message, progress[progressIndex], 'loading');
   let timedOut = false; let cancelVideoAnalysis = null; const progressTimer = setInterval(() => { if (!isCurrent()) { clearInterval(progressTimer); return; } progressIndex = (progressIndex + 1) % progress.length; const elapsed = Math.round((Date.now() - startedAt) / 1000); setMessage(message, `${videoPhase || progress[progressIndex]} (${elapsed}s)`, 'loading'); }, 2200);
-  const hardTimeout = setTimeout(() => { if (!isCurrent()) { clearInterval(progressTimer); return; } timedOut = true; cancelVideoAnalysis?.(); clearInterval(progressTimer); button.disabled = false; button.textContent = tr('Check again', 'Suriin muli'); setMessage(message, tr('Video processing took too long and was stopped. Try a shorter video or upload the file through the popup.', 'Masyadong matagal ang pagproseso ng video. Subukan ang mas maikling video o i-upload ang file sa popup.'), 'error'); }, mediaChoice === 'video' ? 600000 : 300000);
+  const hardTimeout = setTimeout(() => { if (!isCurrent()) { clearInterval(progressTimer); return; } timedOut = true; cancelVideoAnalysis?.(); clearInterval(progressTimer); button.disabled = false; button.textContent = tr('Check again', 'Suriin muli'); setMessage(message, tr('Video processing took too long and was stopped. Try a shorter video or upload the file through the popup.', 'Masyadong matagal ang pagproseso ng video. Subukan ang mas maikling video o i-upload ang file sa popup.'), 'error'); }, screeningMode === 'video' ? 600000 : 300000);
   const requestEpoch = String(Number(host.dataset.requestEpoch || 0) + 1); host.dataset.requestEpoch = requestEpoch;
   const isCurrent = () => host.dataset.requestEpoch === requestEpoch && activeResultHost === host && host.isConnected;
   const showRequestError = (error) => {
@@ -869,7 +950,7 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto', locked
   snapshot.submittedText = submittedText;
   snapshot.captionOmitted = Boolean(text && !captionComplete && screeningMode !== 'text');
   const media = snapshot.media;
-  const acquisitionContext = { ...snapshot.context, extraction_scope: mediaChoice === 'video' ? 'Facebook post video audio transcript and video-frame OCR' : mediaChoice === 'image' ? 'Facebook post image OCR' : 'Facebook post caption' };
+  const acquisitionContext = { ...snapshot.context, extraction_scope: screeningMode === 'video' ? 'Facebook post video audio transcript and video-frame OCR' : screeningMode === 'image' ? 'Facebook post image OCR' : 'Facebook post caption' };
   acquisitionContext.caption_complete = !submittedText || captionComplete;
   if (screeningMode === 'text' && !captionComplete && submittedText) { clearTimeout(hardTimeout); clearInterval(progressTimer); button.disabled = false; button.textContent = tr('Check with SuriPH', 'Suriin gamit ang SuriPH'); setMessage(message, tr('The caption looks incomplete. Expand See more, then try again.', 'Mukhang kulang ang caption. Buksan ang See more, saka subukan muli.'), 'error'); return; }
   const selectedMedia = screeningMode === 'video' ? { video_url: media.video_url, has_video: media.has_video } : screeningMode === 'image' ? { image_urls: media.image_urls } : {};
@@ -931,12 +1012,39 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto', locked
           handleVideoResult, error => { if (!timedOut && isCurrent()) showRequestError(error); });
       }).catch(error => { if (!timedOut && isCurrent()) showRequestError(error); });
     };
+    const showAcquisitionChoice = () => {
+      if (timedOut || !isCurrent()) return;
+      clearInterval(progressTimer); clearTimeout(hardTimeout);
+      renderVideoAcquisitionChoice({ post, button, message, result, snapshot, isCurrent, showRequestError,
+        selectedVideo, selectedVideoSource });
+    };
+    if (snapshot.videoAcquisitionChoice === 'caption') {
+      videoPhase = tr('Checking the complete video post caption...', 'Sinusuri ang kumpletong caption ng video post...');
+      setMessage(message, videoPhase, 'loading');
+      chrome.runtime.sendMessage({ type: 'SURIPH_ANALYZE_VIDEO_CAPTION', payload }, response => {
+        if (timedOut || !isCurrent()) return;
+        if (!post.isConnected || collectPostText(post) !== text || findBestVideo(post) !== selectedVideo
+            || (selectedVideo?.currentSrc || selectedVideo?.src || '') !== selectedVideoSource || location.href !== snapshot.pageUrl) {
+          showRequestError(new Error('The selected post or video changed during analysis.')); return;
+        }
+        const error = chrome.runtime.lastError;
+        if (error || !response?.ok || !matchesSubmittedPost(response.result, {
+          text: submittedText, mediaChoice: 'video-caption', pageUrl: snapshot.pageUrl, pageTitle: snapshot.pageTitle,
+        })) { showRequestError(new Error(error?.message || response?.error || 'The returned caption result did not match the selected post.')); return; }
+        clearInterval(progressTimer); clearTimeout(hardTimeout);
+        button.disabled = false; button.textContent = tr('Check again', 'Suriin muli');
+        button.dataset.recheck = 'true'; button.dataset.resultPart = '8-check-again'; setMessage(message, '');
+        renderRichResult(result, response.result); rememberResult(host, snapshot, 'video-caption');
+      });
+      return;
+    }
+    if (snapshot.videoAcquisitionChoice === 'capture') { captureAndAnalyze(); return; }
     if (/^https:\/\//i.test(media.video_url || '')) {
       videoPhase = tr('Trying a direct video download and analysis...', 'Sinusubukang direktang kunin at suriin ang video...');
       setMessage(message, videoPhase, 'loading');
       cancelVideoAnalysis = analyzeCapturedVideo(null, payload, handleVideoResult, error => {
         if (timedOut || !isCurrent()) return;
-        if (error.fallback_to_capture) captureAndAnalyze();
+        if (error.fallback_to_capture) showAcquisitionChoice();
         else showRequestError(error);
       }, media.video_url, phase => {
         if (timedOut || !isCurrent()) return;
@@ -945,7 +1053,7 @@ function analyzePost(post, button, message, result, mediaChoice = 'auto', locked
           : tr('Downloading the selected video without real-time playback...', 'Direktang kinukuha ang napiling video nang hindi hinihintay ang buong playback...');
         setMessage(message, videoPhase, 'loading');
       });
-    } else captureAndAnalyze();
+    } else showAcquisitionChoice();
     return;
   }
   try { chrome.runtime.sendMessage({ type: 'SURIPH_ANALYZE_TEXT', payload: { text: submittedText, page_url: snapshot.pageUrl, page_title: snapshot.pageTitle, context: acquisitionContext, media: selectedMedia, retrieve_sources: retrievalEnabled } }, (response) => {

@@ -41,22 +41,27 @@ function MetricCard({ label, value, tag, tone, icon: Icon }) {
 
 export default function Performance() {
   const [models, setModels] = useState([]);
-  const [runtime, setRuntime] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
-    api.get('/system-status').then(({ data }) => setRuntime(data.model)).catch(() => {});
     api.get('/model-versions').then(({ data }) => setModels(data.model_versions)).catch((reason) => setError(reason.response?.data?.detail || reason.message));
   }, []);
   return <div>
     <PageHeader icon={Activity} title="Model performance" description="Read-only runtime identity and historical quality information. Dataset and retraining controls are not available here." />
     {error && <p className="error-card">{error}</p>}
-    <section className="card dashboard-section"><SectionTitle icon={Cpu} title="Active inference pipeline" description="The selected hybrid profile currently serving predictions." />
-      <div className="detail-list"><div><span>Classifier</span><strong>{runtime?.classifier || 'Runtime status unavailable'}</strong></div><div><span>Status</span><StatusBadge value={runtime?.status || 'unavailable'} /></div><div><span>Device</span><strong>{runtime?.device || 'Device unavailable'}</strong></div>{runtime && <><div><span>Training run</span><strong>{runtime.training_run_id}</strong></div><div><span>Threshold</span><strong>{runtime.decision_threshold}</strong></div><div><span>SHA-256</span><HashCopy value={runtime.sha256} /></div></>}</div>
-      {runtime && <p className="info-note">{runtime.local_trial ? 'This profile is active for local trial and is not approved for public deployment.' : 'This is the stable deployment profile.'}</p>}
-      <p className="muted-copy">Only the explicitly selected hybrid profile serves predictions. Historical registry entries below cannot select the running classifier.</p>
+    <section className="card dashboard-section" data-paper-model="original-hybrid">
+      <SectionTitle icon={Cpu} title="Research model" description="Original hybrid model documented in the paper." />
+      <div className="detail-list">
+        <div><span>Classifier</span><strong>Hybrid DistilBERT + linguistic features + Logistic Regression</strong></div>
+        <div><span>Feature set</span><strong>768 contextual + 7 linguistic features</strong></div>
+        <div><span>Training run</span><strong>20261011T235112Z</strong></div>
+        <div><span>Decision threshold</span><strong>0.65</strong></div>
+        <div><span>Artifact SHA-256</span><HashCopy value="72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c" /></div>
+      </div>
+      <p className="muted-copy">Saved research model and evaluation results. Current operational details are available in System status.</p>
     </section>
     <div className="performance-evaluation" aria-label="Saved held-out evaluation for original model 4">
-      <div className="performance-evaluation-head"><div><h2>Held-out test evaluation</h2><p>Original hybrid model_4 · 775 features · 598 samples</p></div><span className="performance-evaluation-run">Run 20261011T235112Z</span></div>
+      <div className="performance-evaluation-head"><div><h2>Historical held-out test evaluation</h2><p>Original hybrid model_4 · 775 features · 598 samples</p></div><span className="performance-evaluation-run">Run 20261011T235112Z</span></div>
+      <p className="info-note">These saved results evaluate the original hybrid model against inherited dataset labels. They do not measure the current external AI classifier, evidence decisions, or real-world Facebook accuracy.</p>
       <div className="performance-metrics">{heldOutMetrics.map((metric) => <MetricCard key={metric.label} {...metric} />)}</div>
       <div className="performance-visuals">
       <div className="card performance-radar-panel"><div className="performance-matrix-heading"><h3><span className="performance-panel-dot" />Performance balance</h3><span>Macro averages</span></div>

@@ -14,6 +14,96 @@ import media_processing
 
 
 class MediaProcessingTests(unittest.TestCase):
+    def test_cloud_speech_and_frame_acquisition_overlap_without_fragmenting_audio(self):
+        import numpy as np
+        from pathlib import Path
+        from threading import Event
+        began=Event();speech_done=Event()
+        def decode(arguments):Path(arguments[-1]).write_bytes(b'audio-or-frame')
+        def read_frames(frames):
+            began.set()
+            self.assertFalse(speech_done.is_set())
+            return [(p.name,640,360,[]) for p in frames],1.0
+        def transcribe(wav_bytes,duration):
+            self.assertTrue(began.wait(2),'OCR should start before speech finishes')
+            self.assertEqual(wav_bytes,b'audio-or-frame');self.assertEqual(duration,4)
+            speech_done.set()
+            return {'status':'transcribed','language':'tl','segments':[{'start_seconds':0,'end_seconds':4,'text':'Complete original speech.'}]}
+        with patch.object(media_processing.config,'SPEECH_PROVIDER','gemini'),patch.object(media_processing,'_run_ffmpeg',side_effect=decode),patch.object(media_processing,'_read_pcm_wave',return_value=np.ones(64000,dtype=np.float32)),patch.object(media_processing,'transcribe_audio',side_effect=transcribe) as speech,patch.object(media_processing,'_read_video_frames',side_effect=read_frames):
+            result=media_processing.process_video(b'parallel-whole-video')
+        speech.assert_called_once()
+        self.assertEqual(result['transcript_text'],'Complete original speech.')
+        self.assertEqual(result['frame_ocr_status'],'no_readable_text')
+        self.assertIn('frame_ocr_wait_after_speech',result['processing_timings_ms'])
+
+    def test_speech_failure_joins_frame_worker_before_removing_temporary_files(self):
+        import numpy as np
+        from pathlib import Path
+        from threading import Event
+        began=Event();release=Event();done=Event();paths=[]
+        def decode(arguments):Path(arguments[-1]).write_bytes(b'audio-or-frame')
+        def read_frames(frames):
+            paths.extend(frames);began.set()
+            if not release.wait(2):raise AssertionError('Speech never released frame worker')
+            self.assertTrue(all(p.exists() for p in frames));done.set()
+            return [],1.0
+        def failed_speech(*_args,**_kwargs):
+            self.assertTrue(began.wait(2));release.set()
+            raise media_processing.SpeechServiceError('unavailable')
+        with patch.object(media_processing.config,'SPEECH_PROVIDER','gemini'),patch.object(media_processing,'_run_ffmpeg',side_effect=decode),patch.object(media_processing,'_read_pcm_wave',return_value=np.ones(64000,dtype=np.float32)),patch.object(media_processing,'transcribe_audio',side_effect=failed_speech),patch.object(media_processing,'_read_video_frames',side_effect=read_frames):
+            with self.assertRaises(media_processing.SpeechServiceError):media_processing.process_video(b'parallel-error-video')
+        self.assertTrue(done.is_set());self.assertTrue(paths)
+        self.assertTrue(all(not p.exists() for p in paths))
+
+    def setUp(self):
+        media_processing.clear_video_extraction_cache()
+        self.speech_provider = patch.object(media_processing.config,"SPEECH_PROVIDER","local")
+        self.speech_provider.start()
+        self.addCleanup(self.speech_provider.stop)
+
+    def test_video_cache_reuses_only_same_bytes_and_settings_with_detached_results(self):
+        value={"extraction_status":"completed","transcript_text":"Original speech.","transcript_segments":[{"text":"Original speech."}],"processing_timings_ms":{"speech_transcription":100}}
+        with patch.object(media_processing.config,"VIDEO_EXTRACTION_CACHE_ENABLED",True), patch.object(media_processing,"_process_video_uncached",return_value=value) as extract:
+            first=media_processing.process_video(b"complete-video-a")
+            first['transcript_segments'][0]['text']='Caller edit'
+            second=media_processing.process_video(b"complete-video-a")
+            self.assertTrue(second['extraction_cache_hit'])
+            self.assertEqual(second['transcript_segments'][0]['text'],'Original speech.')
+            self.assertIn('original_processing_timings_ms',second)
+            self.assertEqual(extract.call_count,1)
+            media_processing.process_video(b"complete-video-b")
+            with patch.object(media_processing.config,'WHISPER_LANGUAGE_HINT','auto'):
+                media_processing.process_video(b"complete-video-b")
+            self.assertEqual(extract.call_count,3)
+
+    def test_failed_and_partial_video_extractions_are_not_cached(self):
+        with patch.object(media_processing.config,"VIDEO_EXTRACTION_CACHE_ENABLED",True), patch.object(media_processing,"_process_video_uncached",side_effect=media_processing.MediaProcessingError('unclear')) as extract:
+            for _ in range(2):
+                with self.assertRaises(media_processing.MediaProcessingError):media_processing.process_video(b'failed-video')
+            self.assertEqual(extract.call_count,2)
+        with patch.object(media_processing,"_process_video_uncached",return_value={'extraction_status':'partial'}) as extract:
+            media_processing.process_video(b'partial-video');media_processing.process_video(b'partial-video')
+            self.assertEqual(extract.call_count,2)
+
+    def test_video_cache_expires_and_is_bounded(self):
+        value={'extraction_status':'completed','transcript_text':'Complete speech.'}
+        with patch.object(media_processing.config,'VIDEO_EXTRACTION_CACHE_ENABLED',True), patch.object(media_processing.config,'VIDEO_EXTRACTION_CACHE_TTL_SECONDS',10), patch.object(media_processing,'_process_video_uncached',side_effect=lambda *_args:dict(value)) as extract:
+            with patch.object(media_processing.time,'monotonic',return_value=0):media_processing.process_video(b'first')
+            with patch.object(media_processing.time,'monotonic',return_value=11):
+                result=media_processing.process_video(b'first')
+                self.assertFalse(result['extraction_cache_hit'])
+                media_processing.process_video(b'second');media_processing.process_video(b'third')
+            self.assertEqual(len(media_processing._video_cache),2)
+            self.assertEqual(extract.call_count,4)
+
+    def test_media_warmup_loads_configured_engines_without_transcribing(self):
+        with patch.object(media_processing,'_get_whisper_model') as speech, patch.object(media_processing,'_get_ocr_reader') as ocr:
+            result=media_processing.warm_media_engines()
+        speech.assert_called_once();ocr.assert_called_once()
+        speech.return_value.transcribe.assert_not_called()
+        self.assertEqual(result['engines']['speech']['status'],'ready')
+        self.assertEqual(result['engines']['image_text']['status'],'ready')
+
     def test_combine_text_normalizes_and_deduplicates(self):
         result = media_processing.combine_text(
             ["  Isang claim   dito.  ", "Duplicate"], ["duplicate", "Frame text"]
@@ -49,6 +139,19 @@ class MediaProcessingTests(unittest.TestCase):
         result = media_processing._speech_segments({"segments": [segment], "text": "A conflicting unverified top-level string"})
         self.assertEqual(result, [{"start_seconds": 1.5, "end_seconds": 4.0, "text": "Basahin muna ang buong balita."}])
 
+    def test_streaming_quality_failure_stops_later_chunks_and_still_fails_normal_gate(self):
+        consumed=[];closed=[]
+        def stream():
+            try:
+                for index,logprob in enumerate([-.2,-2.0,-.2]):
+                    consumed.append(index)
+                    yield SimpleNamespace(text='Complete spoken segment.',start=index*3,end=index*3+2,avg_logprob=logprob,no_speech_prob=.01,compression_ratio=1.2)
+            finally:closed.append(True)
+        model=Mock();model.transcribe.return_value=(stream(),SimpleNamespace(language='tl'))
+        result=media_processing._FasterWhisperAdapter(model).transcribe(b'audio',logprob_threshold=-1.0)
+        self.assertEqual(consumed,[0,1]);self.assertEqual(closed,[True])
+        with self.assertRaises(media_processing.SpeechQualityError):media_processing._speech_segments(result)
+
     def test_optimized_whisper_adapter_preserves_original_words_and_diagnostics(self):
         model = Mock()
         segment = SimpleNamespace(text=' Cyber libel ang sinabi.', start=1.0, end=3.0,
@@ -78,9 +181,16 @@ class MediaProcessingTests(unittest.TestCase):
             model.detect_language.side_effect = [('en', .99, []), ('en', .98, []), ('en', .99, [])]
             self.assertEqual(media_processing._transcription_language(adapter, audio),
                              (None, 'detected_english'))
+            self.assertEqual(model.detect_language.call_count,3)
+            model.detect_language.reset_mock()
             model.detect_language.side_effect = [('en', .99, []), ('tl', .96, []), ('en', .99, [])]
             self.assertEqual(media_processing._transcription_language(adapter, audio),
                              ('tl', 'configured'))
+            self.assertEqual(model.detect_language.call_count,2)
+            model.detect_language.reset_mock()
+            model.detect_language.side_effect = [('en', .8, [])]
+            self.assertEqual(media_processing._transcription_language(adapter, audio),('tl','configured'))
+            self.assertEqual(model.detect_language.call_count,1)
             model.detect_language.reset_mock()
             self.assertEqual(media_processing._transcription_language(adapter, audio[:16000 * 30]),
                              ('tl', 'configured'))
@@ -106,6 +216,18 @@ class MediaProcessingTests(unittest.TestCase):
                 clean | {"start": 0, "end": 4, "text": "Unang bahagi ng balita."},
                 clean | {"start": 15, "end": 19, "text": "Huling bahagi ng balita."},
             ]})
+
+    def test_external_audio_path_does_not_run_local_whisper_and_preserves_transcript(self):
+        import numpy as np
+        from pathlib import Path
+        def decode(arguments):Path(arguments[-1]).write_bytes(b'audio-or-frame')
+        response={'status':'transcribed','language':'tl','segments':[{'start_seconds':0,'end_seconds':1,'text':'Original spoken words.'}]}
+        reader=Mock();reader.readtext.return_value=[]
+        with patch.object(media_processing.config,'SPEECH_PROVIDER','gemini'),patch.object(media_processing,'_run_ffmpeg',side_effect=decode),patch.object(media_processing,'_read_pcm_wave',return_value=np.ones(16000,dtype=np.float32)),patch.object(media_processing,'transcribe_audio',return_value=response),patch.object(media_processing,'_get_whisper_model') as local,patch.object(media_processing,'_get_ocr_reader',return_value=reader),patch('cv2.imread',return_value=np.zeros((360,640,3),dtype=np.uint8)):
+            result=media_processing.process_video(b'external-video')
+        local.assert_not_called();self.assertEqual(result['transcript_text'],'Original spoken words.')
+        self.assertEqual(result['transcript_source'],'external_audio')
+        self.assertEqual(result['timestamp_basis'],'server_audio_chunks')
 
     def test_silent_video_skips_whisper_and_identifies_frame_text(self):
         import numpy as np
@@ -310,7 +432,7 @@ class MediaProcessingTests(unittest.TestCase):
 
     def test_service_health_reports_required_services(self):
         health = media_processing.service_health()
-        self.assertEqual(set(health), {"easyocr", "whisper", "ffmpeg", "whisper_engine", "whisper_model", "whisper_language_hint", "whisper_vad_filter", "whisper_previous_text_context"})
+        self.assertEqual(set(health), {"easyocr", "whisper", "ffmpeg", "whisper_engine", "whisper_model", "whisper_language_hint", "whisper_vad_filter", "whisper_previous_text_context", "speech_engine_loaded", "ocr_engine_loaded", "video_extraction_cache_enabled", "speech_provider", "remote_speech_configured"})
         self.assertEqual(health['whisper_vad_filter'], media_processing.config.WHISPER_ENGINE == 'faster-whisper')
 
     def test_oversized_image_is_rejected_before_ocr(self):

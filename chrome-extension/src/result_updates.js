@@ -12,6 +12,7 @@ export function mergeRelatedSources(current, requestedResult, sources) {
 export function checkedMaterialLabel(value, extraction, language) {
   const key = String(value || '').toLowerCase();
   const tl = language === 'tl';
+  if (extraction?.caption_fallback_used === true || key === 'video caption only') return tl ? 'Caption lang ng video' : 'Video caption only';
   if (extraction && typeof extraction === 'object') {
     const parts = [];
     if (extraction.caption_text?.trim()) parts.push(tl ? 'Caption ng post' : 'Post caption');
@@ -64,4 +65,20 @@ export function incompleteVideoNotice(extraction, language) {
   return language === 'tl'
     ? 'Hindi nabasa ang teksto sa ilang video frame. Kulang ang pagkuha ng on-screen text; ihambing ang nakuhang salita sa orihinal na video bago magpatuloy.'
     : 'Text could not be read from some video frames. On-screen text extraction is incomplete; compare the extracted speech with the original video before continuing.';
+}
+
+export function evidenceReaderNotice(result, language = 'en') {
+  if (result?.decision_source === 'verified_evidence') return '';
+  const status = result?.evidence_reader?.status;
+  const tl = language === 'tl';
+  if (status === 'rate_limited' || status === 'busy') return tl
+    ? 'Hindi natapos ang paghahambing ng ebidensiya dahil abala o naabot ang limit ng serbisyo. Hindi pa beripikadong model prediction ang label na ito.'
+    : 'Evidence comparison could not complete because the service is busy or its request limit was reached. This label is an unverified model prediction.';
+  if (['unavailable','authentication_failed','invalid_configuration','not_configured','invalid_response','incomplete_response','input_too_long','source_limit_exceeded'].includes(status)) return tl
+    ? 'Hindi natapos ang paghahambing ng ebidensiya. Hindi ito patunay na mali ang post; hindi pa beripikadong model prediction ang label na ito.'
+    : 'Evidence comparison could not complete. This does not establish that the post is false; this label is an unverified model prediction.';
+  if (status === 'no_readable_sources') return tl
+    ? 'Walang nabasang buong artikulo para ikumpara. Hindi ito patunay na mali ang post; hindi pa beripikadong model prediction ang label na ito.'
+    : 'No readable article was available for comparison. This does not establish that the post is false; this label is an unverified model prediction.';
+  return '';
 }

@@ -3,6 +3,12 @@ from __future__ import annotations
 
 import re
 from urllib.parse import urlparse
+import config
+try:
+    from .gemini_evidence import assess_claim
+except ImportError:
+    from gemini_evidence import assess_claim
+
 
 try:
     from .retrieval import TRUSTED_DOMAIN_SUFFIXES, _informative_terms, _explicit_event_dates, _explicit_event_years, _peso_amounts, _person_entity_anchors, _canonical_term, _without_post_metadata_dates
@@ -11,6 +17,7 @@ except ImportError:
 
 
 _ASSERTION_VERBS = {
+    "expecting": "expect",
     "advocates": "advocate", "advocated": "advocate", "advocating": "advocate",
     "prevents": "prevent", "prevented": "prevent", "preventing": "prevent",
     "causes": "cause", "caused": "cause", "causing": "cause",
@@ -28,11 +35,14 @@ _MATERIAL_ACTIONS = {
     "seize", "destroy", "arrest", "kill", "shoot", "open", "approve", "file",
     "charge", "prevent", "cause", "reduce", "increase", "support", "improve",
     "treat", "cure", "recommend", "privatize", "return", "suspend", "resign",
-    "relationship", "spy", "rollback", "create", "adopt", "offer", "advocate",
+    "relationship", "spy", "rollback", "create", "adopt", "offer", "advocate", "expect",
 }
 
 
 def _evidence_terms(text: str) -> set[str]:
+    # Only normalize the explicit future-child phrase; welcoming a child in
+    # general could describe a birth that already happened.
+    text = re.sub(r"\bprepar(?:es|ing)\s+to\s+welcome\s+(?=(?:their|a|the)\s+(?:first\s+)?(?:child|baby)\b)", "expecting ", text, flags=re.I)
     # A call for a change is evidence of advocacy, not proof that the change
     # happened. Keep this action distinct from approve/implement/pay.
     text = re.sub(r"\b(?:calls?|called|calling)\s+for\b", "advocates", text, flags=re.I)
@@ -68,7 +78,7 @@ def _primary_authority_for_claim(url: str | None, claim: str) -> str | None:
     """Narrow authority scopes; a generic government hostname is not sufficient."""
     host = (urlparse(url or '').hostname or '').casefold().removeprefix('www.')
     terms = _evidence_terms(claim)
-    health = {'water', 'dehydration', 'vaccine', 'vaccination', 'disease', 'health', 'infection', 'symptom'}
+    health = {'water', 'dehydration', 'vaccine', 'vaccination', 'disease', 'health', 'infection', 'symptom', 'antibiotic', 'antibiotics', 'virus', 'viruses', 'bacteria', 'bacterial'}
     rules = {
         'cdc.gov': ('CDC public-health guidance', health),
         'who.int': ('WHO public-health guidance', health),
@@ -180,8 +190,12 @@ def _material_numbers(value: str) -> set[str]:
 def _material_locations(value: str) -> set[str]:
     # Only explicit place phrases are used. We do not guess locations from
     # unrelated capitalized words in a headline or publisher name.
-    return {match.casefold() for match in re.findall(
-        r"\b(?:in|sa|at)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b", value)}
+    aliases = {'maynila': 'manila', 'lungsod ng maynila': 'manila',
+               'lungsod ng quezon': 'quezon city', 'lungsod quezon': 'quezon city',
+               'lungsod ng pasay': 'pasay city', 'lungsod ng cebu': 'cebu city'}
+    phrases = re.findall(
+        r"\b(?:in|sa|at)\s+((?:[Ll]ungsod\s+(?:ng\s+)?)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b", value)
+    return {aliases.get(match.casefold(), match.casefold()) for match in phrases}
 
 
 def _material_support(claim: str, body: str) -> tuple[str, str]:
@@ -226,6 +240,10 @@ def _material_support(claim: str, body: str) -> tuple[str, str]:
                     or '?' in window or re.search(r"\b(?:if|whether|would|could|might|kung|sakali|viral post|social media post|post claims?|rumou?rs?|hypothetical|debunked|false|fake|misleading|untrue|incorrect)\b", lowered)):
                 continue
             terms = _evidence_terms(window)
+            # For personal expectations, every material word must be present:
+            # overlap alone can mistake a different person or child as a match.
+            if "expect" in actions and not claim_terms <= terms:
+                continue
             minimum_overlap = 2 if claim_numbers else 3
             if not actions <= terms or len(claim_terms & terms) < max(minimum_overlap, (len(claim_terms) * 3 + 3) // 4):
                 continue
@@ -398,19 +416,74 @@ def _assess_readable_claim(claim: str, body: str) -> tuple[str, str]:
     return "related", "The readable article did not establish every statement in the submitted text."
 
 
-def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_check_matches: list[dict], claim: str = "") -> dict:
+def _direct_photo_reports(assessments, sources, claim, reader):
+    # An original dated photo report can be primary evidence for the event it
+    # actually describes. This does not make other articles primary authority.
+    if reader.get('status')!='assessed':return []
+    by_url={source.get('url'):source for source in sources}
+    matches=[]
+    dates=_explicit_event_dates(claim)
+    if not dates:return []
+    for item in assessments:
+        source=by_url.get(item.get('url'),{})
+        if (source.get('content_kind')=='publisher_photo_report'
+                and source.get('provenance_verified') is True
+                and source.get('photo_credit') and source.get('date_published')
+                and _is_trusted_source(item.get('url'))
+                and item.get('relationship')=='supports' and item.get('decision_eligible')
+                and dates <= _explicit_event_dates(item.get('evidence_excerpt',''))):
+            matches.append(item)
+    return matches
+
+
+def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_check_matches: list[dict], claim: str = "", *, reader_result=None) -> dict:
+    reader = reader_result if reader_result is not None else assess_claim(claim, related_sources) if config.GEMINI_ENABLED else {"status": "disabled", "assessments": []}
+    semantic = {item["url"]: item for item in reader["assessments"]}
     assessments = []
     for source in related_sources:
         body = source.get("article_text", "") if source.get("content_status") == "readable" else ""
-        relationship, reason = _assess_readable_claim(claim, body) if body and claim else ("unverified", "The full article could not be assessed.")
-        excerpt = reason if relationship in {"supports", "contradicts"} else ""
-        eligible = bool(excerpt)
+        semantic_item = semantic.get(source.get("url"), {})
+        validation_issues = []
+        reason_tl = semantic_item.get("reason_tl", "")
+        if config.GEMINI_ENABLED:
+            relationship = semantic_item.get("relationship", "unverified")
+            reason = semantic_item.get("reason", "This source could not be assessed and was not used to change the label.")
+            excerpt = semantic_item.get("evidence_excerpt", "")
+            eligible = bool(semantic_item.get("decision_eligible"))
+            if eligible:
+                # A source ID and literal quote are necessary but do not excuse
+                # obvious changed quantities, explicit dates, people or places.
+                clean_claim = _without_post_metadata_dates(claim)
+                # A delimited terminal newsroom credit is not an event actor.
+                clean_claim = re.sub(r"\s*\|\s*via\s+[A-Z][\w.-]*(?:\s+[A-Z][\w.-]*){0,3}(?:,\s*[A-Z][\w.& -]{1,60})?\s*$", "", clean_claim)
+                checks = [('person', _person_entity_anchors(clean_claim) <= _person_entity_anchors(excerpt))]
+                if relationship == 'supports':
+                    checks.extend([
+                        ('quantity', _material_numbers(clean_claim) <= _material_numbers(excerpt)),
+                        ('amount', _peso_amounts(clean_claim) <= _peso_amounts(excerpt)),
+                        ('event_date', _explicit_event_dates(clean_claim) <= _explicit_event_dates(excerpt)),
+                        ('event_year', _explicit_event_years(clean_claim) <= _explicit_event_years(excerpt)),
+                        ('location', _material_locations(clean_claim) <= _material_locations(excerpt)),
+                    ])
+                validation_issues = [name for name, matched in checks if not matched]
+                if validation_issues:
+                    eligible = False
+                    relationship = 'related'
+                    labels = {'person':('named people','mga pangalan'), 'quantity':('quantities','mga bilang'),
+                              'amount':('amounts','mga halaga'), 'event_date':('event dates','mga petsa ng pangyayari'),
+                              'event_year':('event years','mga taon ng pangyayari'), 'location':('locations','mga lugar')}
+                    reason = 'The quoted passage did not confirm all submitted ' + ', '.join(labels[key][0] for key in validation_issues) + '. It was not used to change the label.'
+                    reason_tl = 'Hindi nakumpirma ng sipi ang lahat ng ' + ', '.join(labels[key][1] for key in validation_issues) + ' sa teksto. Hindi ito ginamit para baguhin ang label.'
+        else:
+            relationship, reason = _assess_readable_claim(claim, body) if body and claim else ("unverified", "The full article could not be assessed.")
+            excerpt = reason if relationship in {"supports", "contradicts"} else ""
+            eligible = bool(excerpt)
         # Relative dates need a resolved post-time comparison. Do not treat
         # "next week" in an undated/older article as the same real event.
         if re.search(r"\b(?:today|tomorrow|yesterday|tonight|(?:next|last|this|coming)\s+(?:week|month|year)|bukas|kahapon|ngayon|mamaya)\b", claim, re.I):
             eligible = False
             reason = "Relative event timing has not been aligned with the post date; this source cannot change the label."
-        if (relationship == "related" and body and claim
+        if (not config.GEMINI_ENABLED and relationship == "related" and body and claim
                 and _headline_has_body_corroboration(claim, source.get("title", ""), body)):
             relationship = "supports"
             reason = "The publisher headline states the complete claim, and the readable article body corroborates its material details."
@@ -418,7 +491,8 @@ def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_che
             # not provide a direct body passage proving all claim details.
             eligible = False
         assessments.append({"url": source.get("url"), "relationship": relationship, "reason": reason,
-                            "evidence_excerpt": excerpt, "decision_eligible": eligible})
+                            "evidence_excerpt": excerpt, "decision_eligible": eligible,
+                            "reason_tl": reason_tl, "validation_issues": validation_issues})
     supports = [item for item in assessments if item["relationship"] == "supports" and item["decision_eligible"]]
     contradicts = [item for item in assessments if item["relationship"] == "contradicts" and item["decision_eligible"]]
     independent_supports = _independent_trusted_sources(supports, related_sources)
@@ -432,21 +506,31 @@ def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_che
     conflicted_articles = [item for item in assessments if item['relationship'] == 'conflicting' and _is_trusted_source(item.get('url'))]
     primary_supports = [item for item in credible_supports if _primary_authority_for_claim(item.get('url'), claim)]
     primary_contradictions = [item for item in credible_contradictions if _primary_authority_for_claim(item.get('url'), claim)]
-    sufficient_support = (bool(primary_supports) or len(independent_supports) >= 2) and not credible_contradictions and not conflicted_articles
+    photo_supports = _direct_photo_reports(credible_supports, related_sources, claim, reader)
+    sufficient_support = (bool(primary_supports) or bool(photo_supports) or len(independent_supports) >= 2) and not credible_contradictions and not conflicted_articles
     sufficient_contradiction = (bool(primary_contradictions) or len(independent_contradictions) >= 2) and not credible_supports and not conflicted_articles
+    semantic_trial = config.EVIDENCE_POLICY == 'semantic_single_source_trial' and reader.get('status') == 'assessed'
+    trial_supports = credible_supports if semantic_trial and not credible_contradictions and not conflicted_articles else []
+    trial_contradictions = credible_contradictions if semantic_trial and not credible_supports and not conflicted_articles else []
+    sufficient_support = sufficient_support or bool(trial_supports)
+    sufficient_contradiction = sufficient_contradiction or bool(trial_contradictions)
     evidence_rule = 'model_fallback'
     if sufficient_support:
         label, internal, relationship = "No Misleading Information Detected", "Non-Misleading", "supports"
-        chosen = primary_supports if primary_supports else independent_supports
-        evidence_rule = 'scoped_primary_authority' if primary_supports else 'two_independent_publishers'
+        chosen = primary_supports or photo_supports or (independent_supports if len(independent_supports) >= 2 else trial_supports)
+        evidence_rule = 'scoped_primary_authority' if primary_supports else 'direct_publisher_photo_report' if photo_supports else 'two_independent_publishers' if len(independent_supports) >= 2 else 'validated_single_source_trial'
         basis = ("A readable primary authority within its subject scope directly supports the complete claim and its material details, with no readable trusted contradiction."
-                 if primary_supports else "Two independent readable trusted publishers directly support the complete claim and its material details, with no readable trusted source directly contradicting it.")
+                 if primary_supports else "A readable original publisher photo report with verified page provenance and a named photo credit supports the complete dated event, with no readable trusted contradiction." if photo_supports else "Two independent readable trusted publishers directly support the complete claim and its material details, with no readable trusted source directly contradicting it.")
+        if evidence_rule == 'validated_single_source_trial':
+            basis = 'Local semantic trial: a readable trusted article supports the complete claim using server-owned passages, with no eligible trusted contradiction. This is not independently verified real-world accuracy.'
     elif sufficient_contradiction:
         label, internal, relationship = "Potentially Misleading", "Misleading", "contradicts"
-        chosen = primary_contradictions if primary_contradictions else independent_contradictions
-        evidence_rule = 'scoped_primary_authority' if primary_contradictions else 'two_independent_publishers'
+        chosen = primary_contradictions or (independent_contradictions if len(independent_contradictions) >= 2 else trial_contradictions)
+        evidence_rule = 'scoped_primary_authority' if primary_contradictions else 'two_independent_publishers' if len(independent_contradictions) >= 2 else 'validated_single_source_trial'
         basis = ("A readable primary authority within its subject scope directly contradicts the claim, with no readable trusted support."
                  if primary_contradictions else "Two independent readable trusted publishers directly contradict the complete claim, with no readable trusted source supporting it.")
+        if evidence_rule == 'validated_single_source_trial':
+            basis = 'Local semantic trial: a readable trusted article contradicts the complete claim using server-owned passages, with no eligible trusted support. This is not independently verified real-world accuracy.'
     else:
         label, internal = model_prediction["public_label"], model_prediction["internal_label"]
         relationship = (
@@ -463,7 +547,10 @@ def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_che
         "internal_label": internal, "public_label": label,
         "decision_source": "verified_evidence" if chosen else "screening_model",
         "decision_basis": basis, "evidence_relationship": relationship,
-        "evidence_rule": evidence_rule,
+        "evidence_rule": evidence_rule, "evidence_policy": config.EVIDENCE_POLICY,
+        "evidence_reader": {key: value for key, value in reader.items() if key != "assessments"},
+        "evidence_explanation_en": " ".join(dict.fromkeys(item["reason"] for item in chosen))[:1500] if config.GEMINI_ENABLED else "",
+        "evidence_explanation_tl": " ".join(dict.fromkeys(item.get("reason_tl", "") for item in chosen))[:1500] if config.GEMINI_ENABLED else "",
         "supporting_source_count": len(credible_supports), "strong_fact_check_matches": [],
         "evidence_assessments": assessments,
         "evidence_urls": [item["url"] for item in chosen],

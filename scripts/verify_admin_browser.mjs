@@ -101,6 +101,25 @@ try {
   await clickText(client, 'Continue');
   await waitFor(client, 'document.body.innerText.includes("System status") && document.body.innerText.includes("Log out")');
   console.error('admin-browser: admin login passed');
+  await waitFor(client, 'Boolean(document.querySelector("[data-paper-model=original-hybrid]"))');
+  const paperText = await evaluate(client, 'document.body.innerText');
+  assert.ok(paperText.includes('Research model') && paperText.includes('Original hybrid model documented in the paper.'));
+  assert.ok(paperText.includes('93.65%') && paperText.includes('Historical held-out test evaluation'));
+  assert.ok(!paperText.includes('Runtime status unavailable') && !paperText.includes('Device unavailable'));
+  await screenshot(client, 'paper-research-model-actual', 1280, 1000);
+  await evaluate(client, 'history.pushState({},"","/status"); window.dispatchEvent(new PopStateEvent("popstate")); true');
+  await waitFor(client, 'document.body.innerText.includes("Active inference pipeline")');
+  const runtimeStatus = await evaluate(client, `fetch('http://127.0.0.1:8000/admin-api/system-status',{credentials:'include'}).then(r=>r.json())`, true);
+  const runtimeText = await evaluate(client, 'document.body.innerText');
+  if (runtimeStatus.model?.mode === 'gemini') {
+    assert.ok(runtimeText.includes('External AI classifier') && runtimeText.includes(runtimeStatus.model.name));
+    assert.ok(runtimeText.includes('Remote service'));
+    assert.ok(!runtimeText.includes('Device unavailable') && !runtimeText.includes('Runtime status unavailable'));
+  }
+  await screenshot(client, 'current-runtime-status-actual', 1280, 1000);
+  await evaluate(client, 'history.pushState({},"","/performance"); window.dispatchEvent(new PopStateEvent("popstate")); true');
+  await waitFor(client, 'Boolean(document.querySelector("[data-paper-model=original-hybrid]"))');
+
   const loginPayloadHasToken = await evaluate(client, `fetch('http://127.0.0.1:8000/admin-api/check-auth',{credentials:'include'}).then(r=>r.json()).then(v=>Object.hasOwn(v,'token'))`, true);
   assert.equal(loginPayloadHasToken, false);
   await client.send('Page.reload', { ignoreCache: true });
@@ -138,6 +157,7 @@ try {
     passed: true,
     browser: `${path.basename(CHROME).toLowerCase().includes('msedge') ? 'Microsoft Edge' : 'Google Chrome'} (isolated off-screen profile)`,
     actual_dashboard_and_api: true,
+    paper_model_reference: 'passed', live_runtime_mode_display: 'passed', historical_metrics_separate: 'passed',
     admin_login: 'passed', session_cookie_reload: 'passed', login_json_exposes_token: false,
     logout_revocation_status: afterLogout, participant_view_absent: 'passed', retired_research_export_status: retiredExport,
     expired_session_status: expired,

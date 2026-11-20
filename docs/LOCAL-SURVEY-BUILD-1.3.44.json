@@ -1,0 +1,13 @@
+{
+  "version": "1.3.44",
+  "sha256": {
+    "chrome-extension/dist/manifest.json": "d5d2dfcb2a605e73253cbfa1389f7ed32ed4bda8d64885e56b33a6653bff79e4",
+    "chrome-extension/src/Popup.jsx": "3f1ae22a11c0d0dd19d0b7b3683f91c21361f49a80b5a300c781ab1c6011877d",
+    "chrome-extension/src/content.js": "462244fc33ffe7ac99769896bee1205fe227ab014701111f123a90b68085b57a",
+    "backend-api/src/gemini_classifier_trial.py": "b56fda4ae0b4e04f4253279509fc68306aea8aee5211a6a668c13a3309a5533a",
+    "backend-api/src/app.py": "9668bb60281e7f4e540cc09df08517beeee0e8eaf4bd7b1307257589fd873600",
+    "backend-api/src/database.py": "b87d9291083dd9875a672c44f0851516212d56891306f1c900af925bf470bbef",
+    "scripts/start-survey-local.ps1": "ab58b615c1f6c5bd51e68d25f997b8db649d7eea1bd8e1a8c619248cca5eecd1"
+  },
+  "public_deployment": false
+}

@@ -95,7 +95,7 @@ async function evaluate(client, expression, awaitPromise = false) {
   if (output.exceptionDetails) throw new Error(output.exceptionDetails.exception?.description || output.exceptionDetails.text);
   return output.result?.value;
 }
-async function waitFor(client, expression, timeout = 180000) {
+async function waitFor(client, expression, timeout = 60000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) { try { if (await evaluate(client, expression, true)) return; } catch {} await wait(100); }
   throw new Error(`Timed out waiting for ${expression}`);
@@ -192,6 +192,13 @@ try {
   const state = await evaluate(page, `(() => { const root=document.querySelector('body > dialog > #suriph-control-host').shadowRoot; const result=root.querySelector('.result'); const action=root.querySelector('.action'); return {parts:[...result.querySelectorAll('[data-result-part]')].map(node=>node.dataset.resultPart),buttonPart:action.dataset.resultPart,resultOrder:result.style.order,buttonOrder:action.style.order,label:result.querySelector('[data-result-part="1-prediction"] strong').textContent,analyzed:result.querySelector('[data-result-part="6-analyzed-text"] p:last-child').textContent,context:result.querySelector('[data-result-part="3-post-context"]').innerText,links:[...result.querySelectorAll('[data-result-part="3-post-context"] a')].map(node=>node.href),reminders:result.querySelectorAll('[data-result-part="7-reminder"]').length,sourceText:result.querySelector('[data-result-part="5-related-sources"]').innerText}; })()`);
   assert.deepEqual(state.parts, ['1-prediction', '2-explanation', '3-post-context', '4-features', '5-related-sources', '6-analyzed-text', '7-reminder']);
   assert.equal(state.buttonPart, '8-check-again');
+  const measuredFeatures = await evaluate(page, `(() => { const result=document.querySelector('body > dialog > #suriph-control-host').shadowRoot.querySelector('.result'); const detail=result.querySelector('[data-result-part="4-features"]'); detail.querySelector('summary').click(); const rows=[...detail.querySelectorAll('[data-feature]')]; return {open:detail.open,count:rows.length,uniqueNames:new Set(rows.map(row=>row.dataset.feature)).size,valuesFinite:rows.every(row=>Number.isFinite(Number(row.dataset.value))&&Number(row.dataset.value)>=0&&Number(row.dataset.value)<=1)}; })()`);
+  assert.equal(measuredFeatures.count,7); assert.equal(measuredFeatures.open,true); assert.equal(measuredFeatures.uniqueNames,7); assert.equal(measuredFeatures.valuesFinite,true);
+
+  const scorePresentation = await evaluate(page, `(() => { const root=document.querySelector('body > dialog > #suriph-control-host').shadowRoot; const result=root.querySelector('.result'); return {score:result.querySelector('.ai-score')?.innerText||'',text:result.innerText,explanation:[...result.querySelector('[data-result-part="2-explanation"]').children].filter(n=>n.tagName==='P').map(n=>n.textContent).join(' ')}; })()`);
+  assert.doesNotMatch(scorePresentation.text, /Google Gemini|Google Search/);
+  if(scorePresentation.score) { assert.match(scorePresentation.score, /AI-reported confidence/); assert.match(scorePresentation.score, /\d+%/); assert.ok(scorePresentation.explanation.length>10); }
+
   assert.ok(['Potentially Misleading', 'No Misleading Information Detected'].includes(state.label), `Unexpected public label: ${state.label}`);
   assert.equal(state.resultOrder, '2');
   assert.equal(state.buttonOrder, '3');

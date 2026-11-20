@@ -1,4 +1,4 @@
-"""Descriptions only; values always come directly from model inference."""
+"""Descriptions only; values come from exact text measurements or hybrid inference."""
 FEATURE_DETAILS = {
     "code_switching_ratio": (
         "Mixing Filipino and English",

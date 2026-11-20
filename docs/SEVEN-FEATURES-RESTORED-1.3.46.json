@@ -1,0 +1,19 @@
+{
+  "version": "1.3.46",
+  "features": [
+    "code_switching_ratio",
+    "filipino_particle_frequency",
+    "punctuation_intensity",
+    "capitalization_ratio",
+    "repeated_character_ratio",
+    "emotional_language_frequency",
+    "urgency_cue_frequency"
+  ],
+  "sha256": {
+    "backend-api/src/text_features.py": "9ade10a2f1b5664a73fc89ebdbd647eeaba1d6dc0926651be87091359b1f5a28",
+    "backend-api/src/app.py": "6c6dac4c974d357c05a2b4a79e6bdc05f7d0c908f2da78c317dca7c2ec387236",
+    "chrome-extension/src/Popup.jsx": "e083711f5d39b0c30b1e43cc65ec3100ead2336fcb76ebf994739a7a0f5ae2ae",
+    "chrome-extension/src/content.js": "f9b38c5acfe9bc17a958a1b621508e59a7c785f2bf8e81a388d6654403f22790",
+    "chrome-extension/dist/manifest.json": "8fadc73cd11f1cede50506fd87ff3f3a3e74ca35e723dcab7435ef872785eaf8"
+  }
+}

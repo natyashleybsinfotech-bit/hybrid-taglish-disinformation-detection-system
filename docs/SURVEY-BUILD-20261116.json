@@ -1,0 +1,11 @@
+{
+  "extension_version": "1.3.43",
+  "sha256": {
+    "chrome-extension\\dist\\manifest.json": "48ba46e6a8e55965a5ca0d1f327756c3e084d7d9be5962d822a6bf8907915a0f",
+    "chrome-extension\\src\\Popup.jsx": "6750e2ef6543a4ec1eccc25d6bd935a1da3fb09e0bc12be4b9234282b555722e",
+    "chrome-extension\\src\\content.js": "85d4d302c2bb4db530ee6c85c5fdf57e8c5c6746df68a16e8a00a64c628558c7",
+    "backend-api\\src\\app.py": "ac551efaf773f96a1dff5038e1d7b3d3ef5db10ec7d8d2f991e04c37497ec295",
+    "backend-api\\src\\database.py": "5674df993eb9a5115cdbc3fc3a47f7c6125d43dab7cc12985f51fe9d630797d9",
+    "admin-dashboard\\src\\pages\\Activity.jsx": "c24319bf0632ffcdf2631a4fc7053b6f5ff87e0bbd5b37d5b2b388dfd25ae419"
+  }
+}

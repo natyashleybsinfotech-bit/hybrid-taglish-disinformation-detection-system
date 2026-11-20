@@ -13,7 +13,7 @@ function mediaIdentity(value) {
 export function postResultCacheKey(snapshot, mediaChoice) {
   const media = mediaChoice === 'image'
     ? [...new Set((snapshot?.media?.image_urls || []).map(mediaIdentity).filter(Boolean))].sort()
-    : mediaChoice === 'video' ? mediaIdentity(snapshot?.media?.video_url) : '';
+    : ['video', 'video-caption'].includes(mediaChoice) ? mediaIdentity(snapshot?.media?.video_url) : '';
   return JSON.stringify({
     pageUrl: snapshot?.pageUrl || null,
     pageTitle: snapshot?.pageTitle || null,
@@ -30,8 +30,17 @@ export function resolveMediaChoice(choice, media) {
   if (choice === 'video') return media?.has_video ? 'video' : 'unavailable';
   if (choice === 'image') return hasImages ? 'image' : 'unavailable';
   if (choice === 'text') return 'text';
-  if (choice === 'auto' && (media?.has_video || hasImages)) return 'choose';
+  if (choice === 'auto' && media?.has_video) return 'video';
+  if (choice === 'auto' && hasImages) return 'choose';
   return choice === 'auto' ? 'text' : 'unavailable';
+}
+
+export function usableVideoCaption(text, isComplete = true) {
+  const caption = normalize(text);
+  if (!isComplete || !caption || /(?:\.\.\.|…|See more)\s*$/i.test(caption)) return false;
+  const content = caption.replace(/https?:\/\/\S+|#[\p{L}\p{N}_]+/gu, ' ').trim();
+  if (/^(?:watch(?:\s+(?:(?:the\s+)?video|now))?|look|panoorin|tingnan|read\s+(?:the\s+)?full\s+story(?:\s+in\s+the\s+comments)?)\W*$/i.test(content)) return false;
+  return (content.match(/\p{L}{2,}/gu) || []).length >= 2;
 }
 
 export function captionForScreening(text, isComplete, mode) {
@@ -55,8 +64,8 @@ export function isValidScreeningResult(result) {
   const label = labels[result.internal_label];
   return Boolean(label) && result.public_label === label
     && (!Object.hasOwn(result, 'final_label') || result.final_label === label)
-    && (result.screening_mode === 'evidence_only'
-      ? result.model_score === null
+    && (['evidence_only', 'gemini'].includes(result.screening_mode)
+      ? result.model_score === null && (result.screening_mode !== 'gemini' || ['gemini_classifier', 'verified_evidence'].includes(result.decision_source))
       : typeof result.model_score === 'number' && Number.isFinite(result.model_score)
         && result.model_score >= 0 && result.model_score <= 1)
     && Boolean(normalize(result.analyzed_text));
@@ -82,8 +91,23 @@ export function matchesSubmittedPost(result, { text, mediaChoice, pageUrl, pageT
     return result.input_type === 'image' && Boolean(ocr) && extractedCaption === caption && analyzed === normalize(`${caption} ${ocr}`);
   }
 
+  if (mediaChoice === 'video-caption') {
+    return result.input_type === 'video' && result.extraction_status === 'caption_only'
+      && result.context?.analysis_basis === 'video_caption_selected'
+      && result.context?.caption_complete === true && result.context?.video_audio_status === 'not_requested'
+      && result.extraction?.caption_only === true && result.extraction?.transcript_status === 'not_requested'
+      && usableVideoCaption(caption) && normalize(result.extraction?.caption_text) === caption && analyzed === caption
+      && !normalize(result.extraction?.transcript_text) && !normalize(result.extraction?.frame_ocr_text);
+  }
+
   if (mediaChoice === 'video') {
     const extractedCaption = normalize(result.extraction?.caption_text);
+    if (result.extraction?.caption_fallback_used === true) {
+      return result.input_type === 'video' && result.extraction_status === 'caption_fallback'
+        && result.context?.analysis_basis === 'video_caption_fallback'
+        && result.context?.caption_complete === true && Boolean(caption) && extractedCaption === caption && analyzed === caption
+        && !normalize(result.extraction.transcript_text) && !normalize(result.extraction.frame_ocr_text);
+    }
     const seen = new Set();
     const mediaParts = [result.extraction?.transcript_text,
       result.extraction?.frame_ocr_included === false ? '' : result.extraction?.frame_ocr_text]
@@ -95,4 +119,14 @@ export function matchesSubmittedPost(result, { text, mediaChoice, pageUrl, pageT
   }
 
   return result.input_type === 'text' && analyzed === caption;
+}
+
+// This is the classifier's own uncalibrated score, bound to its original label.
+export function aiReportedScore(result) {
+  const value = result?.ai_reported_score;
+  const label = result?.ai_reported_label;
+  return result?.screening_mode === 'gemini' && result?.ai_score_kind === 'self_reported_uncalibrated'
+    && Number.isInteger(value) && value >= 0 && value <= 100
+    && ['Potentially Misleading', 'No Misleading Information Detected'].includes(label)
+    ? {value, label} : null;
 }

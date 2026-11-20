@@ -16,6 +16,129 @@ from model_runtime import Prediction, ModelRuntime
 
 
 class ApiTests(unittest.TestCase):
+    def test_selected_video_caption_skips_media_and_has_exact_caption_provenance(self):
+        caption="The city opened three schools in Manila on Monday."
+        with patch.object(application,'process_video',side_effect=AssertionError('Caption only must not extract media')) as media:
+            result=self.client.post('/analyze/video-caption',json={'text':caption,'page_url':'https://www.facebook.com/post/123','context':{'caption_complete':True,'extraction_scope':'Claimed whole video'}})
+        self.assertEqual(result.status_code,200)
+        body=result.json();self.assertEqual(body['analyzed_text'],caption)
+        self.assertEqual(body['input_type'],'video');self.assertEqual(body['extraction_status'],'caption_only')
+        self.assertEqual(body['context']['analysis_basis'],'video_caption_selected')
+        self.assertEqual(body['context_explanation']['checked_material'],'Video post caption only')
+        self.assertEqual(body['extraction']['transcript_status'],'not_requested')
+        self.assertEqual(body['extraction']['transcript_text'],'');self.assertTrue(body['extraction']['caption_only'])
+        self.assertFalse(body['extraction']['caption_fallback_used'])
+        media.assert_not_called();application.classify.assert_called_once_with(caption)
+
+    def test_unusable_or_incomplete_video_captions_never_produce_a_prediction(self):
+        for text,context in [('',{}),('WATCH!',{}),('Watch now!',{}),('Panoorin!',{}),('https://example.com/a https://example.com/b',{}),('#Manila #News',{}),('Read full story in the comments.',{}),('Collapsed caption…',{}),('A complete public caption.',{'caption_complete':False})]:
+            with self.subTest(text=text):
+                result=self.client.post('/analyze/video-caption',json={'text':text,'context':context})
+                self.assertEqual(result.status_code,422);self.assertNotIn('public_label',result.json())
+        application.classify.assert_not_called();self.retrieval_mock.assert_not_called()
+
+    def test_video_caption_outage_is_an_error_without_a_fabricated_prediction(self):
+        application.classify.side_effect=application.ModelUnavailableError('Unavailable')
+        result=self.client.post('/analyze/video-caption',json={'text':'The city opened three schools.'})
+        self.assertEqual(result.status_code,503);self.assertNotIn('public_label',result.json())
+
+    def test_video_quality_fallback_never_uses_a_bare_watch_prompt(self):
+        with patch.object(application,'process_video',side_effect=application.SpeechQualityError('Unclear')):
+            result=self.client.post('/extract/video',files={'file':('clip.mp4',b'video','video/mp4')},data={'post_text':'Watch now!'})
+        self.assertEqual(result.status_code,422);application.classify.assert_not_called()
+
+
+    def test_audio_provider_outage_does_not_turn_into_caption_prediction(self):
+        for status,code in [('unavailable',503),('rate_limited',429)]:
+            with patch.object(application,'process_video',side_effect=application.SpeechServiceError(status)):
+                response=self.client.post('/extract/video',files={'file':('news.mp4',b'video','video/mp4')},data={'post_text':'A complete video caption.'})
+            self.assertEqual(response.status_code,code)
+            self.assertNotIn('public_label',response.json())
+        application.classify.assert_not_called()
+
+    def test_video_quality_failure_uses_only_complete_bound_caption(self):
+        caption="The city opened three schools in Manila on Monday."
+        for route in ['/extract/video','/analyze/video']:
+            with patch.object(application,'process_video',side_effect=application.SpeechQualityError('Unclear speech')) as extract:
+                response=self.client.post(route,files={'file':('news.mp4',b'complete-video','video/mp4')},data={'post_text':caption,'context_json':'{"caption_complete":true}','page_url':'https://www.facebook.com/post/123'})
+            self.assertEqual(response.status_code,200)
+            body=response.json();self.assertEqual(body['analyzed_text'],caption)
+            self.assertEqual(body['extraction_status'],'caption_fallback')
+            self.assertEqual(body['context_explanation']['checked_material'],'Video caption only')
+            self.assertTrue(body['extraction']['caption_fallback_used'])
+            self.assertEqual(body['extraction']['transcript_text'],'')
+            self.assertNotIn('review_token',body)
+            self.assertTrue(extract.call_args.kwargs['caption_fallback_allowed'])
+            application.classify.assert_called_with(caption)
+
+    def test_caption_fallback_never_masks_infrastructure_errors_or_incomplete_captions(self):
+        for caption,context,error in [('', '{}',application.SpeechQualityError('Unclear speech')),('WATCH!','{}',application.SpeechQualityError('Unclear speech')),('Collapsed caption…','{}',application.SpeechQualityError('Unclear speech')),('A complete caption.','{"caption_complete":false}',application.SpeechQualityError('Unclear speech')),('A complete caption.','{}',application.MediaProcessingError('FFmpeg could not process the submitted video.'))]:
+            with self.subTest(caption=caption,error=type(error).__name__),patch.object(application,'process_video',side_effect=error):
+                response=self.client.post('/extract/video',files={'file':('news.mp4',b'video','video/mp4')},data={'post_text':caption,'context_json':context})
+            self.assertEqual(response.status_code,422)
+        application.classify.assert_not_called()
+
+    def test_gemini_reuses_validated_assessment_without_second_reader_or_hybrid(self):
+        claim = "Drinking enough water helps prevent dehydration."
+        excerpt = "Drinking water can prevent dehydration, which may cause unclear thinking."
+        url = "https://www.cdc.gov/healthy-weight-growth/water-healthy-drinks/"
+        self.retrieval_mock.return_value = {"retrieval_status":"available", "related_sources":[{"url":url,"source":"cdc.gov"}]}
+        self.inspection_mock.side_effect = lambda sources, _claim: [{**sources[0],"content_status":"readable","article_text":excerpt}]
+        primary = {"status":"classified","label":"Misleading","self_reported_score":63,"reason_en":"Primary label.","reason_tl":"Paunang label.",
+                   "assessments":[{"source_id":"s1","url":url,"relationship":"supports","evidence_excerpt":excerpt,
+                                   "decision_eligible":True,"reason":"Water prevents dehydration.","reason_tl":"Nakaiiwas sa dehydration ang tubig."}],
+                   "grounding":{"sources":[],"search_suggestions_html":""}}
+        with patch.object(application.config,"SCREENING_MODE","gemini"), patch.object(application.config,"GEMINI_ENABLED",True), patch.object(application.config,"EVIDENCE_POLICY","semantic_single_source_trial"), patch.object(application,"classify_claim",return_value=primary) as llm, patch("evidence_decision.assess_claim",side_effect=AssertionError("No second Gemini request")):
+            response = self.client.post('/analyze',json={"text":claim,"retrieve_sources":True})
+        self.assertEqual(response.status_code,200)
+        body=response.json()
+        self.assertEqual(body['public_label'],'No Misleading Information Detected')
+        self.assertEqual(body['decision_source'],'verified_evidence')
+        self.assertEqual(body['ai_reported_score'],63)
+        self.assertEqual(body['ai_reported_label'],'Potentially Misleading')
+        self.assertEqual(body['ai_score_kind'],'self_reported_uncalibrated')
+        self.assertIsNone(body['model_score'])
+        self.assertEqual(body['related_sources'][0]['evidence_excerpt'],excerpt)
+        application.classify.assert_not_called();llm.assert_called_once()
+
+    def test_gemini_mode_never_calls_hybrid_classifier_and_has_no_numeric_score(self):
+        primary={'status':'classified','label':'Non-Misleading','self_reported_score':74,'reason_en':'Unverified Gemini classification.',
+                 'reason_tl':'Hindi pa beripikadong Gemini classification.','assessments':[],
+                 'grounding':{'sources':[],'search_suggestions_html':''}}
+        with patch.object(application.config,'SCREENING_MODE','gemini'),patch.object(application,'classify_claim',return_value=primary) as llm:
+            response=self.client.post('/analyze',json={'text':'A complete test claim.','retrieve_sources':False})
+        self.assertEqual(response.status_code,200)
+        body=response.json();self.assertEqual(body['screening_mode'],'gemini')
+        self.assertIn('SuriPH analyzed',body['context_explanation']['assessment_scope'])
+        self.assertEqual(body['decision_source'],'gemini_classifier')
+        self.assertEqual(body['verification_status'],'not_verified')
+        self.assertEqual(body['linguistic_features_status'],'available')
+        self.assertEqual(len(body['linguistic_indicators']),7)
+        self.assertEqual(body['ai_reported_score'],74)
+        self.assertEqual(body['ai_reported_label'],'No Misleading Information Detected')
+        self.assertIsNone(body['model_score']);self.assertIsNone(body['final_confidence'])
+        self.assertIn(body['decision_record_status'],['saved','not_configured'])
+        application.classify.assert_not_called();llm.assert_called_once()
+        self.assertIsNone(self.decision_mock.call_args.args[0]['model_score'])
+
+    def test_gemini_api_failure_returns_error_without_hybrid_fallback(self):
+        for status,code in [('unavailable',503),('invalid_response',503),('rate_limited',429)]:
+            with patch.object(application.config,'SCREENING_MODE','gemini'),patch.object(application,'classify_claim',return_value={'status':status}):
+                response=self.client.post('/analyze',json={'text':'A complete test claim.'})
+            self.assertEqual(response.status_code,code)
+            self.assertNotIn('public_label',response.json())
+            self.assertIn('No prediction was produced',response.json()['detail'])
+        application.classify.assert_not_called()
+
+    def test_identical_article_url_aliases_merge_but_changed_bodies_are_retained(self):
+        first={'url':'https://www.gmanetwork.com/news/report/','content_status':'readable','article_text':'The same complete article body.'}
+        alias={**first,'url':'https://www.gmanetwork.com/news/report'}
+        self.assertEqual(len(application._deduplicate_readable_sources([first,alias])),1)
+        corrected={**alias,'article_text':'A different body explicitly corrects the earlier claim.'}
+        self.assertEqual(len(application._deduplicate_readable_sources([first,corrected])),2)
+        different={**first,'url':'https://www.gmanetwork.com/news/another-report/'}
+        self.assertEqual(len(application._deduplicate_readable_sources([first,different])),2)
+
     def test_evidence_override_exports_passages_and_preserves_original_model(self):
         claim = 'The city opened three public schools in Manila on Monday.'
         self.retrieval_mock.return_value = {
@@ -204,6 +327,8 @@ class ApiTests(unittest.TestCase):
         self.candidate_mock = self.candidate_patcher.start()
         self.audit_patcher = patch.object(application.database, "log_audit", return_value=1)
         self.audit_patcher.start()
+        self.decision_patcher = patch.object(application.database, "save_screening_decision", return_value=77)
+        self.decision_mock = self.decision_patcher.start()
 
     def tearDown(self):
         self.screening_mode_patcher.stop()
@@ -213,6 +338,7 @@ class ApiTests(unittest.TestCase):
         self.fact_check_patcher.stop()
         self.candidate_patcher.stop()
         self.audit_patcher.stop()
+        self.decision_patcher.stop()
 
     def test_health_is_available_when_database_is_offline(self):
         with patch.object(application.database, "database_health", return_value={
@@ -1000,6 +1126,35 @@ class ApiTests(unittest.TestCase):
                 )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["partitions"]["train"], 6)
+
+
+    def test_candidate_model_authoritative_keeps_classifier_label_and_skips_llm(self):
+        self.retrieval_mock.return_value = {"retrieval_status":"available", "related_sources":[{
+            "url":"https://www.gmanetwork.com/news/report", "title":"Related report",
+            "content_status":"readable", "article_text":"A related news report."}]}
+        for label in ["Misleading", "Non-Misleading"]:
+            application.classify.return_value = Prediction(
+                internal_label=label,
+                public_label="Potentially Misleading" if label == "Misleading" else "No Misleading Information Detected",
+                confidence=.9, model_status="ready", model_name="Fine-tuned DistilBERT + LR",
+                model_version="candidate-test", predicted_class=int(label == "Misleading"),
+                model_score=.9 if label == "Misleading" else .1)
+            with patch.object(application.config,"MODEL_AUTHORITATIVE",True), patch.object(application,"classify_claim",side_effect=AssertionError("No LLM classifier")), patch.object(application,"apply_evidence",side_effect=AssertionError("No evidence override")):
+                response=self.client.post('/analyze',json={"text":"A complete supplied claim.","retrieve_sources":True})
+            self.assertEqual(response.status_code,200)
+            body=response.json()
+            self.assertEqual(body['internal_label'],label)
+            self.assertEqual(body['decision_source'],'screening_model')
+            self.assertFalse(body['evidence_adjusted'])
+            self.assertEqual(body['supporting_source_count'],0)
+
+    def test_candidate_model_outage_does_not_call_llm_fallback(self):
+        application.classify.side_effect=application.ModelUnavailableError('candidate unavailable')
+        with patch.object(application.config,"MODEL_AUTHORITATIVE",True), patch.object(application,"classify_claim",side_effect=AssertionError("No LLM fallback")):
+            response=self.client.post('/analyze',json={"text":"A complete supplied claim.","retrieve_sources":True})
+        self.assertEqual(response.status_code,503)
+        self.assertNotIn('public_label',response.json())
+
 
 
 if __name__ == "__main__":

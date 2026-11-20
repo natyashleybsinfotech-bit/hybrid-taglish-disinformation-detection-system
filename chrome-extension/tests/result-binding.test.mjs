@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { captionForScreening, matchesSubmittedPost, isValidScreeningResult, matchesVideoPreview, postResultCacheKey, requireScreeningResult, resolveMediaChoice } from '../src/result_binding.js';
+import { captionForScreening, matchesSubmittedPost, isValidScreeningResult, matchesVideoPreview, postResultCacheKey, requireScreeningResult, resolveMediaChoice, usableVideoCaption } from '../src/result_binding.js';
 
 const submitted = { text: 'News caption about a city event.', pageUrl: 'https://www.facebook.com/search/top?q=news', pageTitle: 'News - Facebook' };
 const response = { page_url: submitted.pageUrl, page_title: submitted.pageTitle, internal_label: 'Non-Misleading', public_label: 'No Misleading Information Detected', model_score: .2 };
@@ -88,9 +88,9 @@ test('unrelated frame text remains visible but is excluded from the screened spe
   assert.equal(matchesSubmittedPost({ ...video, analyzed_text: 'Spoken report Another story on screen' }, input), false);
 });
 
-test('media posts always show the chooser again and explicit video never degrades to text', () => {
-  assert.equal(resolveMediaChoice('auto', { has_video: true }), 'choose');
-  assert.equal(resolveMediaChoice('auto', { has_video: true, image_urls: [] }), 'choose');
+test('video posts start direct acquisition while explicit media choices remain strict', () => {
+  assert.equal(resolveMediaChoice('auto', { has_video: true }), 'video');
+  assert.equal(resolveMediaChoice('auto', { has_video: true, image_urls: [] }), 'video');
   assert.equal(resolveMediaChoice('video', { has_video: false }), 'unavailable');
   assert.equal(resolveMediaChoice('video', { has_video: true }), 'video');
   assert.equal(resolveMediaChoice('image', { image_urls: [] }), 'unavailable');
@@ -117,4 +117,27 @@ test('video extraction preview binds the caption and requires extracted media te
   assert.equal(matchesVideoPreview(preview, binding), true);
   assert.equal(matchesVideoPreview({ ...preview, post_text: '' }, binding), false);
   assert.equal(matchesVideoPreview({ ...preview, extraction: { transcript_text: '', frame_ocr_text: '' } }, binding), false);
+});
+
+test('explicit video-caption results cannot masquerade as an analyzed video or accept unrelated text', () => {
+  const caption = { ...response, input_type:'video', analyzed_text:submitted.text, extraction_status:'caption_only',
+    context:{ analysis_basis:'video_caption_selected',caption_complete:true,video_audio_status:'not_requested' },
+    extraction:{caption_only:true,caption_text:submitted.text,transcript_text:'',frame_ocr_text:'',transcript_status:'not_requested'} };
+  assert.equal(matchesSubmittedPost(caption,{...submitted,mediaChoice:'video-caption'}),true);
+  assert.equal(matchesSubmittedPost(caption,{...submitted,mediaChoice:'video'}),false);
+  for (const change of [ {analyzed_text:'Other post'}, {context:{...caption.context,analysis_basis:'video_caption_fallback'}},
+      {extraction:{...caption.extraction,transcript_text:'Unrequested audio'}},
+      {extraction:{...caption.extraction,caption_text:'Other caption'}} ]) {
+    assert.equal(matchesSubmittedPost({...caption,...change},{...submitted,mediaChoice:'video-caption'}),false);
+  }
+});
+
+test('empty, collapsed, link-only, hashtag-only and bare video prompts do not enable caption screening', () => {
+  for (const text of ['', 'WATCH!', 'Watch now!', 'Panoorin!', 'LOOK: https://example.com/video',
+    'https://example.com/a https://example.com/b', '#Manila #News', 'Read full story in the comments.', 'A longer caption…']) {
+    assert.equal(usableVideoCaption(text),false,text);
+  }
+  assert.equal(usableVideoCaption('May pasok'),true);
+  assert.equal(usableVideoCaption(submitted.text,false),false);
+  assert.equal(usableVideoCaption(submitted.text),true);
 });

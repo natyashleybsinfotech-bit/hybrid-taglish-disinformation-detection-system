@@ -588,6 +588,7 @@ def inspect_related_sources(sources: list[dict], claim: str) -> list[dict]:
             continue
         inspected.append({"url": url, "title": article["title"], "source": _source_name({"link": url}),
                           "snippet": excerpt[:500], "article_text": article["article_text"],
-                          "content_status": "readable", "date": item.get("date"),
+                          "content_status": "readable", "date": article.get("date_published") or item.get("date"),
+                          **{key:article[key] for key in ("content_kind","photo_credit","date_published","provenance_verified") if key in article},
                           **({"origin": item["origin"]} if item.get("origin") else {})})
     return inspected

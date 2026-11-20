@@ -1,0 +1,12 @@
+{
+  "version": "1.3.45",
+  "speech_provider": "gemini",
+  "sha256": {
+    "chrome-extension/dist/manifest.json": "bbc4a00a33ac5a164af46298a84f6cb72e9fe143847b4227d7a3f93ff78ab957",
+    "backend-api/src/gemini_audio.py": "706cc1d542813718dbd8d84b3e831ddbc23c33bc3451158ea8e81cc897a51c13",
+    "backend-api/src/media_processing.py": "c08d9d709955db7bdc1f061b962d53e8dbe3ff57e9e590b2463977c524ae5689",
+    "backend-api/src/app.py": "91b6b4e8e0b02f2b453aa1fe89e10bae5657dcf81abd8feb16d37af4c2ebbb64",
+    "chrome-extension/src/background.js": "dbf89927c8a8092627b040459c5d2f011711db2d384f6455a18729ad8f7ad055",
+    "chrome-extension/src/result_binding.js": "322827fd1dea5ee19f5bf9ea94920834b135bd1277573d9f9f1adaa72a00382f"
+  }
+}

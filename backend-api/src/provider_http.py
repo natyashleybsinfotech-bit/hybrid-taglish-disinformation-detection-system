@@ -1,7 +1,7 @@
 """Fixed-provider HTTP only: reject redirects and bound response bodies."""
 import json
 from urllib import request
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote_plus
 
 class NoRedirect(request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -24,3 +24,23 @@ def safe_link(value):
         return parsed.scheme in {"https", "http"} and bool(parsed.hostname) and not parsed.username and not parsed.password
     except ValueError:
         return False
+
+
+def article_url_without_tracking(value):
+    """Remove known attribution parameters, preserving raw meaningful queries.
+
+    Do not decode/re-encode surviving parameters: IDs, signatures, ordering and
+    encoded values can identify a different page. Never discard all queries.
+    """
+    try:
+        parsed=urlparse(value)
+        if parsed.scheme not in {'http','https'}:return value
+        tracking={'fbclid','gclid','dclid','msclkid','igshid','mc_cid','mc_eid'}
+        kept=[]
+        for item in parsed.query.split('&'):
+            name=unquote_plus(item.split('=',1)[0]).casefold()
+            if name in tracking or name.startswith('utm_'):continue
+            if item:kept.append(item)
+        return parsed._replace(query='&'.join(kept),fragment='').geturl()
+    except (ValueError,TypeError):
+        return value

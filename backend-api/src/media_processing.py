@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import copy
+import hashlib
+import json
+import time
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import io
 import math
@@ -12,19 +18,131 @@ import tempfile
 import types
 import wave
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Timer
 
 import config
+try:
+    from .gemini_audio import transcribe_audio
+except ImportError:
+    from gemini_audio import transcribe_audio
 
 
 class MediaProcessingError(RuntimeError):
     """A safe, user-presentable media processing failure."""
 
 
+class SpeechServiceError(MediaProcessingError):
+    """A failed provider request is not bad speech and must not become a prediction."""
+    def __init__(self, status):
+        self.status = status
+        super().__init__("The audio transcription service could not complete. Please retry.")
+
+
+class SpeechQualityError(MediaProcessingError):
+    """Speech diagnostics failed; this is distinct from infrastructure/media errors."""
+
+
 _ocr_reader = None
 _whisper_model = None
 _ocr_lock = Lock()
+_ocr_inference_lock = Lock()
 _whisper_lock = Lock()
+_video_cache_lock = Lock()
+_video_cache = OrderedDict()
+_video_cache_timers = {}
+_VIDEO_CACHE_MAX_ENTRIES = 2
+_VIDEO_CACHE_MAX_BYTES = 1024 * 1024
+
+
+def clear_video_extraction_cache():
+    with _video_cache_lock:
+        _video_cache.clear()
+        for timer in _video_cache_timers.values():
+            timer.cancel()
+        _video_cache_timers.clear()
+
+
+def _expire_video_cache(key, expiration):
+    with _video_cache_lock:
+        item = _video_cache.get(key)
+        if item and item[0] == expiration:
+            del _video_cache[key]
+            _video_cache_timers.pop(key, None)
+
+
+def warm_media_engines():
+    """Load the configured engines once in this API worker, without a prediction."""
+    started = time.perf_counter()
+    state = {}
+    loaders = [("image_text", _get_ocr_reader)]
+    if config.SPEECH_PROVIDER == "local": loaders.insert(0, ("speech", _get_whisper_model))
+    for name, loader in loaders:
+        stage = time.perf_counter()
+        try:
+            loader()
+            state[name] = {"status": "ready", "load_ms": round((time.perf_counter()-stage)*1000, 3)}
+        except Exception:
+            state[name] = {"status": "unavailable"}
+    return {"engines": state, "total_ms": round((time.perf_counter()-started)*1000, 3)}
+
+
+def _video_cache_key(video_bytes, suffix, caption_fallback_allowed=False):
+    settings = {name: getattr(config, name) for name in dir(config)
+                if name.startswith(("TRANSCRIPT_", "WHISPER_", "OCR_")) and name != "WHISPER_API_KEY"}
+    settings.update({"max_frames":config.VIDEO_MAX_FRAMES, "frame_interval":config.VIDEO_FRAME_INTERVAL_SECONDS,
+                     "max_seconds":config.VIDEO_MAX_SECONDS, "model_dir":str(config.MEDIA_MODEL_DIR), "suffix":suffix,
+                     "pipeline_revision":"video-extraction-v5-parallel-frame-read", "speech_provider":config.SPEECH_PROVIDER, "gemini_model":config.GEMINI_MODEL, "caption_fallback_allowed":caption_fallback_allowed})
+    digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode())
+    digest.update(video_bytes)
+    return digest.hexdigest()
+
+
+def process_video(video_bytes: bytes, suffix: str = ".mp4", caption_fallback_allowed: bool = False) -> dict:
+    """Cache only complete successful extraction in bounded worker RAM, never predictions."""
+    started = time.perf_counter()
+    if not video_bytes:
+        raise MediaProcessingError("The video file is empty.")
+    if len(video_bytes) > config.MAX_MEDIA_BYTES:
+        raise MediaProcessingError("The video exceeds the configured upload limit.")
+    enabled = config.VIDEO_EXTRACTION_CACHE_ENABLED
+    key = _video_cache_key(video_bytes, suffix, caption_fallback_allowed) if enabled else None
+    now = time.monotonic()
+    if enabled:
+        with _video_cache_lock:
+            for expired in [k for k, item in _video_cache.items() if item[0] <= now]:
+                del _video_cache[expired]
+                timer = _video_cache_timers.pop(expired, None)
+                if timer: timer.cancel()
+            if key in _video_cache:
+                expires, stored, size = _video_cache[key]
+                _video_cache.move_to_end(key)
+                result = copy.deepcopy(stored)
+                result["original_processing_timings_ms"] = result.pop("processing_timings_ms", {})
+                result["processing_timings_ms"] = {"total":round((time.perf_counter()-started)*1000,3)}
+                result["extraction_cache_hit"] = True
+                return result
+    result = _process_video_uncached(video_bytes, suffix, caption_fallback_allowed)
+    result["extraction_cache_hit"] = False
+    result.setdefault("processing_timings_ms", {})["total"] = round((time.perf_counter()-started)*1000,3)
+    if enabled and result.get("extraction_status") == "completed":
+        size = len(json.dumps(result, default=str).encode())
+        if size <= _VIDEO_CACHE_MAX_BYTES:
+            with _video_cache_lock:
+                old_timer = _video_cache_timers.pop(key, None)
+                if old_timer: old_timer.cancel()
+                expiration = time.monotonic()+config.VIDEO_EXTRACTION_CACHE_TTL_SECONDS
+                _video_cache[key] = (expiration, copy.deepcopy(result), size)
+                timer = Timer(config.VIDEO_EXTRACTION_CACHE_TTL_SECONDS, _expire_video_cache, args=(key, expiration))
+                timer.daemon = True
+                _video_cache_timers[key] = timer
+                timer.start()
+                _video_cache.move_to_end(key)
+                while len(_video_cache)>_VIDEO_CACHE_MAX_ENTRIES or sum(v[2] for v in _video_cache.values())>_VIDEO_CACHE_MAX_BYTES:
+                    removed_key, _ = _video_cache.popitem(last=False)
+                    old_timer = _video_cache_timers.pop(removed_key, None)
+                    if old_timer: old_timer.cancel()
+    return result
+
 
 
 class _FasterWhisperAdapter:
@@ -44,10 +162,19 @@ class _FasterWhisperAdapter:
             "threshold": 0.35, "min_silence_duration_ms": 750, "speech_pad_ms": 400,
         }
         segments, info = self.model.transcribe(audio, **options)
-        rows = [{"text": item.text, "start": item.start, "end": item.end,
-                 "avg_logprob": item.avg_logprob, "no_speech_prob": item.no_speech_prob,
-                 "compression_ratio": item.compression_ratio}
-                for item in segments]
+        rows = []
+        for item in segments:
+            rows.append({"text": item.text, "start": item.start, "end": item.end,
+                         "avg_logprob": item.avg_logprob, "no_speech_prob": item.no_speech_prob,
+                         "compression_ratio": item.compression_ratio})
+            try:
+                _speech_segments({"segments":rows})
+            except SpeechQualityError:
+                # Preserve the rejected segment so the normal gate still fails.
+                # Stop decoding later chunks which cannot repair that failure.
+                close = getattr(segments, "close", None)
+                if close: close()
+                break
         return {"language": info.language, "segments": rows,
                 "text": " ".join(row["text"].strip() for row in rows).strip()}
 
@@ -164,7 +291,7 @@ def _speech_segments(transcription: dict) -> list[dict]:
     """
     segments = transcription.get("segments")
     if not isinstance(segments, list):
-        raise MediaProcessingError("Speech quality could not be checked. Try a clearer video or use its complete caption.")
+        raise SpeechQualityError("Speech quality could not be checked. Try a clearer video or use its complete caption.")
     accepted = []
     for segment in segments:
         text = str(segment.get("text", "")).strip()
@@ -188,9 +315,9 @@ def _speech_segments(transcription: dict) -> list[dict]:
         except (KeyError, TypeError, ValueError):
             uncertain = True
         if uncertain:
-            raise MediaProcessingError("Some speech could not be transcribed clearly. No prediction was made from the uncertain transcript. Try a clearer clip or check the complete caption instead.")
+            raise SpeechQualityError("Some speech could not be transcribed clearly. No prediction was made from the uncertain transcript. Try a clearer clip or check the complete caption instead.")
         if accepted and start - accepted[-1]["end_seconds"] > 8:
-            raise MediaProcessingError("A substantial middle section of the video speech was not transcribed. No prediction was made from an incomplete transcript.")
+            raise SpeechQualityError("A substantial middle section of the video speech was not transcribed. No prediction was made from an incomplete transcript.")
         accepted.append({"start_seconds": start, "end_seconds": end, "text": text})
     return accepted
 
@@ -211,10 +338,14 @@ def _transcription_language(model, audio) -> tuple[str | None, str]:
         window = 20 * 16000
         offsets = [0, (len(audio) - window) // 2, len(audio) - window]
         vad = VadOptions(threshold=.35, min_silence_duration_ms=750, speech_pad_ms=400)
-        readings = [model.model.detect_language(audio[start:start + window], vad_filter=True,
-                    vad_parameters=vad)[:2] for start in offsets]
-        if all(language == "en" and probability >= .95 for language, probability in readings):
-            return None, "detected_english"
+        # English requires all three probes. Once one fails, remaining probes
+        # cannot change the decision, so avoid redundant encoder passes.
+        for start in offsets:
+            language, probability = model.model.detect_language(
+                audio[start:start + window], vad_filter=True, vad_parameters=vad)[:2]
+            if not (language == "en" and probability >= .95):
+                return "tl", "configured"
+        return None, "detected_english"
     except Exception:
         pass  # Detection is advisory; the configured decoder remains available.
     return "tl", "configured"
@@ -317,6 +448,11 @@ def service_health() -> dict:
             "faster_whisper" if config.WHISPER_ENGINE == "faster-whisper" else "whisper"
         ) else "unavailable",
         "ffmpeg": "available" if ffmpeg_available else "unavailable",
+        "speech_provider": config.SPEECH_PROVIDER,
+        "remote_speech_configured": config.SPEECH_PROVIDER == "gemini" and bool(config.GEMINI_ENABLED and config.GEMINI_API_KEY),
+        "speech_engine_loaded": _whisper_model is not None,
+        "ocr_engine_loaded": _ocr_reader is not None,
+        "video_extraction_cache_enabled": config.VIDEO_EXTRACTION_CACHE_ENABLED,
         "whisper_engine": config.WHISPER_ENGINE,
         "whisper_model": config.WHISPER_MODEL_NAME,
         "whisper_language_hint": config.WHISPER_LANGUAGE_HINT,
@@ -351,11 +487,11 @@ def extract_image_text(image_bytes: bytes) -> dict:
             "discarded_ocr_detections": discarded}
 
 
-def _run_ffmpeg(arguments: list[str]) -> None:
+def _run_ffmpeg(arguments: list[str], *, timeout: float = 240) -> None:
     try:
         result = subprocess.run(
             [ffmpeg_executable(), "-hide_banner", "-loglevel", "error", "-y", *arguments],
-            capture_output=True, text=True, timeout=240,
+            capture_output=True, text=True, timeout=timeout,
         )
     except subprocess.TimeoutExpired:
         raise MediaProcessingError("Media decoding timed out. Submit a shorter clip.") from None
@@ -381,7 +517,30 @@ def _read_pcm_wave(path: Path):
         raise MediaProcessingError("The extracted audio could not be decoded.") from exc
 
 
-def process_video(video_bytes: bytes, suffix: str = ".mp4") -> dict:
+def _read_video_frames(frames):
+    """Acquire OCR independently of speech; relevance filtering happens later."""
+    started = time.perf_counter()
+    readings = []
+    for frame in frames:
+        try:
+            import cv2
+            image = cv2.imread(str(frame))
+            if image is None:
+                readings.append((frame.name, 0, 0, None))
+                continue
+            height, width = image.shape[:2]
+            reader = _get_ocr_reader()
+            with _ocr_inference_lock:
+                detections = reader.readtext(image, detail=1, paragraph=False)
+            readings.append((frame.name, width, height, detections))
+        except Exception:
+            readings.append((frame.name, 0, 0, None))
+    return readings, (time.perf_counter() - started) * 1000
+
+
+def _process_video_uncached(video_bytes: bytes, suffix: str = ".mp4", caption_fallback_allowed: bool = False) -> dict:
+    timings = {}
+    stage = time.perf_counter()
     if not video_bytes:
         raise MediaProcessingError("The video file is empty.")
     if len(video_bytes) > config.MAX_MEDIA_BYTES:
@@ -394,6 +553,8 @@ def process_video(video_bytes: bytes, suffix: str = ".mp4") -> dict:
         video_path.write_bytes(video_bytes)
         _run_ffmpeg(["-protocol_whitelist", "file,pipe", "-format_whitelist", "mov,matroska,webm,avi", "-i", str(video_path), "-t", str(config.VIDEO_MAX_SECONDS + 1), "-vn", "-ac", "1", "-ar", "16000", str(audio_path)])
         audio = _read_pcm_wave(audio_path)  # Reject overlong clips before transcription.
+        timings["audio_prepare"] = round((time.perf_counter()-stage)*1000,3)
+        stage = time.perf_counter()
         # Seek each frame explicitly. The fps filter may shift the first output
         # frame and its enumeration is not a reliable timestamp for OCR review.
         duration = len(audio) / 16000
@@ -409,6 +570,16 @@ def process_video(video_bytes: bytes, suffix: str = ".mp4") -> dict:
                 "-frames:v", "1", str(frame),
             ])
             sample_times[frame.name] = second
+        timings["frame_sampling"] = round((time.perf_counter()-stage)*1000,3)
+        frames = sorted(temp_dir.glob("frame-*.jpg"))
+        ocr_pool = None
+        ocr_task = None
+        # Remote speech waits on network I/O. Read the same sampled frames in
+        # that interval, while retaining one complete audio transcription.
+        # Local Whisper shares CPU resources with OCR, so keep it sequential.
+        if config.SPEECH_PROVIDER == "gemini":
+            ocr_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="suriph-frame-ocr")
+            ocr_task = ocr_pool.submit(_read_video_frames, frames)
         try:
             import numpy as np
             silent = not len(audio) or float(np.max(np.abs(audio))) <= 0.0001
@@ -416,77 +587,98 @@ def process_video(video_bytes: bytes, suffix: str = ".mp4") -> dict:
             speech_language = None
             speech_language_mode = "none"
             if not silent:
-                model = _get_whisper_model()
-                language_choice, speech_language_mode = _transcription_language(model, audio)
-                options = dict(
-                    fp16=False, task="transcribe",
-                    condition_on_previous_text=config.WHISPER_ENGINE == "faster-whisper",
-                    temperature=0.0,
-                    word_timestamps=True, hallucination_silence_threshold=2.0,
-                    no_speech_threshold=config.TRANSCRIPT_MAX_NO_SPEECH_PROB,
-                    logprob_threshold=config.TRANSCRIPT_MIN_AVG_LOGPROB,
-                    compression_ratio_threshold=config.TRANSCRIPT_MAX_COMPRESSION_RATIO,
-                )
-                transcription = model.transcribe(
-                    audio, language=language_choice,
-                    **options,
-                )
-                if transcription.get("language") not in {"tl", "en", "ceb"}:
-                    raise MediaProcessingError(
-                        "The video's speech language could not be identified as Filipino or English reliably. "
-                        "No prediction was made from this transcript."
+                if config.SPEECH_PROVIDER == "gemini":
+                    stage = time.perf_counter()
+                    response = transcribe_audio(audio_path.read_bytes(), duration)
+                    timings["speech_transcription"] = round((time.perf_counter()-stage)*1000,3)
+                    if response.get("status") in {"unclear", "no_speech"}:
+                        raise SpeechQualityError("The audio could not be transcribed clearly. Compare the original video or use its complete caption.")
+                    if response.get("status") != "transcribed":
+                        raise SpeechServiceError(response.get("status", "unavailable"))
+                    segments = response["segments"]
+                    speech_language = response["language"]
+                    speech_language_mode = "external_audio_chunks"
+                else:
+                    stage = time.perf_counter()
+                    model = _get_whisper_model()
+                    timings["speech_model_load"] = round((time.perf_counter()-stage)*1000,3)
+                    stage = time.perf_counter()
+                    language_choice, speech_language_mode = _transcription_language(model, audio)
+                    timings["language_detection"] = round((time.perf_counter()-stage)*1000,3)
+                    stage = time.perf_counter()
+                    options = dict(
+                        fp16=False, task="transcribe",
+                        condition_on_previous_text=config.WHISPER_ENGINE == "faster-whisper",
+                        temperature=0.0,
+                        word_timestamps=True, hallucination_silence_threshold=2.0,
+                        no_speech_threshold=config.TRANSCRIPT_MAX_NO_SPEECH_PROB,
+                        logprob_threshold=config.TRANSCRIPT_MIN_AVG_LOGPROB,
+                        compression_ratio_threshold=config.TRANSCRIPT_MAX_COMPRESSION_RATIO,
                     )
-                try:
-                    segments = _speech_segments(transcription)
-                except MediaProcessingError as original_error:
-                    # English speech can produce repeated words under a
-                    # Filipino hint. Retry once, preserving the actual audio.
-                    # Accept only a clean English result; Filipino failures
-                    # still return an extraction error.
-                    if config.WHISPER_ENGINE != "faster-whisper" or language_choice != "tl":
-                        raise
-                    candidate = model.transcribe(audio, language=None, **options)
-                    if candidate.get("language") != "en":
-                        raise original_error
-                    segments = _speech_segments(candidate)
-                    transcription = candidate
-                    speech_language_mode = "auto_retry_after_quality_failure"
-                speech_language = transcription.get("language")
+                    transcription = model.transcribe(
+                        audio, language=language_choice,
+                        **options,
+                    )
+                    if transcription.get("language") not in {"tl", "en", "ceb"}:
+                        raise SpeechQualityError(
+                            "The video's speech language could not be identified as Filipino or English reliably. "
+                            "No prediction was made from this transcript."
+                        )
+                    try:
+                        segments = _speech_segments(transcription)
+                    except MediaProcessingError as original_error:
+                        # English speech can produce repeated words under a
+                        # Filipino hint. Retry once, preserving the actual audio.
+                        # Accept only a clean English result; Filipino failures
+                        # still return an extraction error.
+                        if caption_fallback_allowed:
+                            raise
+                        if config.WHISPER_ENGINE != "faster-whisper" or language_choice != "tl":
+                            raise
+                        candidate = model.transcribe(audio, language=None, **options)
+                        if candidate.get("language") != "en":
+                            raise original_error
+                        segments = _speech_segments(candidate)
+                        transcription = candidate
+                        speech_language_mode = "auto_retry_after_quality_failure"
+                    timings["speech_transcription"] = round((time.perf_counter()-stage)*1000,3)
+                    speech_language = transcription.get("language")
             transcript_parts = _normalize_parts([segment["text"] for segment in segments])
             if not silent and not transcript_parts:
-                raise MediaProcessingError("No reliable speech was extracted from the video's audible track. No prediction was made from frame text alone.")
+                raise SpeechQualityError("No reliable speech was extracted from the video's audible track. No prediction was made from frame text alone.")
         except MediaProcessingError:
             raise
         except Exception as exc:
             raise MediaProcessingError("Whisper could not transcribe the video audio.") from exc
+        finally:
+            if ocr_pool:
+                wait_started = time.perf_counter()
+                # Join before temporary files are removed, including errors.
+                ocr_pool.shutdown(wait=True, cancel_futures=True)
+                timings["frame_ocr_wait_after_speech"] = round((time.perf_counter()-wait_started)*1000,3)
 
+        readings, ocr_ms = ocr_task.result() if ocr_task else _read_video_frames(frames)
+        stage = time.perf_counter()
         frame_parts: list[str] = []
         frame_regions: list[dict] = []
         discarded_ocr = 0
         failed_frames = 0
         read_frames = 0
-        for frame_index, frame in enumerate(sorted(temp_dir.glob("frame-*.jpg"))):
+        for frame_name, width, height, detections in readings:
+            if detections is None:
+                failed_frames += 1
+                continue
             try:
-                import cv2
-                image = cv2.imread(str(frame))
-                if image is None:
-                    failed_frames += 1
-                    continue
-                height, width = image.shape[:2]
                 regions, rejected = _story_frame_detections(
-                    _get_ocr_reader().readtext(image, detail=1, paragraph=False),
-                    width, height, sample_times[frame.name], transcript_parts,
+                    detections, width, height, sample_times[frame_name], transcript_parts,
                 )
                 frame_regions.extend(regions)
                 frame_parts.extend(region["text"] for region in regions)
                 discarded_ocr += rejected
                 read_frames += 1
             except Exception:
-                # An OCR-engine failure is not the same as a frame containing
-                # no text. Preserve speech for review, but report the missing
-                # acquisition rather than claiming the video was fully read.
                 failed_frames += 1
-                continue
+        timings["frame_ocr"] = round(ocr_ms + (time.perf_counter()-stage)*1000,3)
         frame_status = ('partial' if read_frames else 'failed') if failed_frames else (
             'completed' if frame_parts else 'no_readable_text')
         frame_agreement = not (transcript_parts and frame_parts) or _speech_frame_consistent(transcript_parts, frame_parts)
@@ -506,6 +698,7 @@ def process_video(video_bytes: bytes, suffix: str = ".mp4") -> dict:
         if not combined:
             raise MediaProcessingError("No usable speech or on-screen text was extracted.")
         return {
+            "processing_timings_ms": timings,
             "extraction_status": "partial" if failed_frames else "completed",
             "transcript_text": "\n".join(transcript_parts),
             "frame_ocr_text": "\n".join(_normalize_parts(frame_parts)),
@@ -518,6 +711,8 @@ def process_video(video_bytes: bytes, suffix: str = ".mp4") -> dict:
             "transcript_status": "completed" if transcript_parts else "no_reliable_speech",
             "speech_language": speech_language,
             "speech_language_mode": speech_language_mode,
+            "transcript_source": "external_audio" if config.SPEECH_PROVIDER == "gemini" else "local_whisper",
+            "timestamp_basis": "server_audio_chunks" if config.SPEECH_PROVIDER == "gemini" else "decoder_segments",
             "speech_frame_agreement": "word_overlap" if frame_agreement else "review_required",
             "frame_ocr_included": frame_ocr_included,
             "discarded_ocr_detections": discarded_ocr,

@@ -21,6 +21,7 @@ PROFILE_DOCUMENT = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
 PROFILES = PROFILE_DOCUMENT["profiles"]
 APPROVED_PROFILE_CLASSIFIERS = {
     "20261011T235112Z": "models/model_4.joblib",
+    "suriph-finetune-6a35c6d4a2a0": "models/model_4_FINETUNED_CANDIDATE.joblib",
     "full-cleaned-20261023T022416Z": "models/model_4_full_dataset_CANDIDATE.joblib",
 }
 if (
@@ -125,6 +126,16 @@ class ModelRuntime:
             if entries[0].get("sha256") != self.profile["classifier_sha256"]:
                 raise ValueError("Classifier manifest SHA-256 mismatch")
             return metadata, metadata["checkpoint_settings"], metadata["features"], metadata["environment"]
+        if kind == "fine_tuned_results":
+            if metadata.get("run_id") != self.profile_id:
+                raise ValueError("Fine-tuned training-run identity mismatch")
+            if metadata.get("classifier_sha256") != self.profile["classifier_sha256"]:
+                raise ValueError("Fine-tuned classifier manifest hash mismatch")
+            if not metadata.get("test_label_parity") or not metadata.get("only_last_two_layers_changed"):
+                raise ValueError("Fine-tuned local verification is incomplete")
+            if float(metadata.get("threshold")) != self._threshold:
+                raise ValueError("Fine-tuned verification threshold mismatch")
+            return metadata, metadata["encoder_settings"], metadata["features"], metadata["inference_environment"]
         if kind == "candidate_results":
             protocol = json.loads((self.root / self.profile["protocol_file"]).read_text(encoding="utf-8"))
             if metadata.get("run_id") != self.profile_id:
@@ -186,13 +197,13 @@ class ModelRuntime:
         }
         if not isinstance(bundle, dict) or not required_keys <= bundle.keys():
             raise ValueError("Selected model_4 bundle structure is incompatible")
-        if self.profile["metadata_kind"] == "candidate_results":
+        if self.profile["metadata_kind"] in {"candidate_results", "fine_tuned_results"}:
             if bundle.get("run_id") != self.profile_id or bundle.get("deployment_approved") is not False:
                 raise ValueError("Candidate bundle identity or local-trial status mismatch")
         if (
             float(bundle["threshold"]) != self._threshold
             or float(bundle["selection"]["threshold"]) != self._threshold
-            or bundle["model_name"] != MODEL_NAME
+            or bundle["model_name"] != self.profile.get("model_name", MODEL_NAME)
         ):
             raise ValueError("Saved hybrid selection/threshold mismatch")
         if bundle["label_mapping"] != LABEL_MAPPING:
@@ -209,7 +220,7 @@ class ModelRuntime:
 
         settings = bundle["encoder_settings"]
         expected_settings = {
-            "mode": "frozen",
+            "mode": self.profile.get("encoder_mode", "frozen"),
             "pooling": "content-token weighted mean across all non-overlapping chunks",
             "max_length": 512,
             "content_tokens_per_chunk": 510,

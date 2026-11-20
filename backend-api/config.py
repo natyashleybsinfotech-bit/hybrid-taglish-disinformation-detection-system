@@ -74,6 +74,16 @@ TOPIC_CATEGORIES = (
     "Entertainment and Public Figures",
     "Other and General",
 )
+# Optional Gemini evidence reader. Never put the credential in extension code.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_ENABLED = _env("SURI_GEMINI_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+GEMINI_SEARCH_GROUNDING = _env("SURI_GEMINI_SEARCH_GROUNDING", "false").lower() in {"1", "true", "yes", "on"}
+GEMINI_MODEL = _env("SURI_GEMINI_MODEL", "gemini-3.5-flash-lite")
+GEMINI_TIMEOUT_SECONDS = min(30, max(3, _env_int("SURI_GEMINI_TIMEOUT_SECONDS", 20)))
+GEMINI_REQUESTS_PER_MINUTE = min(20, max(1, _env_int("SURI_GEMINI_REQUESTS_PER_MINUTE", 4)))
+GEMINI_REQUESTS_PER_DAY = min(1000, max(1, _env_int("SURI_GEMINI_REQUESTS_PER_DAY", 100)))
+GEMINI_BUDGET_PATH = BASE_DIR / "data" / "runtime-gemini" / "request-budget.json"
+
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
 SERPER_ENABLED = _env("SERPER_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
 SERPER_TIMEOUT_SECONDS = _env_int("SERPER_TIMEOUT_SECONDS", 8)
@@ -89,6 +99,9 @@ OCR_LANGUAGES = tuple(
     if language.strip()
 )
 OCR_GPU = _env("SURI_OCR_GPU", "false").lower() in {"1", "true", "yes"}
+SPEECH_PROVIDER = _env("SURI_SPEECH_PROVIDER", "local").strip().lower()
+if SPEECH_PROVIDER not in {"local", "gemini"}:
+    raise RuntimeError("SURI_SPEECH_PROVIDER must be local or gemini")
 WHISPER_ENGINE = _env("SURI_WHISPER_ENGINE", "faster-whisper").strip().lower()
 WHISPER_MODEL_NAME = _env("SURI_WHISPER_MODEL", "turbo")
 # The screening product targets Filipino/Taglish speech. Whisper still emits
@@ -102,6 +115,10 @@ TRANSCRIPT_MAX_COMPRESSION_RATIO = 2.4
 VIDEO_FRAME_INTERVAL_SECONDS = _env_int("SURI_VIDEO_FRAME_INTERVAL_SECONDS", 3)
 VIDEO_MAX_FRAMES = _env_int("SURI_VIDEO_MAX_FRAMES", 3)
 VIDEO_MAX_SECONDS = 180
+MEDIA_WARMUP = _env("SURI_MEDIA_WARMUP", "false").lower() in {"1", "true", "yes", "on"}
+VIDEO_EXTRACTION_CACHE_ENABLED = _env("SURI_VIDEO_EXTRACTION_CACHE", "true").lower() in {"1", "true", "yes", "on"}
+VIDEO_EXTRACTION_CACHE_TTL_SECONDS = min(1800, max(1, _env_int("SURI_VIDEO_EXTRACTION_CACHE_TTL_SECONDS", 600)))
+
 TEMP_MEDIA_DIR = Path(
     _env("SURI_TEMP_MEDIA_DIR", str(Path(tempfile.gettempdir()) / "suriph-media"))
 )
@@ -117,8 +134,8 @@ TRUSTED_HOSTS = tuple(
     if host.strip()
 )
 DISCLAIMER = (
-    "This two-label screening result can be wrong. Evidence overrides require either a closely matching published fact-check "
-    "or corroboration from at least two independent approved publishers; otherwise the result follows model_4. "
+    "This two-label screening result can be wrong. Article evidence is checked against the submitted claim under the configured evidence policy. "
+    "Insufficient or unavailable evidence retains an unverified model prediction. "
     "The model score is not calibrated certainty or proof. Check original sources, dates and context."
 )
 MODEL_SCOPE_NOTICE = (
@@ -136,8 +153,12 @@ MODEL_ARTIFACT_DIR = (
 MODEL_DEVICE = _env("SURI_MODEL_DEVICE", "auto")
 MODEL_CPU_THREADS = _env_int("SURI_MODEL_CPU_THREADS", 4)
 SCREENING_MODE = _env("SURI_SCREENING_MODE", "model").lower()
-if SCREENING_MODE not in {"model", "evidence_only"}:
-    raise RuntimeError("SURI_SCREENING_MODE must be 'model' or 'evidence_only'.")
+MODEL_AUTHORITATIVE = _env("SURI_MODEL_AUTHORITATIVE", "false").lower() in {"1", "true", "yes", "on"}
+if SCREENING_MODE not in {"model", "evidence_only", "gemini"}:
+    raise RuntimeError("SURI_SCREENING_MODE must be 'model', 'evidence_only', or 'gemini'.")
+EVIDENCE_POLICY = _env('SURI_EVIDENCE_POLICY', 'strict')
+if EVIDENCE_POLICY not in {'strict', 'semantic_single_source_trial'}:
+    raise RuntimeError('Unknown SURI_EVIDENCE_POLICY')
 MAX_TEXT_CHARACTERS = 1_000_000
 MODEL_REQUIRED = _env("SURI_MODEL_REQUIRED", "true").lower() in {"1", "true", "yes", "on"}
 MODEL_WARMUP = _env("SURI_MODEL_WARMUP", "true" if APP_ENV == "production" else "false").lower() == "true"
@@ -149,6 +170,8 @@ def validate_runtime_config() -> None:
     if APP_ENV != "production":
         return
     errors = []
+    if EVIDENCE_POLICY != "strict":
+        errors.append("The semantic evidence trial is local-only and is not approved for production")
     def unsafe_secret(value: str, minimum: int) -> bool:
         return len(value) < minimum or value.lower().startswith(("replace-", "generate-", "changeme", "change-me"))
 
@@ -189,8 +212,8 @@ def validate_runtime_config() -> None:
         errors.append("The database URL is invalid")
     if not MODEL_REQUIRED or not MODEL_WARMUP:
         errors.append("Production requires SURI_MODEL_REQUIRED=true and SURI_MODEL_WARMUP=true")
-    if MODEL_PROFILE == "full-cleaned-20261023T022416Z":
-        errors.append("The full-cleaned candidate profile is approved for local trial only")
+    if MODEL_PROFILE in {"full-cleaned-20261023T022416Z", "suriph-finetune-6a35c6d4a2a0"}:
+        errors.append("The selected candidate profile is approved for local trial only")
     if errors:
         raise RuntimeError("Unsafe production configuration: " + "; ".join(errors))
 

@@ -6,6 +6,36 @@ import { runInNewContext } from 'node:vm';
 const source = readFileSync(new URL('../src/background.js', import.meta.url), 'utf8')
   .replaceAll('import.meta.env', '({})');
 
+test('selected caption sends only the exact caption request and never downloads the video', async () => {
+  let receive;
+  const chrome = {runtime:{onInstalled:{addListener(){}},onConnect:{addListener(){}},
+    onMessage:{addListener(listener){receive=listener;}}},storage:{local:{get(){},set(){}}}};
+  const requests=[];
+  runInNewContext(source,{chrome,Blob,FormData,URL,Uint8Array,AbortController,setTimeout,clearTimeout,
+    fetch:async (url,options)=>{
+      requests.push(url);
+      assert.equal(url,'http://127.0.0.1:8000/analyze/video-caption');
+      const body=JSON.parse(options.body);
+      assert.equal(body.text,'Exact complete caption.');assert.equal(body.context.caption_complete,true);
+      assert.equal(body.retrieve_sources,false);
+      return new Response(JSON.stringify({input_type:'video',extraction_status:'caption_only',analyzed_text:body.text}));
+    }});
+  const result=await new Promise(resolve=>receive({type:'SURIPH_ANALYZE_VIDEO_CAPTION',payload:{
+    text:'Exact complete caption.',context:{caption_complete:true},retrieve_sources:false,
+  }},{},resolve));
+  assert.equal(result.ok,true);assert.equal(result.result.extraction_status,'caption_only');assert.equal(requests.length,1);
+});
+
+test('caption endpoint failures return an error without a substitute prediction', async () => {
+  let receive;
+  const chrome={runtime:{onInstalled:{addListener(){}},onConnect:{addListener(){}},
+    onMessage:{addListener(listener){receive=listener;}}},storage:{local:{get(){},set(){}}}};
+  runInNewContext(source,{chrome,Blob,FormData,URL,Uint8Array,AbortController,setTimeout,clearTimeout,
+    fetch:async()=>new Response(JSON.stringify({detail:'Screening unavailable'}),{status:503})});
+  const result=await new Promise(resolve=>receive({type:'SURIPH_ANALYZE_VIDEO_CAPTION',payload:{text:'Complete caption.'}},{},resolve));
+  assert.equal(result.ok,false);assert.equal(result.result,undefined);assert.match(result.error,/unavailable/);
+});
+
 function startVideoRequest(videoUrl, fetchImpl) {
   let onConnect;
   const chrome = {

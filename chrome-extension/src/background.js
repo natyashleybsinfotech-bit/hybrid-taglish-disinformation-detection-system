@@ -55,6 +55,14 @@ async function postJson(payload) {
   catch (_) { throw new Error('SuriPH backend is unavailable. Check the configured API connection.'); }
   const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.detail || `Screening failed with status ${response.status}.`); return body;
 }
+async function postVideoCaption(payload) {
+  const response = await boundedFetch(`${API_BASE}/analyze/video-caption`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || `Caption screening failed with status ${response.status}.`);
+  return body;
+}
 async function confirmVideo(payload) {
   const response = await boundedFetch(`${API_BASE}/analyze/confirmed-video`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -130,12 +138,13 @@ async function postMedia(path, url, payload, onProgress = () => {}) {
   const fetchFailure = message => Object.assign(new Error(message), { fallback_to_capture: true });
   if (parsed.protocol !== 'https:' || !['facebook.com','fbcdn.net','fbsbx.com'].some(domain => host === domain || host.endsWith(`.${domain}`))) throw fetchFailure('This Facebook media origin is not supported. Use a local file through the popup.');
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), path.includes('video') ? 30000 : 120000);
+  let timer = setTimeout(() => controller.abort(), path.includes('video') ? 8000 : 120000);
   let blob;
   try {
     if (path.includes('video')) onProgress('downloading');
     mediaResponse = await fetch(url, { credentials: 'include', signal: controller.signal });
     if (!mediaResponse.ok) throw fetchFailure(`Post media fetch failed (${mediaResponse.status}).`);
+    if (path.includes('video')) { clearTimeout(timer); timer = setTimeout(() => controller.abort(), 30000); }
     blob = path.includes('video')
       ? await completeVideoDownload(mediaResponse, url, controller.signal)
       : await readMediaPart(mediaResponse, 50 * 1024 * 1024);
@@ -229,6 +238,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     postRelatedSources(message.payload || {})
       .then((body) => sendResponse({ ok: true, result: body }))
       .catch((error) => sendResponse({ ok: false, error: error.message || 'Related-source lookup failed.' }));
+    return true;
+  }
+  if (message?.type === 'SURIPH_ANALYZE_VIDEO_CAPTION') {
+    postVideoCaption(message.payload || {})
+      .then(result => sendResponse({ ok: true, result }))
+      .catch(error => sendResponse({ ok: false, error: error.message || 'Caption screening failed.' }));
     return true;
   }
   if (message?.type === 'SURIPH_CONFIRM_VIDEO') {

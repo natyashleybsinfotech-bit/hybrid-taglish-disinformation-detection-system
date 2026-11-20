@@ -37,9 +37,11 @@ request_logger.propagate = False
 try:
     from . import database
     from .evidence_decision import apply_evidence
+    from .gemini_classifier_trial import classify_claim
     from .feature_display import describe
+    from .text_features import measure_text_features
     from .fact_check import search_fact_checks
-    from .media_processing import MediaProcessingError, extract_image_text, process_video, service_health
+    from .media_processing import SpeechServiceError, SpeechQualityError, MediaProcessingError, extract_image_text, process_video, service_health, warm_media_engines
     from .model_runtime import (
         ModelUnavailableError, classify, initialize_model, model_health, normalize_text,
     )
@@ -49,9 +51,11 @@ try:
 except ImportError:  # Supports the legacy test runner that adds src/ to sys.path.
     import database
     from evidence_decision import apply_evidence
+    from gemini_classifier_trial import classify_claim
     from feature_display import describe
+    from text_features import measure_text_features
     from fact_check import search_fact_checks
-    from media_processing import MediaProcessingError, extract_image_text, process_video, service_health
+    from media_processing import SpeechServiceError, SpeechQualityError, MediaProcessingError, extract_image_text, process_video, service_health, warm_media_engines
     from model_runtime import (
         ModelUnavailableError, classify, initialize_model, model_health, normalize_text,
     )
@@ -66,6 +70,10 @@ class ScreenRequest(BaseModel):
     page_title: str | None = Field(default=None, max_length=500)
     context: dict[str, Any] | None = None
     retrieve_sources: bool = False
+
+
+class VideoCaptionRequest(ScreenRequest):
+    text: str = Field(default="", max_length=config.MAX_TEXT_CHARACTERS)
 
 
 class CandidateRequest(ScreenRequest):
@@ -136,11 +144,16 @@ def _create_video_review_response(
                            "transcript_segments": extraction.get("transcript_segments", []),
                            "speech_language": extraction.get("speech_language"),
                            "speech_language_mode": extraction.get("speech_language_mode"),
+                           "transcript_source": extraction.get("transcript_source"),
+                           "timestamp_basis": extraction.get("timestamp_basis"),
                            "sampled_frames": extraction["sampled_frames"],
                            "frame_ocr_status": extraction.get("frame_ocr_status", "not_reported"),
                            "failed_ocr_frames": extraction.get("failed_ocr_frames", 0),
                            "speech_frame_agreement": extraction.get("speech_frame_agreement", "not_checked"),
                            "frame_ocr_included": extraction.get("frame_ocr_included", bool(extraction.get("frame_ocr_text"))),
+                           "extraction_cache_hit": extraction.get("extraction_cache_hit", False),
+                           "processing_timings_ms": extraction.get("processing_timings_ms", {}),
+                           "original_processing_timings_ms": extraction.get("original_processing_timings_ms"),
                            "quality_notice": extraction.get("quality_notice", "Automatic extraction may mishear words. Compare it with the original video.")}}
 
 
@@ -225,6 +238,14 @@ async def lifespan(_app: FastAPI):
         state = await run_in_threadpool(initialize_model)
         if not state["ready"]:
             logging.error("%s", state["error"])
+    if config.MEDIA_WARMUP:
+        warmup = await run_in_threadpool(warm_media_engines)
+        logging.warning("Media engines prepared: %s", json.dumps(warmup))
+        if config.SCREENING_MODE == "gemini":
+            try:
+                await run_in_threadpool(measure_text_features, "Isang halimbawa. A short example.")
+            except Exception as exc:
+                logging.warning("Text measurements could not be prepared (%s).", type(exc).__name__)
     yield
 
 
@@ -329,14 +350,31 @@ def _context_explanation(
         "freshness": _derived_recency(details.get("published_at"), details.get("published_text")),
         "recency_explanation": "An exact timestamp gives a calculated age; a relative Facebook label gives only an approximate age.",
         "assessment_scope": (
+            "SuriPH analyzed the confirmed text; readable sources were compared when requested."
+            if config.SCREENING_MODE == "gemini" else
             "Classifier disabled. The complete supplied text was compared with retrieved source evidence."
-            if config.SCREENING_MODE != "model"
+            if config.SCREENING_MODE == "evidence_only"
+            else "DistilBERT supplies the prediction. Individual claims were not fact-checked by the model; requested source evidence is assessed separately and may change the displayed label only after validation."
+            if not config.MODEL_AUTHORITATIVE
             else "One hybrid-model prediction was computed from the complete supplied text. Individual claims were not fact-checked."
         ),
         "checked_material": details.get("extraction_scope") or default_checked,
         "original_post_url": details.get("original_post_url") or None,
         "relevant_links": list(dict.fromkeys(visible_links))[:8],
     }
+
+
+def _deduplicate_readable_sources(sources):
+    """Merge only URL aliases with the same readable body; retain differences."""
+    unique=[];seen=set()
+    for source in sources:
+        part=urlparse(source.get('url',''))
+        identity=(part.scheme,(part.hostname or '').casefold().removeprefix('www.'),
+                  part.path.rstrip('/'),part.query,
+                  ' '.join(source.get('article_text','').split()) if source.get('content_status')=='readable' else None)
+        if identity in seen:continue
+        seen.add(identity);unique.append(source)
+    return unique
 
 
 def _lookup_readable_sources(
@@ -385,6 +423,7 @@ def _lookup_readable_sources(
                 )
         except Exception as exc:
             logging.warning("Focused source retrieval retry failed (%s).", type(exc).__name__)
+    inspected = _deduplicate_readable_sources(inspected)
     retrieval['unreadable_source_count'] = sum(source.get('content_status') == 'inaccessible' for source in inspected)
     readable = [source for source in inspected if source.get('content_status') == 'readable']
     search_only = [source for source in inspected if source.get('content_status') == 'inaccessible']
@@ -414,10 +453,15 @@ def _screen(
     # would assign it a high score. Short complete claims remain supported.
     if details.get("caption_complete") is False and details.get("extraction_scope", "").lower().find("caption") >= 0:
         raise HTTPException(status_code=422, detail="The Facebook caption appears incomplete. Expand the full caption or select the complete media before screening.")
-    prototype_mode = config.SCREENING_MODE != "model"
+    llm_mode = config.SCREENING_MODE == "gemini"
+    prototype_mode = config.SCREENING_MODE == "evidence_only"
     if prototype_mode and capture_candidate:
         raise HTTPException(status_code=409, detail="Candidate submission is disabled while classifier-based labels are off.")
-    if prototype_mode:
+    if llm_mode:
+        prediction = {'internal_label':None,'public_label':None,'predicted_class':None,
+                      'confidence':None,'model_score':None,'model_status':'pending',
+                      'model_name':'Google Gemini','model_version':config.GEMINI_MODEL,'linguistic_indicators':{}}
+    elif prototype_mode:
         prediction = {
             "internal_label": "Misleading",
             "public_label": "Potentially Misleading",
@@ -454,7 +498,31 @@ def _screen(
     else:
         retrieval = {"retrieval_status": "not_requested", "related_sources": []}
         fact_checks = {"status": "not_requested", "matches": [], "signal": None}
-    linguistic_indicators = describe(prediction["linguistic_indicators"]) if not prototype_mode else []
+    primary = None
+    if llm_mode:
+        primary_started = time.perf_counter()
+        primary = classify_claim(analyzed_text, retrieval['related_sources'], grounding=retrieve_sources and config.GEMINI_SEARCH_GROUNDING)
+        inference_ms += (time.perf_counter() - primary_started) * 1000
+        if primary.get('status') != 'classified':
+            code = 422 if primary.get('status') == 'input_too_long' else 429 if primary.get('status') in {'busy','rate_limited'} else 503
+            raise HTTPException(status_code=code, detail='Analysis could not complete ('+primary.get('status','unavailable')+'). No prediction was produced. Please retry.')
+        label = primary['label']
+        prediction.update({'internal_label':label,'public_label':'Potentially Misleading' if label=='Misleading' else 'No Misleading Information Detected',
+                           'predicted_class':1 if label=='Misleading' else 0,'model_status':'ready'})
+    features_started = time.perf_counter()
+    feature_status = "not_available"
+    if llm_mode:
+        try:
+            linguistic_indicators = describe(measure_text_features(analyzed_text))
+            feature_status = "available"
+        except Exception as exc:
+            logging.warning("Linguistic measurements unavailable (%s).", type(exc).__name__)
+            linguistic_indicators = []
+            feature_status = "unavailable"
+    else:
+        linguistic_indicators = describe(prediction["linguistic_indicators"]) if not prototype_mode else []
+        feature_status = "available" if linguistic_indicators else "not_available"
+    inference_ms += (time.perf_counter()-features_started)*1000
     prediction["linguistic_indicators"] = linguistic_indicators
     model_identity = ({
         "model_internal_label": prediction["internal_label"],
@@ -466,17 +534,23 @@ def _screen(
         "model_predicted_class": None,
     })
     decision = apply_evidence(
+        prediction, retrieval['related_sources'], [], analyzed_text,
+        reader_result={'status':'assessed','provider':'google_gemini','model':config.GEMINI_MODEL,'assessments':primary['assessments']}
+    ) if llm_mode else apply_evidence(
         prediction, retrieval["related_sources"], fact_checks["matches"], analyzed_text
-    ) if retrieve_sources else {
+    ) if retrieve_sources and not config.MODEL_AUTHORITATIVE else {
         "internal_label": prediction["internal_label"],
         "public_label": prediction["public_label"],
         "decision_source": "screening_model",
-        "decision_basis": "Evidence lookup was not requested; the label follows the screening model prediction.",
+        "decision_basis": ("The label follows the trained DistilBERT hybrid classifier. Retrieved articles are references and were not used to verify or change this prediction." if config.MODEL_AUTHORITATIVE and retrieve_sources else "Evidence lookup was not requested; the label follows the screening model prediction."),
         "evidence_relationship": "not_assessed",
         "supporting_source_count": 0,
         "strong_fact_check_matches": [],
         "evidence_assessments": [], "evidence_urls": [], "evidence_adjusted": False,
     }
+    if llm_mode and decision['decision_source'] != 'verified_evidence':
+        decision['decision_source'] = 'gemini_classifier'
+        decision['decision_basis'] = primary['reason_en']
     prediction.update(model_identity)
     prediction["model_confidence"] = prediction["confidence"] if not prototype_mode else None
     prediction["internal_label"] = decision["internal_label"]
@@ -494,8 +568,8 @@ def _screen(
     )
     prediction["final_confidence"] = None
     prediction["score_description"] = (
-        "Original hybrid model score for its Misleading class; not confidence in the final evidence decision."
-        if not prototype_mode else "Classifier disabled in evidence-only prototype mode."
+        "Selected hybrid model score for its Misleading class; not calibrated certainty or proof."
+        if not prototype_mode and not llm_mode else "Gemini primary classification; no calibrated confidence score." if llm_mode else "Classifier disabled in evidence-only prototype mode."
     )
     if decision["decision_source"] == "verified_evidence":
         prediction["confidence"] = None
@@ -530,7 +604,9 @@ def _screen(
         assessment = assessments_by_url.get(source.get("url"), {})
         source["relationship"] = assessment.get("relationship", "unverified")
         source["relationship_reason"] = assessment.get("reason", "")
+        source["relationship_reason_tl"] = assessment.get("reason_tl", "")
         source["evidence_excerpt"] = assessment.get("evidence_excerpt", "")
+        source["validation_issues"] = assessment.get("validation_issues", [])
         source["decision_eligible"] = assessment.get("decision_eligible", False)
         source["used_for_decision"] = source.get("url") in decision["evidence_urls"]
     result = {
@@ -550,8 +626,19 @@ def _screen(
         "fact_check_matches": decision["strong_fact_check_matches"],
         "decision_source": decision["decision_source"],
         "verification_status": "evidence_assessed" if decision["decision_source"] == "verified_evidence" else "not_verified",
-        "screening_mode": "evidence_only" if prototype_mode else "model",
+        "screening_mode": "gemini" if llm_mode else "evidence_only" if prototype_mode else "model",
+        "ai_reported_score": primary.get("self_reported_score") if llm_mode else None,
+        "ai_reported_label": model_identity["model_public_label"] if llm_mode else None,
+        "ai_score_kind": "self_reported_uncalibrated" if llm_mode else None,
+        "classifier_reason_en": primary["reason_en"] if llm_mode else None,
+        "classifier_reason_tl": primary["reason_tl"] if llm_mode else None,
+        "search_grounding": primary["grounding"] if llm_mode else None,
         "decision_basis": decision["decision_basis"],
+        "evidence_reader": decision.get("evidence_reader", {"status": "not_requested"}),
+        "evidence_policy": config.EVIDENCE_POLICY,
+        "evidence_policy_local_trial": config.EVIDENCE_POLICY != "strict",
+        "evidence_explanation_en": decision.get("evidence_explanation_en", ""),
+        "evidence_explanation_tl": decision.get("evidence_explanation_tl", ""),
         "evidence_rule": decision.get("evidence_rule", "model_fallback"),
         "evidence_relationship": decision["evidence_relationship"],
         "supporting_source_count": decision["supporting_source_count"],
@@ -561,10 +648,12 @@ def _screen(
         "final_label": decision["public_label"],
         "final_reason": decision["decision_basis"],
         "linguistic_indicators": linguistic_indicators,
+        "linguistic_features_status": feature_status,
+        "linguistic_features_basis": "Descriptive measurements of the exact analyzed_text; not feature importance or factual verification.",
         "candidate_sample_id": candidate_id,
         "topic_suggestion": topic_suggestion.to_dict(),
         "evidence_status": "missing" if capture_candidate else "not_captured",
-        "model_scope_notice": config.MODEL_SCOPE_NOTICE,
+        "model_scope_notice": "Automated screening can make mistakes; review the exact text and supporting source passages." if llm_mode else config.MODEL_SCOPE_NOTICE,
         "disclaimer": config.DISCLAIMER,
     }
     try:
@@ -618,20 +707,29 @@ async def _read_upload(file: UploadFile, expected_prefix: str) -> bytes:
     return contents
 
 
+def _classifier_health():
+    if config.SCREENING_MODE == 'gemini':
+        available=bool(config.GEMINI_ENABLED and config.GEMINI_API_KEY)
+        return {'status':'ready' if available else 'unavailable','mode':'gemini','ready':available,
+                'name':config.GEMINI_MODEL,'hybrid_classifier_active':False,'local_trial':True}
+    return {'status':'disabled','mode':'evidence_only'} if config.SCREENING_MODE != 'model' else model_health()
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
-    model = ({"status": "disabled", "mode": "evidence_only"} if config.SCREENING_MODE != "model" else model_health())
+    model = _classifier_health()
     return {
         "backend": "available",
         "database": database.database_health(),
         "services": {
             **service_health(),
             "serper": "configured" if config.SERPER_API_KEY else "not_configured",
+            "gemini_evidence": {"enabled": config.GEMINI_ENABLED, "configured": bool(config.GEMINI_API_KEY), "model": config.GEMINI_MODEL, "evidence_policy": config.EVIDENCE_POLICY, "local_trial": config.EVIDENCE_POLICY != "strict"},
             "google_fact_check": "configured" if config.GOOGLE_FACT_CHECK_API_KEY else "not_configured",
         },
         "model": model,
         "model_status": model["status"],
-        "screening_mode": "evidence_only" if config.SCREENING_MODE != "model" else "model",
+        "screening_mode": config.SCREENING_MODE,
         "timestamp": _timestamp(),
     }
 
@@ -639,13 +737,15 @@ def health() -> dict[str, Any]:
 @app.get("/ready")
 def readiness(response: Response) -> dict[str, Any]:
     database_status = database.database_health()
-    model = ({"status": "disabled", "mode": "evidence_only"} if config.SCREENING_MODE != "model" else model_health())
+    model = _classifier_health()
     ready = database_status["status"] == "available" and (
-        config.SCREENING_MODE != "model" or model["status"] == "ready"
+        config.SCREENING_MODE == "evidence_only" or model["status"] == "ready"
     )
     if not ready:
         response.status_code = 503
-    return {"ready": ready, "database": database_status, "model": model}
+    return {"ready": ready, "database": database_status, "model": model,
+            "screening_policy": {"model_authoritative": config.MODEL_AUTHORITATIVE,
+                                 "evidence_assistance_enabled": config.SCREENING_MODE == "model" and not config.MODEL_AUTHORITATIVE}}
 
 
 @app.post("/analyze")
@@ -776,6 +876,56 @@ async def analyze_images(
     return result
 
 
+def _usable_video_caption(post_text, context_json):
+    caption = normalize_text(post_text or "")
+    try:
+        details = json.loads(context_json) if context_json else {}
+    except (TypeError, json.JSONDecodeError):
+        details = {}
+    if not isinstance(details, dict): details = {}
+    if (not caption or not _informative_video_caption(caption) or details.get("caption_complete") is False
+            or re.search(r"(?:\.\.\.|…|See more)\s*$", caption, re.I)
+            or re.fullmatch(r"(?:watch|look|panoorin|tingnan)[\W_]*", caption, re.I)):
+        return "", details
+    return caption, details
+
+
+async def _video_caption_result(caption, details, *, page_url, page_title, retrieve_sources):
+    details = {**details, "extraction_scope":"Video caption only", "caption_complete":True,
+               "video_audio_status":"quality_failed", "analysis_basis":"video_caption_fallback"}
+    result = await run_in_threadpool(_screen, caption, input_type="video", extraction_status="caption_fallback",
+                                    page_url=page_url, page_title=page_title, context=details,
+                                    capture_candidate=False, retrieve_sources=retrieve_sources)
+    result["extraction"] = {"caption_text":caption, "transcript_text":"", "frame_ocr_text":"",
+                            "transcript_status":"quality_failed", "frame_ocr_status":"not_used",
+                            "frame_ocr_included":False, "caption_fallback_used":True,
+                            "quality_notice":"Speech transcription did not pass quality checks. Only the complete video caption was analyzed."}
+    return result
+
+
+def _informative_video_caption(text):
+    content = re.sub(r"https?://\S+|#[\w]+", " ", text, flags=re.I).strip()
+    if re.fullmatch(r"(?:watch(?:\s+(?:(?:the\s+)?video|now))?|look|panoorin|tingnan|read\s+(?:the\s+)?full\s+story(?:\s+in\s+the\s+comments)?)\W*", content, re.I):
+        return False
+    return len(re.findall(r"[^\W\d_]{2,}", content, re.UNICODE)) >= 2
+
+
+@app.post("/analyze/video-caption")
+async def analyze_video_caption(request: VideoCaptionRequest) -> dict[str, Any]:
+    caption, details = _usable_video_caption(request.text, json.dumps(request.context or {}))
+    if not caption or not _informative_video_caption(caption):
+        raise HTTPException(status_code=422, detail="A complete, informative video caption is required. Expand the caption or choose caption and video.")
+    details = {**details, "extraction_scope": "Video post caption only", "caption_complete": True,
+               "analysis_basis": "video_caption_selected", "video_audio_status": "not_requested"}
+    result = await run_in_threadpool(_screen, caption, input_type="video", extraction_status="caption_only",
+                                    page_url=request.page_url, page_title=request.page_title, context=details,
+                                    capture_candidate=False, retrieve_sources=request.retrieve_sources)
+    result["extraction"] = {"caption_text": caption, "transcript_text": "", "frame_ocr_text": "",
+                            "transcript_status": "not_requested", "frame_ocr_status": "not_requested",
+                            "caption_only": True, "caption_fallback_used": False, "frame_ocr_included": False}
+    return result
+
+
 @app.post("/extract/video")
 async def extract_video_for_review(
     file: UploadFile = File(...),
@@ -789,8 +939,19 @@ async def extract_video_for_review(
     suffix = Path(file.filename or "video.mp4").suffix.lower() or ".mp4"
     if suffix not in {".mp4", ".webm", ".mov", ".mkv", ".avi"}:
         raise HTTPException(status_code=415, detail="The video file type is unsupported.")
+    fallback_caption, fallback_details = _usable_video_caption(post_text, context_json)
     try:
-        extraction = await run_in_threadpool(process_video, contents, suffix=suffix)
+        if fallback_caption:
+            extraction = await run_in_threadpool(process_video, contents, suffix=suffix, caption_fallback_allowed=True)
+        else:
+            extraction = await run_in_threadpool(process_video, contents, suffix=suffix)
+    except SpeechServiceError as exc:
+        raise HTTPException(status_code=429 if exc.status in {"busy","rate_limited"} else 503, detail=str(exc)) from None
+    except SpeechQualityError as exc:
+        if fallback_caption:
+            return await _video_caption_result(fallback_caption, fallback_details, page_url=page_url,
+                                              page_title=page_title, retrieve_sources=retrieve_sources)
+        raise HTTPException(status_code=422, detail=str(exc)) from None
     except MediaProcessingError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     try:
@@ -861,11 +1022,16 @@ async def _analyze_extracted_video(
         "transcript_segments": extraction.get("transcript_segments", []),
         "speech_language": extraction.get("speech_language"),
         "speech_language_mode": extraction.get("speech_language_mode"),
+                           "transcript_source": extraction.get("transcript_source"),
+                           "timestamp_basis": extraction.get("timestamp_basis"),
         "transcript_status": extraction.get("transcript_status", "not_reported"),
         "speech_frame_agreement": extraction.get("speech_frame_agreement", "not_checked"),
         "frame_ocr_included": extraction.get("frame_ocr_included", bool(extraction.get("frame_ocr_text"))),
         "discarded_ocr_detections": extraction.get("discarded_ocr_detections", 0),
-        "quality_notice": extraction.get(
+        "extraction_cache_hit": extraction.get("extraction_cache_hit", False),
+                           "processing_timings_ms": extraction.get("processing_timings_ms", {}),
+                           "original_processing_timings_ms": extraction.get("original_processing_timings_ms"),
+                           "quality_notice": extraction.get(
             "quality_notice",
             "Automatic extraction can miss or misread words. Compare it with the original video.",
         ),
@@ -887,8 +1053,19 @@ async def analyze_video(
     suffix = Path(file.filename or "video.mp4").suffix.lower() or ".mp4"
     if suffix not in {".mp4", ".webm", ".mov", ".mkv", ".avi"}:
         raise HTTPException(status_code=415, detail="The video file type is unsupported.")
+    fallback_caption, fallback_details = _usable_video_caption(post_text, context_json)
     try:
-        extraction = await run_in_threadpool(process_video, contents, suffix=suffix)
+        if fallback_caption:
+            extraction = await run_in_threadpool(process_video, contents, suffix=suffix, caption_fallback_allowed=True)
+        else:
+            extraction = await run_in_threadpool(process_video, contents, suffix=suffix)
+    except SpeechServiceError as exc:
+        raise HTTPException(status_code=429 if exc.status in {"busy","rate_limited"} else 503, detail=str(exc)) from None
+    except SpeechQualityError as exc:
+        if fallback_caption:
+            return await _video_caption_result(fallback_caption, fallback_details, page_url=page_url,
+                                              page_title=page_title, retrieve_sources=retrieve_sources)
+        raise HTTPException(status_code=422, detail=str(exc)) from None
     except MediaProcessingError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     try:
@@ -898,7 +1075,7 @@ async def analyze_video(
     if not isinstance(post_context, dict):
         post_context = {}
     readable_post_text = normalize_text(post_text or "")
-    if extraction.get("speech_frame_agreement") == "review_required":
+    if extraction.get("speech_frame_agreement") == "review_required" or extraction.get("transcript_source") == "external_audio":
         return _create_video_review_response(
             extraction,
             readable_post_text=readable_post_text,

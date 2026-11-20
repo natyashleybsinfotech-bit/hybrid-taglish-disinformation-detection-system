@@ -16,6 +16,75 @@ class FakeResponse(io.BytesIO):
 
 
 class ArticleReaderTests(unittest.TestCase):
+    def test_manila_times_photo_caption_is_read_from_own_body(self):
+        text='MMDA personnel stationed beside orange barriers along Roxas Boulevard on November 14, 2026.'
+        html=('<meta property="og:title" content="EXPRESS LANES">'
+              '<div class="article-title">EXPRESS LANES</div>'
+              '<aside><figcaption>Unrelated recommendation should not be read.</figcaption></aside>'
+              '<div class="article_body"><figure><amp-img src="photo.jpg"></amp-img>'
+              '<figcaption>'+text+'</figcaption></figure><figure><figcaption>'+text+'</figcaption></figure></div>'
+              '<figure><figcaption>Outside article must not be read.</figcaption></figure>').encode()
+        with patch.object(article_reader.request,'build_opener') as opener:
+            opener.return_value.open.return_value=FakeResponse(html)
+            result=article_reader.read_article('https://www.manilatimes.net/2026/11/14/photos/example/123/amp',allowed_host=lambda host:host.endswith('manilatimes.net'))
+        self.assertEqual(result['content_status'],'readable')
+        self.assertEqual(result['article_text'],text)
+
+    def test_photo_parser_rejects_wrong_title_duplicate_body_and_missing_caption(self):
+        for html in [
+            '<meta property="og:title" content="Different story"><div class="article-title">EXPRESS LANES</div><div class="article_body"><figcaption>Personnel stationed beside barriers on the boulevard.</figcaption></div>',
+            '<meta property="og:title" content="EXPRESS LANES"><div class="article-title">EXPRESS LANES</div><div class="article_body"><figcaption>Personnel stationed beside barriers on the boulevard.</figcaption></div><div class="article_body">Another story</div>',
+            '<meta property="og:title" content="EXPRESS LANES"><div class="article-title">EXPRESS LANES</div><div class="article_body"></div><figcaption>Caption outside the article must never be accepted.</figcaption>']:
+            parser=article_reader.ManilaTimesPhotoParser();parser.feed(html)
+            self.assertIsNone(parser.article())
+
+    def test_photo_provenance_requires_same_page_metadata_and_visible_credit(self):
+        url='https://www.manilatimes.net/2026/11/14/photos/example/123/amp'
+        article={'title':'Express lanes','article_text':'Personnel monitored the designated express lanes. PHOTOS BY RENE H. DILAN'}
+        metadata={'@type':'NewsArticle','articleSection':'Photos','url':url,
+                  'headline':'Express lanes','datePublished':'2026-11-14T20:00:00+08:00'}
+        def html(value):return '<script type="application/ld+json">'+json.dumps(value)+'</script>'
+        result=article_reader._photo_report_provenance(html(metadata),url,article)
+        self.assertTrue(result['provenance_verified'])
+        for field,value in [('url','https://www.manilatimes.net/other'),('headline','Other story'),('articleSection','News'),('datePublished','')]:
+            self.assertEqual(article_reader._photo_report_provenance(html({**metadata,field:value}),url,article),{})
+        self.assertEqual(article_reader._photo_report_provenance(html(metadata),url,{**article,'article_text':'No named photo credit.'}),{})
+
+    def test_generic_photo_caption_stays_inside_primary_article(self):
+        caption='MMDA personnel stationed beside orange barriers along Roxas Boulevard on November 14, 2026.'
+        html=('<main><article><h1>Original photo report</h1><figure><img src="photo.jpg">'
+              '<figcaption>'+caption+'</figcaption></figure>'
+              '<aside><figcaption>Unrelated recommendation must never be extracted.</figcaption></aside>'
+              '</article><article><h1>Another story</h1><figcaption>Caption from another article must not be used.</figcaption></article></main>').encode()
+        with patch.object(article_reader.request,'build_opener') as opener:
+            opener.return_value.open.return_value=FakeResponse(html)
+            result=article_reader.read_article('https://www.philstar.com/example',allowed_host=lambda host:True)
+        self.assertEqual(result['article_text'],caption)
+
+    def test_tracking_url_matches_same_page_structured_article(self):
+        clean='https://www.gmanetwork.com/news/topstories/metro/123/report/story/'
+        body='Rice sales in Metro Manila are suspended on November 16 to 18 during the summit.'
+        document={'@type':'NewsArticle','url':clean,'headline':'Rice sales temporarily suspended','articleBody':body}
+        html=('<script type="application/ld+json">'+json.dumps(document)+'</script>').encode()
+        for query in ['?fbclid=facebook-tracking','?utm_source=facebook&fbclid=tracked','?%66bclid=encoded#comments']:
+            with patch.object(article_reader.request,'build_opener') as opener:
+                opener.return_value.open.return_value=FakeResponse(html)
+                result=article_reader.read_article(clean+query,allowed_host=lambda host:host.endswith('gmanetwork.com'))
+                sent=opener.return_value.open.call_args.args[0]
+                self.assertEqual(sent.full_url,clean)
+            self.assertEqual(result['content_status'],'readable')
+            self.assertEqual(result['article_text'],body)
+
+    def test_meaningful_query_still_identifies_a_different_article(self):
+        clean='https://www.gmanetwork.com/report'
+        document={'@type':'NewsArticle','url':clean+'?id=one','headline':'First report',
+                  'articleBody':'A complete first report with sufficient length to serve as article body evidence for this test.'}
+        parser=article_reader.StructuredArticleParser()
+        parser.feed('<script type="application/ld+json">'+json.dumps(document)+'</script>')
+        self.assertIsNotNone(parser.article(clean+'?id=one&fbclid=tracked'))
+        self.assertIsNone(parser.article(clean+'?id=two&fbclid=tracked'))
+        self.assertEqual(article_reader.article_url_without_tracking(clean+'?id=a%2Fb&token=keep%2Bthis&utm_medium=social'),clean+'?id=a%2Fb&token=keep%2Bthis')
+
     def test_page_prompt_is_not_part_of_matching_article_prose(self):
         url = 'https://www.rappler.com/technology/example-story/'
         report = 'MANILA, Philippines - President Marcos signed an order creating the National AI Council.'

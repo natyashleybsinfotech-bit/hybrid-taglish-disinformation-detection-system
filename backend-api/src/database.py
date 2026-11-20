@@ -38,7 +38,7 @@ from sqlalchemy.pool import NullPool
 
 import config
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 8
 metadata = MetaData()
 
 schema_migrations = Table(
@@ -189,7 +189,9 @@ screening_decisions = Table(
     Column("screening_decision_id", Integer, primary_key=True, autoincrement=True),
     Column("text_sha256", String(64), nullable=False),
     Column("model_label", String(40), nullable=False),
-    Column("model_score", Float, nullable=False),
+    Column("model_score", Float, nullable=True),
+    Column("ai_reported_score", Integer, nullable=True),
+    Column("ai_reported_label", String(40), nullable=True),
     Column("evidence_assessment", String(40), nullable=False),
     Column("source_urls_json", Text, nullable=False),
     Column("final_label", String(40), nullable=False),
@@ -323,6 +325,30 @@ def migrate() -> dict[str, Any]:
             if 6 not in applied:
                 connection.execute(insert(schema_migrations).values(version=6))
                 newly_applied.append(6)
+            if 7 not in applied:
+                score_column = next(column for column in inspect(connection).get_columns("ScreeningDecisions") if column["name"] == "model_score")
+                if not score_column["nullable"]:
+                    if engine.dialect.name in {"mysql", "mariadb"}:
+                        connection.execute(text("ALTER TABLE `ScreeningDecisions` MODIFY COLUMN `model_score` FLOAT NULL"))
+                    elif engine.dialect.name == "sqlite":
+                        # Preserve IDs and all existing values while relaxing only nullability.
+                        old_columns = {column["name"] for column in inspect(connection).get_columns("ScreeningDecisions")}
+                        connection.execute(text('ALTER TABLE "ScreeningDecisions" RENAME TO "ScreeningDecisions_v6"'))
+                        screening_decisions.create(connection)
+                        columns = ", ".join('"' + column.name + '"' for column in screening_decisions.columns if column.name in old_columns)
+                        connection.execute(text(f'INSERT INTO "ScreeningDecisions" ({columns}) SELECT {columns} FROM "ScreeningDecisions_v6"'))
+                        connection.execute(text('DROP TABLE "ScreeningDecisions_v6"'))
+                    else:
+                        raise RuntimeError("Unsupported database for score nullability migration")
+                connection.execute(insert(schema_migrations).values(version=7))
+                newly_applied.append(7)
+            if 8 not in applied:
+                existing_columns = {column["name"] for column in inspect(connection).get_columns("ScreeningDecisions")}
+                for column_name, definition in {"ai_reported_score":"INTEGER NULL", "ai_reported_label":"VARCHAR(40) NULL"}.items():
+                    if column_name not in existing_columns:
+                        connection.execute(text(f"ALTER TABLE `ScreeningDecisions` ADD COLUMN `{column_name}` {definition}"))
+                connection.execute(insert(schema_migrations).values(version=8))
+                newly_applied.append(8)
         return {"status": "available", "applied_versions": newly_applied}
     except (SQLAlchemyError, RuntimeError, OSError):
         return {"status": "unavailable", "applied_versions": []}
@@ -334,6 +360,7 @@ def save_screening_decision(result: dict) -> int:
         inserted = connection.execute(insert(screening_decisions).values(
             text_sha256=hashlib.sha256(result["analyzed_text"].encode("utf-8")).hexdigest(),
             model_label=result["model_public_label"], model_score=result["model_score"],
+            ai_reported_score=result.get("ai_reported_score"), ai_reported_label=result.get("ai_reported_label"),
             evidence_assessment=result["evidence_relationship"],
             source_urls_json=json.dumps([item["url"] for item in result["related_sources"] if item.get("url")]),
             final_label=result["final_label"], final_reason=result["final_reason"],

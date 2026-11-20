@@ -21,7 +21,7 @@ class TrafficLimits:
         path = scope["path"]
         screening = path in {
             "/analyze", "/predict", "/candidates", "/analyze/image", "/analyze/video",
-            "/extract/video", "/analyze/confirmed-video", "/related-sources",
+            "/extract/video", "/analyze/video-caption", "/analyze/confirmed-video", "/related-sources",
         }
         login = path == "/admin-api/login"
         if not (screening or login):

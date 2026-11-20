@@ -96,8 +96,8 @@
       "height": 2200,
       "layout": {
         "width": 390,
-        "clientWidth": 390,
-        "scrollWidth": 390
+        "clientWidth": 375,
+        "scrollWidth": 375
       },
       "screenshot": "verification/ui/popup-result-evidence-en.png",
       "rendered": true

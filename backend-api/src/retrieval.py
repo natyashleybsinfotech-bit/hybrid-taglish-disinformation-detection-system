@@ -569,6 +569,7 @@ def inspect_related_sources(sources: list[dict], claim: str) -> list[dict]:
                 "url": url,
                 "source": _source_name({"link": url}),
                 "content_status": "inaccessible",
+                "content_reason": article.get("content_reason", "not_readable"),
                 "relationship": "unverified",
                 "search_title": item.get("title"),
                 "search_snippet": item.get("snippet"),

@@ -16,6 +16,22 @@ from model_runtime import Prediction, ModelRuntime
 
 
 class ApiTests(unittest.TestCase):
+    def test_evidence_cleanup_preserves_exact_model_input_and_text_checked(self):
+        claim = 'The city opened three public schools in Manila on Monday.'
+        original = claim + ' WATCH: https://example.com/999 Thank you very much.'
+        self.retrieval_mock.return_value = {'retrieval_status': 'available', 'related_sources': [
+            {'url': 'https://www.philstar.com/report', 'article_text': claim + ' Families attended the opening ceremony.'},
+            {'url': 'https://tribune.net.ph/report', 'article_text': claim + ' The education office welcomed the development.'},
+        ]}
+        application.classify.return_value = Prediction(internal_label='Misleading', public_label='Potentially Misleading', confidence=.9, model_score=.9, predicted_class=1, model_status='ready', model_name='Test model', model_version='test-1')
+        response = self.client.post('/analyze', json={'text': original, 'retrieve_sources': True})
+        self.assertEqual(response.status_code, 200)
+        value = response.json()
+        self.assertEqual(value['analyzed_text'], original)
+        application.classify.assert_called_once_with(original)
+        self.assertEqual(value['model_public_label'], 'Potentially Misleading')
+        self.assertEqual(value['final_label'], 'No Misleading Information Detected')
+
     def test_selected_video_caption_skips_media_and_has_exact_caption_provenance(self):
         caption="The city opened three schools in Manila on Monday."
         with patch.object(application,'process_video',side_effect=AssertionError('Caption only must not extract media')) as media:

@@ -6,5 +6,7 @@
   "fixture_sha256": "3f6eeca31b859e1d05276c2f9a96759b9cb3b260d75856253890aaa66a73b4e6",
   "calibration_rows": 72,
   "audit_rows": 36,
-  "selection": "Zero wrong accepted calibration relations, then maximize correct accepted coverage. Audit excluded from selection."
+  "selection": "Zero wrong accepted calibration relations, then maximize correct accepted coverage. Audit excluded from selection.",
+  "reported_english_entailment": 0.9,
+  "reported_policy": "Restricted English reported statements only; calibrated on separate 36-pair synthetic calibration and 18-pair audit. Ordinary entailment/contradiction cutoffs unchanged."
 }

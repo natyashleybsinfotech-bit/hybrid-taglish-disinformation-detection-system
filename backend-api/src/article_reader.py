@@ -14,8 +14,10 @@ from urllib.parse import urlparse, urljoin
 
 try:
     from .provider_http import NoRedirect, safe_link, article_url_without_tracking
+    from .article_layouts import SamePageArticleParser
 except ImportError:
     from provider_http import NoRedirect, safe_link, article_url_without_tracking
+    from article_layouts import SamePageArticleParser
 
 
 def _clean_article_body(body: str) -> str:
@@ -497,11 +499,22 @@ def read_article(url: str, *, allowed_host) -> dict:
                     if fallback.body_class:
                         fallback.feed(html)
                         parser = fallback.article() or parser
-    except (error.HTTPError, error.URLError, TimeoutError, ValueError, OSError):
-        return {"content_status": "inaccessible"}
+    except error.HTTPError as exc:
+        reason = 'http_' + str(exc.code)
+        exc.close()
+        return {"content_status": "inaccessible", "content_reason": reason}
+    except (error.URLError, TimeoutError, ValueError, OSError):
+        return {"content_status": "inaccessible", "content_reason": "network_or_decode_error"}
     title = " ".join(" ".join(parser.title_parts).split())
     paragraphs = parser.paragraphs[:80]
     if not title or not paragraphs:
+        if not truncated:
+            scoped = SamePageArticleParser()
+            scoped.feed(html)
+            scoped_result = scoped.article(current)
+            if scoped_result:
+                scoped_result['article_text'] = _clean_article_body(scoped_result['article_text'])
+                return scoped_result
         if (parsed.hostname or '').lower().removeprefix('www.') == 'manilatimes.net' and '/photos/' in parsed.path:
             photos = ManilaTimesPhotoParser()
             photos.feed(html)
@@ -511,7 +524,7 @@ def read_article(url: str, *, allowed_host) -> dict:
                 return photo_article
         structured = StructuredArticleParser()
         structured.feed(html)
-        result = structured.article(current) or {"content_status": "inaccessible"}
+        result = structured.article(current) or {"content_status": "inaccessible", "content_reason": "body_not_extracted"}
         if result["content_status"] == "readable":
             result["article_text"] = _clean_article_body(result["article_text"])
         return result

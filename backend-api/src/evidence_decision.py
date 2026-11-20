@@ -6,8 +6,12 @@ from urllib.parse import urlparse
 import config
 try:
     from . import local_nli
+    from .evidence_text import prepare_evidence_text
+    from .reported_claims import split_statements, is_english_report, attributed_quote_relation, speech_echo_support
 except ImportError:
     import local_nli
+    from evidence_text import prepare_evidence_text
+    from reported_claims import split_statements, is_english_report, attributed_quote_relation, speech_echo_support
 
 
 try:
@@ -158,17 +162,7 @@ def _negates_material_action(words: list[str], actions: set[str]) -> bool:
 
 
 def _sentences(value: str) -> list[str]:
-    # Some readable publisher bodies concatenate paragraphs as "lives.In a ...".
-    # Recover those boundaries so one long block does not hide a direct claim.
-    # Protect common name/title abbreviations in both the post and article.
-    # Otherwise "Marcos Jr. signed" becomes two separate claims.
-    protected = re.sub(
-        r"\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|Atty|Sen|Rep|Gov|Pres|Gen|Sec|Engr)\.",
-        lambda match: match.group()[:-1] + "\ue000", value, flags=re.I,
-    )
-    return [part.strip().replace("\ue000", ".") for part in re.split(
-        r"(?<=[.!?])(?:\s+|(?=[A-Z]))|\n+", protected,
-    ) if part.strip()]
+    return split_statements(value)
 
 
 def _material_numbers(value: str) -> set[str]:
@@ -213,6 +207,17 @@ def _named_actor_anchors(value: str) -> set[str]:
         if len(words) >= 2:
             anchors.add(' '.join(words))
     return anchors
+
+
+def _people_preserved(claim, passage):
+    anchors = {' '.join(parts) for parts in _person_entity_anchors(claim)} | _named_actor_anchors(claim)
+    normalized = ' '.join(_words(passage))
+    for name in anchors:
+        tokens = _words(name)
+        pattern = r'(?<!\w)' + r'(?: [a-z])? '.join(re.escape(word) for word in tokens) + r'(?!\w)'
+        if not re.search(pattern, normalized):
+            return False
+    return True
 
 
 def _material_support(claim: str, body: str) -> tuple[str, str]:
@@ -398,21 +403,24 @@ def _headline_has_body_corroboration(claim: str, title: str, body: str) -> bool:
 
 
 def _assess_readable_claim(claim: str, body: str) -> tuple[str, str]:
-    """Check every stated sentence and detect opposed assertions in one article.
+    """Check every factual unit; retain context for attributed quote echoes.
 
-    This remains a bounded lexical gate, not a general truth/entailment model.
-    Unmatched parts of a multi-sentence post prevent a support override.
+    URLs, complete courtesy sentences and stutter repetitions are evidence
+    transport noise. The original model input and analyzed_text never change.
     """
-    claim_parts = _sentences(claim)
+    prepared = prepare_evidence_text(claim)
+    claim_parts = _sentences(prepared)
     if not claim_parts:
-        return "unverified", "No claim text was supplied."
+        return "unverified", "No factual claim text was supplied."
     relations = []
     passages = []
     opposing_passages = []
+    reported_context_supported = False
     for part in claim_parts:
-        relationship, passage = _article_relation(part, body)
+        quote_relation = attributed_quote_relation(part, body)
+        echo = speech_echo_support(part, body) if reported_context_supported else None
+        relationship, passage = quote_relation or (("supports", echo) if echo else _article_relation(part, body))
         observed = {relationship}
-        # Do not let an early assertion hide an explicit correction later on.
         for sentence in _sentences(body):
             sentence_relation, _ = _article_relation(part, sentence, allow_nli=False)
             if sentence_relation in {"supports", "contradicts"}:
@@ -424,6 +432,8 @@ def _assess_readable_claim(claim: str, body: str) -> tuple[str, str]:
             return 'conflicting', 'The article repeats an assertion but also explicitly describes the claim as false or misleading.'
         if {"supports", "contradicts"} <= observed:
             return "conflicting", "The article contains both supporting and opposing assertions for the same claim."
+        if relationship == 'supports' and is_english_report(part):
+            reported_context_supported = True
         relations.append(relationship)
         if relationship in {"supports", "contradicts"}:
             passages.append(passage)
@@ -433,7 +443,7 @@ def _assess_readable_claim(claim: str, body: str) -> tuple[str, str]:
         return "contradicts", "\n".join(dict.fromkeys(opposing_passages))
     if all(relationship == "supports" for relationship in relations):
         return "supports", "\n".join(dict.fromkeys(passages))
-    return "related", "The readable article did not establish every statement in the submitted text."
+    return "related", "The readable article did not establish every factual statement in the submitted text."
 
 
 def _direct_photo_reports(assessments, sources, claim, reader):
@@ -472,10 +482,9 @@ def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_che
         validation_issues = []
         reason_tl = ""
         if eligible:
-            clean_claim = _without_post_metadata_dates(claim)
+            clean_claim = _without_post_metadata_dates(prepare_evidence_text(claim))
             clean_claim = re.sub(r"\s*\|\s*via\s+[A-Z][\w.-]*(?:\s+[A-Z][\w.-]*){0,3}(?:,\s*[A-Z][\w.& -]{1,60})?\s*$", "", clean_claim)
-            checks = [('person', _person_entity_anchors(clean_claim) <= _person_entity_anchors(excerpt)
-                       and all(name in ' '.join(_words(excerpt)) for name in _named_actor_anchors(clean_claim)))]
+            checks = [('person', _people_preserved(clean_claim, excerpt))]
             if relationship == 'supports':
                 checks.extend([
                     ('quantity', _material_numbers(clean_claim) <= _material_numbers(excerpt)),

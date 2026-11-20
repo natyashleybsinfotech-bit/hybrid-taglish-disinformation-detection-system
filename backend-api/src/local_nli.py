@@ -11,6 +11,10 @@ import re
 from pathlib import Path
 from threading import Lock
 import config
+try:
+    from .reported_claims import split_statements, is_english_report
+except ImportError:
+    from reported_claims import split_statements, is_english_report
 
 _MODEL_ID = 'MoritzLaurer/mDeBERTa-v3-base-mnli-xnli'
 _MODEL_REVISION = '8adb042d524ecd5c26d3e3ba0e3fbcf7e2d0864c'
@@ -66,7 +70,7 @@ def health():
             'model': _MODEL_ID, 'revision': _MODEL_REVISION,
             'status': 'disabled' if not config.LOCAL_NLI_ENABLED else 'unavailable' if _load_error else 'ready' if _pipe is not None else 'prepared' if prepared else 'not_prepared',
             'loaded': _pipe is not None, 'offline_inference': True,
-            'thresholds': thresholds()}
+            'thresholds': thresholds(), 'reported_english_entailment': json.loads(_THRESHOLDS_PATH.read_text(encoding='utf-8')).get('reported_english_entailment')}
 
 
 def score_pairs(pairs):
@@ -92,10 +96,11 @@ def score_pairs(pairs):
 
 def _windows(claim, body):
     terms = set(re.findall(r'[^\W_]+', claim.casefold()))
-    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', body) if s.strip()]
+    sentences = split_statements(body)
+    reported = is_english_report(claim)
     candidates = []
     for i, sentence in enumerate(sentences):
-        for width in (1, 2):
+        for width in (1, 2, 3):
             parts = sentences[i:i+width]
             if len(parts) != width:
                 continue
@@ -103,9 +108,11 @@ def _windows(claim, body):
             if not 15 <= len(passage) <= 1400 or len(passage.split()) > 140:
                 continue
             # A model must not turn a quote, question or conditional into fact.
-            if any(s.startswith(('"', '“', "'", '‘', '>')) for s in parts) or '?' in passage:
+            if (not reported and any(s.startswith(('"', '“', "'", '‘', '>')) for s in parts)) or '?' in passage:
                 continue
-            if re.search(r'\b(?:if|whether|would|could|might|kung|sakali|allegedly|umano|rumou?rs?|viral posts?|post claims?|claimed|says?|said|quoted?)\b', passage, re.I):
+            if re.search(r'\b(?:if|whether|could|might|kung|sakali|allegedly|umano|rumou?rs?|viral posts?|post claims?|claimed)\b', passage, re.I):
+                continue
+            if not reported and re.search(r'\b(?:would|says?|said|quoted?)\b', passage, re.I):
                 continue
             overlap = len(terms & set(re.findall(r'[^\W_]+', passage.casefold())))
             if overlap < 2:
@@ -125,6 +132,12 @@ def assess_relation(claim, body):
     try:
         values = score_pairs([(passage, claim) for passage in windows])
         cutoffs = thresholds()
+        if is_english_report(claim):
+            policy = json.loads(_THRESHOLDS_PATH.read_text(encoding='utf-8'))
+            cutoff = float(policy.get('reported_english_entailment', cutoffs['entailment']))
+            if not math.isfinite(cutoff) or not .9 <= cutoff <= 1:
+                raise ValueError('Invalid attributed-report cutoff')
+            cutoffs['entailment'] = cutoff
     except Exception:
         return 'related', 'Local semantic reading was unavailable or the text exceeded its budget.'
     accepted = []

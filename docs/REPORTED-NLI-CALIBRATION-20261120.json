@@ -1,0 +1,917 @@
+{
+  "scope": "Restricted English attributed-report support threshold; synthetic fixtures, no external factual accuracy claim",
+  "threshold": 0.9,
+  "calibration": {
+    "n": 36,
+    "supports_accepted": 12,
+    "wrong_supports_accepted": 0,
+    "accepted_ids": [
+      "report-1-supports",
+      "report-2-supports",
+      "report-3-supports",
+      "report-4-supports",
+      "report-5-supports",
+      "report-6-supports",
+      "report-7-supports",
+      "report-8-supports",
+      "report-9-supports",
+      "report-10-supports",
+      "report-11-supports",
+      "report-12-supports"
+    ]
+  },
+  "audit": {
+    "n": 18,
+    "supports_accepted": 6,
+    "wrong_supports_accepted": 0,
+    "accepted_ids": [
+      "report-13-supports",
+      "report-14-supports",
+      "report-15-supports",
+      "report-16-supports",
+      "report-17-supports",
+      "report-18-supports"
+    ]
+  },
+  "selection": "Max correct calibration coverage with zero wrong supports; ties prefer broader cutoff within predefined 0.90+ grid. Audit excluded from selection.",
+  "sweep": [
+    {
+      "threshold": 0.9,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.905,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.91,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.915,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.92,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.925,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.93,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.935,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.94,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.945,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.95,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.955,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.96,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.965,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.97,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.975,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.98,
+      "tp": 12,
+      "fp": 0
+    },
+    {
+      "threshold": 0.985,
+      "tp": 9,
+      "fp": 0
+    },
+    {
+      "threshold": 0.99,
+      "tp": 8,
+      "fp": 0
+    },
+    {
+      "threshold": 0.995,
+      "tp": 7,
+      "fp": 0
+    },
+    {
+      "threshold": 0.996,
+      "tp": 6,
+      "fp": 0
+    },
+    {
+      "threshold": 0.997,
+      "tp": 4,
+      "fp": 0
+    },
+    {
+      "threshold": 0.998,
+      "tp": 0,
+      "fp": 0
+    },
+    {
+      "threshold": 0.999,
+      "tp": 0,
+      "fp": 0
+    }
+  ],
+  "rows": [
+    {
+      "id": "report-1-supports",
+      "group": "report-1",
+      "split": "calibration",
+      "claim": "Mayor Ana Cruz said the clinic would open in Manila on June 10, 2026.",
+      "article_excerpt": "Mayor Ana Cruz announced that the clinic was scheduled to open in Manila on June 10, 2026.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.997357189655304,
+        "neutral": 0.002474659588187933,
+        "contradiction": 0.000168078244314529
+      }
+    },
+    {
+      "id": "report-1-contradicts",
+      "group": "report-1",
+      "split": "calibration",
+      "claim": "Mayor Ana Cruz said the clinic would open in Manila on June 10, 2026.",
+      "article_excerpt": "Mayor Ana Cruz said the clinic would remain closed in Manila on June 10, 2026.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9981479644775391,
+        "neutral": 0.0009553945856168866,
+        "entailment": 0.0008966794121079147
+      }
+    },
+    {
+      "id": "report-1-related",
+      "group": "report-1",
+      "split": "calibration",
+      "claim": "Mayor Ana Cruz said the clinic would open in Manila on June 10, 2026.",
+      "article_excerpt": "Mayor Ana Cruz said the library would open in Manila on June 10, 2026.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9969935417175293,
+        "neutral": 0.0026053483597934246,
+        "entailment": 0.00040112450369633734
+      }
+    },
+    {
+      "id": "report-2-supports",
+      "group": "report-2",
+      "split": "calibration",
+      "claim": "Director Raul Lim said the museum would provide free entry.",
+      "article_excerpt": "Director Raul Lim explained that visitors would not have to pay to enter the museum.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9842313528060913,
+        "neutral": 0.015020436607301235,
+        "contradiction": 0.000748256454244256
+      }
+    },
+    {
+      "id": "report-2-contradicts",
+      "group": "report-2",
+      "split": "calibration",
+      "claim": "Director Raul Lim said the museum would provide free entry.",
+      "article_excerpt": "Director Raul Lim said museum visitors would have to pay an admission fee.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9982730150222778,
+        "neutral": 0.0009469488868489861,
+        "entailment": 0.0007800777675583959
+      }
+    },
+    {
+      "id": "report-2-related",
+      "group": "report-2",
+      "split": "calibration",
+      "claim": "Director Raul Lim said the museum would provide free entry.",
+      "article_excerpt": "Director Raul Lim attended a conference about museum design.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "neutral": 0.9949575066566467,
+        "contradiction": 0.004550199955701828,
+        "entailment": 0.0004923985688947141
+      }
+    },
+    {
+      "id": "report-3-supports",
+      "group": "report-3",
+      "split": "calibration",
+      "claim": "Governor Nina Ramos said the bridge had reopened.",
+      "article_excerpt": "Governor Nina Ramos confirmed that the bridge was once again open to traffic.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9965764880180359,
+        "neutral": 0.003223189851269126,
+        "contradiction": 0.00020032230531796813
+      }
+    },
+    {
+      "id": "report-3-contradicts",
+      "group": "report-3",
+      "split": "calibration",
+      "claim": "Governor Nina Ramos said the bridge had reopened.",
+      "article_excerpt": "Governor Nina Ramos said the bridge was still closed.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9955266118049622,
+        "neutral": 0.0036087576299905777,
+        "entailment": 0.0008646508795209229
+      }
+    },
+    {
+      "id": "report-3-related",
+      "group": "report-3",
+      "split": "calibration",
+      "claim": "Governor Nina Ramos said the bridge had reopened.",
+      "article_excerpt": "Governor Nina Ramos proposed a new bridge construction project.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.8621708750724792,
+        "neutral": 0.12874357402324677,
+        "entailment": 0.009085502475500107
+      }
+    },
+    {
+      "id": "report-4-supports",
+      "group": "report-4",
+      "split": "calibration",
+      "claim": "Coach Luis Reyes said the team would not play on Saturday.",
+      "article_excerpt": "Coach Luis Reyes confirmed that no match involving the team would take place on Saturday.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9957343935966492,
+        "neutral": 0.003982699941843748,
+        "contradiction": 0.00028302648570388556
+      }
+    },
+    {
+      "id": "report-4-contradicts",
+      "group": "report-4",
+      "split": "calibration",
+      "claim": "Coach Luis Reyes said the team would not play on Saturday.",
+      "article_excerpt": "Coach Luis Reyes said the team would play on Saturday.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.998910665512085,
+        "neutral": 0.0006456574774347246,
+        "entailment": 0.0004436233139131218
+      }
+    },
+    {
+      "id": "report-4-related",
+      "group": "report-4",
+      "split": "calibration",
+      "claim": "Coach Luis Reyes said the team would not play on Saturday.",
+      "article_excerpt": "Coach Luis Reyes said the team was training on Saturday.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "neutral": 0.6120036244392395,
+        "contradiction": 0.2963031828403473,
+        "entailment": 0.09169323742389679
+      }
+    },
+    {
+      "id": "report-5-supports",
+      "group": "report-5",
+      "split": "calibration",
+      "claim": "Mayor Liza Tan said the city had approved a salary increase.",
+      "article_excerpt": "Mayor Liza Tan announced the city had formally authorized higher salaries.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9978991746902466,
+        "neutral": 0.001944568706676364,
+        "contradiction": 0.00015615746087860316
+      }
+    },
+    {
+      "id": "report-5-contradicts",
+      "group": "report-5",
+      "split": "calibration",
+      "claim": "Mayor Liza Tan said the city had approved a salary increase.",
+      "article_excerpt": "Mayor Liza Tan said the city had rejected a salary increase.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9993496537208557,
+        "neutral": 0.0003361729031894356,
+        "entailment": 0.0003141998313367367
+      }
+    },
+    {
+      "id": "report-5-related",
+      "group": "report-5",
+      "split": "calibration",
+      "claim": "Mayor Liza Tan said the city had approved a salary increase.",
+      "article_excerpt": "Mayor Liza Tan called for the city to approve a salary increase.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.5725859999656677,
+        "contradiction": 0.3348062038421631,
+        "neutral": 0.09260781109333038
+      }
+    },
+    {
+      "id": "report-6-supports",
+      "group": "report-6",
+      "split": "calibration",
+      "claim": "Secretary Bea Santos said the airport would not close.",
+      "article_excerpt": "Secretary Bea Santos stated that the airport would remain open.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9963529109954834,
+        "neutral": 0.0034214844927191734,
+        "contradiction": 0.00022556603653356433
+      }
+    },
+    {
+      "id": "report-6-contradicts",
+      "group": "report-6",
+      "split": "calibration",
+      "claim": "Secretary Bea Santos said the airport would not close.",
+      "article_excerpt": "Secretary Bea Santos said the airport would close.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9980965256690979,
+        "neutral": 0.0011426612036302686,
+        "entailment": 0.0007607791339978576
+      }
+    },
+    {
+      "id": "report-6-related",
+      "group": "report-6",
+      "split": "calibration",
+      "claim": "Secretary Bea Santos said the airport would not close.",
+      "article_excerpt": "Secretary Bea Santos toured the airport terminal.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "neutral": 0.9553576707839966,
+        "contradiction": 0.04125085100531578,
+        "entailment": 0.0033914893865585327
+      }
+    },
+    {
+      "id": "report-7-supports",
+      "group": "report-7",
+      "split": "calibration",
+      "claim": "Principal Rosa Flores said the school would cancel the concert.",
+      "article_excerpt": "Principal Rosa Flores explained that the school concert would not go ahead.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9822357892990112,
+        "neutral": 0.017124222591519356,
+        "contradiction": 0.0006400257698260248
+      }
+    },
+    {
+      "id": "report-7-contradicts",
+      "group": "report-7",
+      "split": "calibration",
+      "claim": "Principal Rosa Flores said the school would cancel the concert.",
+      "article_excerpt": "Principal Rosa Flores said the school concert would proceed.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.999422550201416,
+        "neutral": 0.00034917681477963924,
+        "entailment": 0.0002282672794535756
+      }
+    },
+    {
+      "id": "report-7-related",
+      "group": "report-7",
+      "split": "calibration",
+      "claim": "Principal Rosa Flores said the school would cancel the concert.",
+      "article_excerpt": "Principal Rosa Flores said the school would host a sports tournament.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.937680184841156,
+        "neutral": 0.06054851412773132,
+        "entailment": 0.0017712425906211138
+      }
+    },
+    {
+      "id": "report-8-supports",
+      "group": "report-8",
+      "split": "calibration",
+      "claim": "Spokesperson Leo Cruz said the ferry service had resumed.",
+      "article_excerpt": "Spokesperson Leo Cruz confirmed that ferry operations had started again.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9970341920852661,
+        "neutral": 0.0027918985579162836,
+        "contradiction": 0.0001739186409395188
+      }
+    },
+    {
+      "id": "report-8-contradicts",
+      "group": "report-8",
+      "split": "calibration",
+      "claim": "Spokesperson Leo Cruz said the ferry service had resumed.",
+      "article_excerpt": "Spokesperson Leo Cruz said the ferry service remained suspended.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.999206006526947,
+        "neutral": 0.0004935978213325143,
+        "entailment": 0.0003004433528985828
+      }
+    },
+    {
+      "id": "report-8-related",
+      "group": "report-8",
+      "split": "calibration",
+      "claim": "Spokesperson Leo Cruz said the ferry service had resumed.",
+      "article_excerpt": "Spokesperson Leo Cruz discussed possible ferry fare increases.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9947191476821899,
+        "neutral": 0.004761802963912487,
+        "entailment": 0.0005190116353332996
+      }
+    },
+    {
+      "id": "report-9-supports",
+      "group": "report-9",
+      "split": "calibration",
+      "claim": "Mayor Mila Reyes said the park would be closed on Sunday.",
+      "article_excerpt": "Mayor Mila Reyes announced visitors would not be admitted to the park on Sunday.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9934926629066467,
+        "neutral": 0.006207981612533331,
+        "contradiction": 0.0002994005335494876
+      }
+    },
+    {
+      "id": "report-9-contradicts",
+      "group": "report-9",
+      "split": "calibration",
+      "claim": "Mayor Mila Reyes said the park would be closed on Sunday.",
+      "article_excerpt": "Mayor Mila Reyes said the park would be open on Sunday.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.999301552772522,
+        "neutral": 0.0003568576939869672,
+        "entailment": 0.0003415187820792198
+      }
+    },
+    {
+      "id": "report-9-related",
+      "group": "report-9",
+      "split": "calibration",
+      "claim": "Mayor Mila Reyes said the park would be closed on Sunday.",
+      "article_excerpt": "Mayor Mila Reyes inspected a park playground on Sunday.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9980959296226501,
+        "neutral": 0.0017701586475595832,
+        "entailment": 0.0001339027949143201
+      }
+    },
+    {
+      "id": "report-10-supports",
+      "group": "report-10",
+      "split": "calibration",
+      "claim": "Director Carlo Ramos said the office would accept applications online.",
+      "article_excerpt": "Director Carlo Ramos explained that applicants could submit their forms through the office website.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9816465973854065,
+        "neutral": 0.01769845187664032,
+        "contradiction": 0.0006549270474351943
+      }
+    },
+    {
+      "id": "report-10-contradicts",
+      "group": "report-10",
+      "split": "calibration",
+      "claim": "Director Carlo Ramos said the office would accept applications online.",
+      "article_excerpt": "Director Carlo Ramos said the office would not accept online applications.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.998534083366394,
+        "neutral": 0.0008029668824747205,
+        "entailment": 0.000662951439153403
+      }
+    },
+    {
+      "id": "report-10-related",
+      "group": "report-10",
+      "split": "calibration",
+      "claim": "Director Carlo Ramos said the office would accept applications online.",
+      "article_excerpt": "Director Carlo Ramos said the office had installed new computers.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "neutral": 0.996721088886261,
+        "entailment": 0.0017385485116392374,
+        "contradiction": 0.0015403118450194597
+      }
+    },
+    {
+      "id": "report-11-supports",
+      "group": "report-11",
+      "split": "calibration",
+      "claim": "President Dara Cruz said the company had not signed the agreement.",
+      "article_excerpt": "President Dara Cruz confirmed that the company had left the agreement unsigned.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9975770115852356,
+        "neutral": 0.002162732183933258,
+        "contradiction": 0.00026034133043140173
+      }
+    },
+    {
+      "id": "report-11-contradicts",
+      "group": "report-11",
+      "split": "calibration",
+      "claim": "President Dara Cruz said the company had not signed the agreement.",
+      "article_excerpt": "President Dara Cruz said the company had signed the agreement.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9994383454322815,
+        "neutral": 0.00037526950472965837,
+        "entailment": 0.0001863135548774153
+      }
+    },
+    {
+      "id": "report-11-related",
+      "group": "report-11",
+      "split": "calibration",
+      "claim": "President Dara Cruz said the company had not signed the agreement.",
+      "article_excerpt": "President Dara Cruz said the company was negotiating another agreement.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "neutral": 0.7512774467468262,
+        "entailment": 0.22673611342906952,
+        "contradiction": 0.02198641002178192
+      }
+    },
+    {
+      "id": "report-12-supports",
+      "group": "report-12",
+      "split": "calibration",
+      "claim": "Manager Paolo Tan said there would be no price increase.",
+      "article_excerpt": "Manager Paolo Tan announced that prices would stay unchanged.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9878966808319092,
+        "neutral": 0.01171058602631092,
+        "contradiction": 0.00039275840390473604
+      }
+    },
+    {
+      "id": "report-12-contradicts",
+      "group": "report-12",
+      "split": "calibration",
+      "claim": "Manager Paolo Tan said there would be no price increase.",
+      "article_excerpt": "Manager Paolo Tan said prices would increase.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9991182684898376,
+        "neutral": 0.000615919940173626,
+        "entailment": 0.0002657876757439226
+      }
+    },
+    {
+      "id": "report-12-related",
+      "group": "report-12",
+      "split": "calibration",
+      "claim": "Manager Paolo Tan said there would be no price increase.",
+      "article_excerpt": "Manager Paolo Tan said the store had hired new staff.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.8351142406463623,
+        "neutral": 0.16393490135669708,
+        "entailment": 0.0009508454240858555
+      }
+    },
+    {
+      "id": "report-13-supports",
+      "group": "report-13",
+      "split": "audit",
+      "claim": "Mayor Vera Lim said the road would reopen in Cebu.",
+      "article_excerpt": "Mayor Vera Lim confirmed traffic would be allowed on the road again in Cebu.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9913787841796875,
+        "neutral": 0.008173583075404167,
+        "contradiction": 0.00044765742495656013
+      }
+    },
+    {
+      "id": "report-13-contradicts",
+      "group": "report-13",
+      "split": "audit",
+      "claim": "Mayor Vera Lim said the road would reopen in Cebu.",
+      "article_excerpt": "Mayor Vera Lim said the road would remain closed in Cebu.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9683387279510498,
+        "neutral": 0.030677150934934616,
+        "entailment": 0.0009840887505561113
+      }
+    },
+    {
+      "id": "report-13-related",
+      "group": "report-13",
+      "split": "audit",
+      "claim": "Mayor Vera Lim said the road would reopen in Cebu.",
+      "article_excerpt": "Mayor Vera Lim said a new road was being proposed in Cebu.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.7095738053321838,
+        "neutral": 0.23982398211956024,
+        "contradiction": 0.05060219392180443
+      }
+    },
+    {
+      "id": "report-14-supports",
+      "group": "report-14",
+      "split": "audit",
+      "claim": "Director Sara Reyes said the library would stop charging membership fees.",
+      "article_excerpt": "Director Sara Reyes announced that library membership would become free.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9814093112945557,
+        "neutral": 0.016968904063105583,
+        "contradiction": 0.0016217322554439306
+      }
+    },
+    {
+      "id": "report-14-contradicts",
+      "group": "report-14",
+      "split": "audit",
+      "claim": "Director Sara Reyes said the library would stop charging membership fees.",
+      "article_excerpt": "Director Sara Reyes said the library would continue charging membership fees.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9992365837097168,
+        "neutral": 0.00038178241811692715,
+        "entailment": 0.00038159225368872285
+      }
+    },
+    {
+      "id": "report-14-related",
+      "group": "report-14",
+      "split": "audit",
+      "claim": "Director Sara Reyes said the library would stop charging membership fees.",
+      "article_excerpt": "Director Sara Reyes said the library had received new books.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "neutral": 0.9461737275123596,
+        "contradiction": 0.05151630938053131,
+        "entailment": 0.002309984527528286
+      }
+    },
+    {
+      "id": "report-15-supports",
+      "group": "report-15",
+      "split": "audit",
+      "claim": "Governor Tomas Cruz said the council had canceled the festival.",
+      "article_excerpt": "Governor Tomas Cruz confirmed the festival would not proceed because the council had canceled it.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9979655742645264,
+        "neutral": 0.0017202545423060656,
+        "contradiction": 0.0003141491033602506
+      }
+    },
+    {
+      "id": "report-15-contradicts",
+      "group": "report-15",
+      "split": "audit",
+      "claim": "Governor Tomas Cruz said the council had canceled the festival.",
+      "article_excerpt": "Governor Tomas Cruz said the council had not canceled the festival.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9964642524719238,
+        "neutral": 0.0019522078800946474,
+        "entailment": 0.0015835021622478962
+      }
+    },
+    {
+      "id": "report-15-related",
+      "group": "report-15",
+      "split": "audit",
+      "claim": "Governor Tomas Cruz said the council had canceled the festival.",
+      "article_excerpt": "Governor Tomas Cruz said the council had approved road repairs.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9973141551017761,
+        "neutral": 0.0024795078206807375,
+        "entailment": 0.0002062684652628377
+      }
+    },
+    {
+      "id": "report-16-supports",
+      "group": "report-16",
+      "split": "audit",
+      "claim": "Secretary Alma Tan said the train fare would not change.",
+      "article_excerpt": "Secretary Alma Tan confirmed passengers would continue paying the same train fare.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9915018081665039,
+        "neutral": 0.008020895533263683,
+        "contradiction": 0.0004773239779751748
+      }
+    },
+    {
+      "id": "report-16-contradicts",
+      "group": "report-16",
+      "split": "audit",
+      "claim": "Secretary Alma Tan said the train fare would not change.",
+      "article_excerpt": "Secretary Alma Tan said the train fare would rise.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.998551070690155,
+        "neutral": 0.001059240661561489,
+        "entailment": 0.00038971001049503684
+      }
+    },
+    {
+      "id": "report-16-related",
+      "group": "report-16",
+      "split": "audit",
+      "claim": "Secretary Alma Tan said the train fare would not change.",
+      "article_excerpt": "Secretary Alma Tan attended the opening of a new train station.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.6251641511917114,
+        "neutral": 0.3741850256919861,
+        "entailment": 0.0006508090882562101
+      }
+    },
+    {
+      "id": "report-17-supports",
+      "group": "report-17",
+      "split": "audit",
+      "claim": "Principal Dina Ramos said the school had suspended classes.",
+      "article_excerpt": "Principal Dina Ramos confirmed classes at the school had been called off.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9938435554504395,
+        "neutral": 0.005432178732007742,
+        "contradiction": 0.0007242009742185473
+      }
+    },
+    {
+      "id": "report-17-contradicts",
+      "group": "report-17",
+      "split": "audit",
+      "claim": "Principal Dina Ramos said the school had suspended classes.",
+      "article_excerpt": "Principal Dina Ramos said classes at the school had not been suspended.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9963533878326416,
+        "neutral": 0.001968803582713008,
+        "entailment": 0.0016778638819232583
+      }
+    },
+    {
+      "id": "report-17-related",
+      "group": "report-17",
+      "split": "audit",
+      "claim": "Principal Dina Ramos said the school had suspended classes.",
+      "article_excerpt": "Principal Dina Ramos said the school had opened a new classroom.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9992796778678894,
+        "neutral": 0.0004859955224674195,
+        "entailment": 0.0002343522646697238
+      }
+    },
+    {
+      "id": "report-18-supports",
+      "group": "report-18",
+      "split": "audit",
+      "claim": "Manager Noel Flores said the market would extend its opening hours.",
+      "article_excerpt": "Manager Noel Flores announced that the market would stay open longer.",
+      "relationship": "supports",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "entailment": 0.9778450727462769,
+        "neutral": 0.021672643721103668,
+        "contradiction": 0.0004823742783628404
+      }
+    },
+    {
+      "id": "report-18-contradicts",
+      "group": "report-18",
+      "split": "audit",
+      "claim": "Manager Noel Flores said the market would extend its opening hours.",
+      "article_excerpt": "Manager Noel Flores said the market would shorten its opening hours.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "contradiction": 0.9991384744644165,
+        "neutral": 0.0005098198889754713,
+        "entailment": 0.0003517104487400502
+      }
+    },
+    {
+      "id": "report-18-related",
+      "group": "report-18",
+      "split": "audit",
+      "claim": "Manager Noel Flores said the market would extend its opening hours.",
+      "article_excerpt": "Manager Noel Flores said the market was repainting its walls.",
+      "relationship": "related",
+      "provenance": "authored synthetic reported-English fixture, not factual news or classifier training data",
+      "scores": {
+        "neutral": 0.7237139344215393,
+        "contradiction": 0.2739224433898926,
+        "entailment": 0.002363620325922966
+      }
+    }
+  ]
+}

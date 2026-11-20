@@ -7,9 +7,7 @@ from unittest.mock import patch
 sys.path[:0] = [str(Path(__file__).resolve().parents[1]), str(Path(__file__).resolve().parents[1] / 'src')]
 import app as application
 import evidence_decision
-import gemini_evidence
 from model_runtime import Prediction, FEATURE_NAMES
-from fastapi import HTTPException
 
 
 CLAIM = 'Manila is the capital of the Philippines.'
@@ -25,35 +23,20 @@ def sources():
     ]
 
 
-def assessment(claim, articles, relation='supports'):
-    owned=[];rows=[]
-    for i,source in enumerate(articles,1):
-        sid=f's{i}'
-        passages=gemini_evidence._source_passages(sid,source['article_text'])
-        owned.append({'source_id':sid,'url':source['url'],'article_text':source['article_text'],'passages':passages})
-        rows.append({'source_id':sid,'relationship':relation,
-                     'passage_ids':[passages[0]['passage_id']] if relation in {'supports','contradicts'} else [],
-                     'reason_en':'The supplied passage addresses the submitted claim.',
-                     'reason_tl':'Tinutukoy ng ibinigay na sipi ang isinumiteng claim.'})
-    checked=gemini_evidence._validate_passage_payload({'claim':claim,'assessments':rows},claim,owned)
-    return {'status':'assessed','assessments':checked,'provider':'fixture_reader'}
-
-
 class VerifiedFinalPolicyTests(unittest.TestCase):
     def setUp(self):
         self.settings=patch.multiple(application.config,SCREENING_MODE='model',MODEL_AUTHORITATIVE=False,
-                                    GEMINI_ENABLED=True,EVIDENCE_POLICY='strict')
+                                    LOCAL_NLI_ENABLED=False,EVIDENCE_POLICY='strict')
         self.settings.start();self.addCleanup(self.settings.stop)
         self.model=patch.object(application,'classify',return_value=self.prediction('Misleading',.999999))
         self.classifier=self.model.start();self.addCleanup(self.model.stop)
         for owner,name,value in [(application.database,'is_configured',False),
                                  (application,'_lookup_readable_sources',{'retrieval_status':'no_results','related_sources':[]}),
-                                 (evidence_decision,'assess_claim',{'status':'no_readable_sources','assessments':[]})]:
+                                 (evidence_decision,'_assess_readable_claim',('related','No direct passage'))]:
             p=patch.object(owner,name,return_value=value);p.start();self.addCleanup(p.stop)
         self.lookup=application._lookup_readable_sources
-        self.reader=evidence_decision.assess_claim
-        self.llm=patch.object(application,'classify_claim',side_effect=AssertionError('Primary model must remain DistilBERT'))
-        self.llm.start();self.addCleanup(self.llm.stop)
+        self.reader=evidence_decision._assess_readable_claim
+
 
     def prediction(self,label,score):
         return Prediction(internal_label=label,public_label='Potentially Misleading' if label=='Misleading' else 'No Misleading Information Detected',
@@ -67,7 +50,7 @@ class VerifiedFinalPolicyTests(unittest.TestCase):
     def with_sources(self,claim=CLAIM,relation='supports',articles=None):
         articles=articles if articles is not None else sources()
         self.lookup.return_value={'retrieval_status':'available','related_sources':articles}
-        self.reader.return_value=assessment(claim,articles,relation)
+        self.reader.side_effect=lambda submitted,body: (relation,body.split('. ')[0]+'.') if relation in {'supports','contradicts'} else ('related','No match')
         return self.run_claim(claim)
 
     def assert_model_retained(self,value):
@@ -108,10 +91,8 @@ class VerifiedFinalPolicyTests(unittest.TestCase):
 
     def test_evidence_provider_errors_keep_the_valid_classifier_result(self):
         articles=sources();self.lookup.return_value={'retrieval_status':'available','related_sources':articles}
-        for status in ['busy','rate_limited','unavailable','authentication_failed','invalid_response','incomplete_response']:
-            with self.subTest(status=status):
-                self.reader.return_value={'status':status,'assessments':[]}
-                self.assert_model_retained(self.run_claim())
+        self.reader.return_value=('related','Local NLI unavailable')
+        self.assert_model_retained(self.run_claim())
 
     def test_material_date_mismatch_cannot_force_a_supported_label(self):
         claim='The airport opened on November 20, 2026.'
@@ -121,10 +102,11 @@ class VerifiedFinalPolicyTests(unittest.TestCase):
         self.assert_model_retained(value)
         self.assertTrue(any('event_date' in s['validation_issues'] for s in value['related_sources']))
 
-    def test_unknown_passage_reference_cannot_supply_proof(self):
-        source=sources()[0];owned={'source_id':'s1',**source,'passages':gemini_evidence._source_passages('s1',source['article_text'])}
-        with self.assertRaises(ValueError):
-            gemini_evidence._validate_passage_payload({'claim':CLAIM,'assessments':[{'source_id':'s1','relationship':'supports','passage_ids':['invented'],'reason_en':'test','reason_tl':'test'}]},CLAIM,[owned])
+
+    def test_invented_passage_cannot_supply_proof(self):
+        self.lookup.return_value={'retrieval_status':'available','related_sources':sources()}
+        self.reader.return_value=('supports','An invented assertion absent from the article.')
+        self.assert_model_retained(self.run_claim())
 
     def test_negative_model_prediction_is_not_turned_into_misleading_by_missing_sources(self):
         self.classifier.return_value=self.prediction('Non-Misleading',.1)

@@ -14,46 +14,7 @@ import media_processing
 
 
 class MediaProcessingTests(unittest.TestCase):
-    def test_cloud_speech_and_frame_acquisition_overlap_without_fragmenting_audio(self):
-        import numpy as np
-        from pathlib import Path
-        from threading import Event
-        began=Event();speech_done=Event()
-        def decode(arguments):Path(arguments[-1]).write_bytes(b'audio-or-frame')
-        def read_frames(frames):
-            began.set()
-            self.assertFalse(speech_done.is_set())
-            return [(p.name,640,360,[]) for p in frames],1.0
-        def transcribe(wav_bytes,duration):
-            self.assertTrue(began.wait(2),'OCR should start before speech finishes')
-            self.assertEqual(wav_bytes,b'audio-or-frame');self.assertEqual(duration,4)
-            speech_done.set()
-            return {'status':'transcribed','language':'tl','segments':[{'start_seconds':0,'end_seconds':4,'text':'Complete original speech.'}]}
-        with patch.object(media_processing.config,'SPEECH_PROVIDER','gemini'),patch.object(media_processing,'_run_ffmpeg',side_effect=decode),patch.object(media_processing,'_read_pcm_wave',return_value=np.ones(64000,dtype=np.float32)),patch.object(media_processing,'transcribe_audio',side_effect=transcribe) as speech,patch.object(media_processing,'_read_video_frames',side_effect=read_frames):
-            result=media_processing.process_video(b'parallel-whole-video')
-        speech.assert_called_once()
-        self.assertEqual(result['transcript_text'],'Complete original speech.')
-        self.assertEqual(result['frame_ocr_status'],'no_readable_text')
-        self.assertIn('frame_ocr_wait_after_speech',result['processing_timings_ms'])
 
-    def test_speech_failure_joins_frame_worker_before_removing_temporary_files(self):
-        import numpy as np
-        from pathlib import Path
-        from threading import Event
-        began=Event();release=Event();done=Event();paths=[]
-        def decode(arguments):Path(arguments[-1]).write_bytes(b'audio-or-frame')
-        def read_frames(frames):
-            paths.extend(frames);began.set()
-            if not release.wait(2):raise AssertionError('Speech never released frame worker')
-            self.assertTrue(all(p.exists() for p in frames));done.set()
-            return [],1.0
-        def failed_speech(*_args,**_kwargs):
-            self.assertTrue(began.wait(2));release.set()
-            raise media_processing.SpeechServiceError('unavailable')
-        with patch.object(media_processing.config,'SPEECH_PROVIDER','gemini'),patch.object(media_processing,'_run_ffmpeg',side_effect=decode),patch.object(media_processing,'_read_pcm_wave',return_value=np.ones(64000,dtype=np.float32)),patch.object(media_processing,'transcribe_audio',side_effect=failed_speech),patch.object(media_processing,'_read_video_frames',side_effect=read_frames):
-            with self.assertRaises(media_processing.SpeechServiceError):media_processing.process_video(b'parallel-error-video')
-        self.assertTrue(done.is_set());self.assertTrue(paths)
-        self.assertTrue(all(not p.exists() for p in paths))
 
     def setUp(self):
         media_processing.clear_video_extraction_cache()
@@ -217,17 +178,6 @@ class MediaProcessingTests(unittest.TestCase):
                 clean | {"start": 15, "end": 19, "text": "Huling bahagi ng balita."},
             ]})
 
-    def test_external_audio_path_does_not_run_local_whisper_and_preserves_transcript(self):
-        import numpy as np
-        from pathlib import Path
-        def decode(arguments):Path(arguments[-1]).write_bytes(b'audio-or-frame')
-        response={'status':'transcribed','language':'tl','segments':[{'start_seconds':0,'end_seconds':1,'text':'Original spoken words.'}]}
-        reader=Mock();reader.readtext.return_value=[]
-        with patch.object(media_processing.config,'SPEECH_PROVIDER','gemini'),patch.object(media_processing,'_run_ffmpeg',side_effect=decode),patch.object(media_processing,'_read_pcm_wave',return_value=np.ones(16000,dtype=np.float32)),patch.object(media_processing,'transcribe_audio',return_value=response),patch.object(media_processing,'_get_whisper_model') as local,patch.object(media_processing,'_get_ocr_reader',return_value=reader),patch('cv2.imread',return_value=np.zeros((360,640,3),dtype=np.uint8)):
-            result=media_processing.process_video(b'external-video')
-        local.assert_not_called();self.assertEqual(result['transcript_text'],'Original spoken words.')
-        self.assertEqual(result['transcript_source'],'external_audio')
-        self.assertEqual(result['timestamp_basis'],'server_audio_chunks')
 
     def test_silent_video_skips_whisper_and_identifies_frame_text(self):
         import numpy as np

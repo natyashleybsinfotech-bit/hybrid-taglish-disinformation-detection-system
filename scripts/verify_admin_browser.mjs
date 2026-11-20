@@ -111,11 +111,7 @@ try {
   await waitFor(client, 'document.body.innerText.includes("Active inference pipeline")');
   const runtimeStatus = await evaluate(client, `fetch('http://127.0.0.1:8000/admin-api/system-status',{credentials:'include'}).then(r=>r.json())`, true);
   const runtimeText = await evaluate(client, 'document.body.innerText');
-  if (runtimeStatus.model?.mode === 'gemini') {
-    assert.ok(runtimeText.includes('External AI classifier') && runtimeText.includes(runtimeStatus.model.name));
-    assert.ok(runtimeText.includes('Remote service'));
-    assert.ok(!runtimeText.includes('Device unavailable') && !runtimeText.includes('Runtime status unavailable'));
-  }
+  assert.ok(runtimeStatus.model?.mode !== 'gemini', 'Remote primary classifier was retired');
   await screenshot(client, 'current-runtime-status-actual', 1280, 1000);
   await evaluate(client, 'history.pushState({},"","/performance"); window.dispatchEvent(new PopStateEvent("popstate")); true');
   await waitFor(client, 'Boolean(document.querySelector("[data-paper-model=original-hybrid]"))');

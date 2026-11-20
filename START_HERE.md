@@ -1,5 +1,10 @@
 # Start here — SuriPH research prototype
 
+> Current local runtime (20 November 2026): read [current source](docs/CURRENT-SOURCE-20261120.md) and the [local-model migration record](docs/GEMINI-REMOVAL-20261120.md) before the older setup notes below. The selected profile is `suriph-finetune-6a35c6d4a2a0`, with local NLI evidence reading and local faster-whisper; Gemini runtime modules are retired.
+
+For the prepared workstation, use `scripts/start-finetuned-trial.ps1` after starting MariaDB. A fresh checkout also needs the separately preserved classifier artifacts and prepared OCR/Whisper models. Install the pinned requirements and run `backend-api/scripts/prepare_local_nli.py` once to download the pinned public NLI snapshot; request-time inference uses local files only. This does not train or replace the primary classifier.
+
+
 **15 November check:** The original hybrid remains active. A cross-topic evidence
 and article-excerpt repair passed 226 backend tests; the extension build and
 34 tests, admin lint/build/test, and local MariaDB/API readiness also passed.

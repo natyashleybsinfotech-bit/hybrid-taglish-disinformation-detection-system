@@ -1,5 +1,7 @@
 # Fine tuned DistilBERT local trial
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 > Superseded runtime policy: the later 20 November update enables optional validated evidence assistance by default. Use `-RawModelOnly` for the model-authoritative diagnostic path. See [current source](CURRENT-SOURCE-20261120.md). The historical results and limitations below remain unchanged.
 
 The selected local classifier is `suriph-finetune-6a35c6d4a2a0`, a partially fine-tuned multilingual DistilBERT encoder plus seven linguistic measurements and Logistic Regression. Only transformer layers 4 and 5 changed from the archived base encoder. Inference freezes the selected encoder. The saved threshold is 0.85; no threshold was selected from the historical test results.

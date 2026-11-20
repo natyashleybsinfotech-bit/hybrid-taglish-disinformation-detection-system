@@ -1,5 +1,6 @@
 param([switch]$RawModelOnly)
 $ErrorActionPreference = 'Stop'
+$env:SURI_SPEECH_PROVIDER = 'local'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $pythonPath = Join-Path $projectRoot '.venv\Scripts\python.exe'
 $artifactPath = Join-Path $projectRoot 'backend-api\models\local-trials\suriph-finetune-6a35c6d4a2a0'

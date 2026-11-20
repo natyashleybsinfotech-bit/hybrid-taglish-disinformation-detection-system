@@ -36,36 +36,11 @@ outside the product UI for the research team to manage under its approved proces
 
 ## Active hybrid model
 
-The prepared workstation selects the local-trial profile
-`full-cleaned-20261023T022416Z`. Its only classifier is
-`model_4_full_dataset_CANDIDATE.joblib` (SHA-256
-`c2d7df1c519c4022c395a29e1d469e3089452fa8a9b6a15a2079eaa0216ea376`) and its
-saved decision threshold is **0.4000000000000001**. It uses the same architecture:
-frozen multilingual DistilBERT embeddings, seven saved linguistic features, saved
-scalers, and Logistic Regression. The candidate is explicitly marked for local trial,
-and production configuration rejects it.
+The prepared workstation selects the local-trial profile `suriph-finetune-6a35c6d4a2a0`: partially fine-tuned multilingual DistilBERT, seven linguistic measurements, saved scalers and Logistic Regression. The saved decision threshold is 0.85. The primary classifier and training artifacts were not changed by the local evidence/audio migration.
 
-Fresh CPU inference reproduced all **3,470** saved test labels and probabilities with
-zero mismatches at `atol=rtol=1e-5` (maximum absolute probability difference
-**5.34e-6**). The same saved references contain 108 false positives and 114 false
-negatives against inherited labels; parity does not establish factual correctness.
+The current evidence reader is a separate local multilingual NLI fallback; speech recognition uses local faster-whisper. See [current source](docs/CURRENT-SOURCE-20261120.md) and [migration verification](docs/GEMINI-REMOVAL-20261120.md). Historical 96.32% held-out accuracy concerns 598 inherited-label records, not real-world Facebook performance. Known short/neutral-text false positives remain unresolved; the profile is not approved for production.
 
-The previous run `20261011T235112Z` and `model_4.joblib` remain unchanged as an
-explicit rollback profile. Runtime inference never searches for, switches to, or falls
-back to either profile. `SURI_MODEL_PROFILE` selects exactly one profile before startup;
-a missing or incompatible selected profile leaves readiness false.
-
-Read [the local candidate guide](docs/LOCAL-CANDIDATE-TRIAL.md) and
-[the integration guide](docs/HYBRID-INTEGRATION.md) for the artifact layout,
-exact preprocessing, dependencies, API fields, verification evidence and limitations.
-The old `hybrid_model.pkl`/schema-1 loader is retired. Renaming another model does
-not make it compatible. Dataset/model review records remain in the restricted dashboard;
-the incompatible historical retraining worker, model registration and runtime switching
-remain disabled so they cannot replace model_4.
-
-`/health` and `/ready` report the classifier identity, SHA-256, actual CPU/CUDA device,
-threshold and readiness. A load/inference failure returns 503 for prediction and
-false readiness. No alternative classifier or fabricated prediction is used.
+Model artifacts are local-only. A checkout needs the compatible, hash-verified classifier/encoder/tokenizer files plus prepared local evidence and media models. Runtime never silently substitutes another primary classifier when the selected profile cannot load.
 
 ## Related-source context
 

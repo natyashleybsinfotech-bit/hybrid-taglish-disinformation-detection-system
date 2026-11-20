@@ -1,5 +1,5 @@
 import modalCss from './modal.css?inline';
-import { aiReportedScore, captionForScreening, matchesSubmittedPost, matchesVideoPreview, postResultCacheKey, resolveMediaChoice, usableVideoCaption } from './result_binding.js';
+import { captionForScreening, matchesSubmittedPost, matchesVideoPreview, postResultCacheKey, resolveMediaChoice, usableVideoCaption } from './result_binding.js';
 import { evidenceReaderNotice, incompleteVideoNotice, mergeRelatedSources, displayPostDate, displayPostRecency } from './result_updates.js';
 import { captureVideoElement } from './video_capture.js';
 import { isRecommendationSurface } from './post_eligibility.js';
@@ -478,7 +478,7 @@ function appendLookupChoice(container) {
   const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = retrievalEnabled;
   const text = document.createElement('span'); text.textContent = tr('Find related articles using Serper and compare readable articles with this claim. A related link alone does not verify the claim.', 'Maghanap ng kaugnay na artikulo gamit ang Serper at ikumpara ang nabasang artikulo sa claim. Hindi sapat ang kaugnay na link para beripikahin ang claim.');
   checkbox.addEventListener('change', () => { retrievalEnabled = checkbox.checked; chrome.storage.local.set({ suriphRetrieveSources: retrievalEnabled }); });
-  const disclosure = document.createElement('details'); disclosure.className = 'privacy-notice'; const privacyTitle = document.createElement('summary'); privacyTitle.textContent = tr('Privacy and data processing', 'Privacy at pagproseso ng data'); const privacyText = document.createElement('p'); privacyText.textContent = tr('Processing depends on the configured service. Local model classification stays on the configured SuriPH server. If cloud classification or audio transcription is enabled, confirmed text or video audio is sent to Google Gemini. Source search sends a query to Serper; enabled cloud evidence checking sends readable articles for comparison. Do not submit private information.', 'Depende sa configuration ang pagproseso. Sa SuriPH server ginagawa ang local model classification. Kung naka-on ang cloud classification o audio transcription, ipinapadala ang kinumpirmang teksto o audio sa Google Gemini. Ipinapadala ang source query sa Serper, at ang nabasang artikulo sa cloud evidence checker kung naka-on ito. Huwag magsumite ng pribadong impormasyon.'); disclosure.append(privacyTitle, privacyText); container.appendChild(disclosure);
+  const disclosure = document.createElement('details'); disclosure.className = 'privacy-notice'; const privacyTitle = document.createElement('summary'); privacyTitle.textContent = tr('Privacy and data processing', 'Privacy at pagproseso ng data'); const privacyText = document.createElement('p'); privacyText.textContent = tr('Classification, evidence reading, and audio transcription run on the SuriPH server using local models. Source search sends a query to Serper and reads public source websites. Do not submit private information.', 'Sa SuriPH server ginagawa ang classification, evidence reading, at audio transcription gamit ang lokal na mga model. Ipinapadala ang source query sa Serper at binabasa ang public source websites. Huwag magsumite ng pribadong impormasyon.'); disclosure.append(privacyTitle, privacyText); container.appendChild(disclosure);
   label.append(checkbox, text); container.appendChild(label);
 }
 async function captureVisibleVideo(post, options) {
@@ -560,19 +560,10 @@ function renderRichResult(container, result) {
     : (tl ? 'Walang sapat na warning signs na nakita sa pagsusuri ng teksto.' : 'The text check did not find enough warning signs to flag this post.');
   const readerNotice = evidenceReaderNotice(result, tl ? 'tl' : 'en');
   const explanation = section('2-explanation'); sectionTitle(explanation, 'info', tl ? 'Bakit ito ang resulta' : 'Why this result'); textNode(explanation, 'p', result.decision_source === 'verified_evidence' ? (result.evidence_relationship === 'supports' ? (tl ? 'May nabasang ebidensiyang sumusuporta sa buong claim at konteksto nito.' : 'Readable evidence supports the complete claim and its context.') : (tl ? 'May nabasang source na direktang sumasalungat sa buong claim.' : 'A readable source directly contradicts the complete claim.')) : (readerNotice || fallbackReason));
-  const reportedScore = aiReportedScore(result);
-  if (reportedScore) {
-    const scoreBox = document.createElement('div'); scoreBox.className = 'ai-score';
-    textNode(scoreBox, 'strong', `${reportedScore.value}%`, 'font-size:32px;line-height:1.2;');
-    textNode(scoreBox, 'p', `${tl ? 'AI-reported confidence para sa' : 'AI-reported confidence for'} ${reportedScore.label}`);
-    if (reportedScore.label !== label) textNode(scoreBox, 'small', tl ? 'Binago ng source review ang final label sa itaas. Para sa paunang prediction ang score na ito.' : 'Source review changed the final label above. This score belongs to the initial prediction.');
-    textNode(scoreBox, 'small', tl ? 'Sariling pagtataya ng AI; hindi measured accuracy o patunay na totoo o mali ang claim. Hiwalay ang evidence status.' : 'The AI’s own estimate; not measured accuracy or proof that a claim is true or false. Evidence status is separate.');
-    explanation.insertBefore(scoreBox, explanation.querySelector('p'));
-  }
   const aiExplanation = tl ? result.evidence_explanation_tl : result.evidence_explanation_en;
-  if ((result.decision_source === 'verified_evidence' && aiExplanation) || result.screening_mode === 'gemini') {
+  if (result.decision_source === 'verified_evidence' && aiExplanation) {
     const paragraph = [...explanation.children].find(node => node.tagName === 'P');
-    if (paragraph) paragraph.textContent = result.decision_source === 'verified_evidence' ? aiExplanation : (tl ? result.classifier_reason_tl : result.classifier_reason_en);
+    if (paragraph) paragraph.textContent = aiExplanation;
   }
   if (result.screening_mode === 'evidence_only') {
     textNode(explanation, 'p', tl ? 'Naka-off ang classifier. Evidence retrieval lang ang ginamit; hindi factual verdict ang hindi pa beripikadong warning.' : 'The classifier is off. This uses evidence retrieval only; an unverified warning is not a factual verdict.');
@@ -591,19 +582,7 @@ function renderRichResult(container, result) {
     emotional_language_frequency: tl ? 'Mga salitang nagpapahayag ng matinding emosyon.' : 'Words that express strong emotion.',
     urgency_cue_frequency: tl ? 'Mga salitang nag-uudyok na kumilos agad.' : 'Words that urge readers to act quickly.',
   };
-  if (result.screening_mode === 'gemini') {
-    const identity = document.createElement('details'); identity.dataset.resultPart = '4-features'; sectionTitle(identity, 'features', tl ? 'Paano sinuri ang teksto' : 'How the text was analyzed', 'summary');
-    textNode(identity, 'p', tl ? 'Mga sukat ito ng paraan ng pagkakasulat at paggamit ng wika. Hindi ito feature importance, AI confidence, o patunay na totoo o mali ang post.' : 'These measurements describe writing style and language. They are not feature importance, AI confidence, or proof that a post is true or false.');
-    for (const item of result.linguistic_indicators || []) {
-      const row = document.createElement('div'); row.dataset.feature = item.name; row.dataset.value = item.value; row.style.cssText = 'padding:8px 0;border-top:1px solid #e2e8f0;';
-      textNode(row, 'b', `${tl ? item.display_name_tagalog : item.display_name}: ${pct(Number(item.value))}`);
-      textNode(row, 'small', featureDescriptions[item.name] || ''); identity.appendChild(row);
-    }
-    if (!result.linguistic_indicators?.length) textNode(identity, 'p', tl ? 'Hindi available ang mga sukat sa check na ito. Subukan ang bagong check.' : 'Language measurements are unavailable for this check. Try a new check.');
-    container.appendChild(identity);
-  } else {
   const features = document.createElement('details'); features.dataset.resultPart = '4-features'; sectionTitle(features, 'features', tl ? 'Paano sinuri ang teksto' : 'How the text was analyzed', 'summary'); textNode(features, 'p', result.screening_mode === 'evidence_only' ? (tl ? 'Naka-off ang text classifier. Ipinapakita sa ibaba kung anong teksto ang nakuha mula sa caption, image, o video.' : 'The text classifier is off. The extracted caption, image, or video text is shown below.') : (tl ? 'Inilalarawan ng mga sukat na ito ang paraan ng pagkakasulat at paggamit ng wika. Hindi nila pinatutunayan nang mag-isa kung totoo o mali ang post.' : 'These measurements describe the writing style and language. They do not prove by themselves that a post is true or false.')); if (result.screening_mode !== 'evidence_only') { textNode(features, 'p', `${tl ? 'Orihinal na model label' : 'Original model label'}: ${result.model_public_label || label} · ${pct(Number(result.model_score))} ${tl ? 'model score para sa Misleading' : 'Misleading model score'}`); textNode(features, 'small', tl ? 'Hindi ito posibilidad na mali ang claim.' : 'This is not the chance that the claim is false.'); for (const item of result.linguistic_indicators || []) { const row = document.createElement('div'); row.style.cssText = 'padding:8px 0;border-top:1px solid #e2e8f0;'; textNode(row, 'b', `${tl ? item.display_name_tagalog : item.display_name}: ${pct(Number(item.value))}`); textNode(row, 'small', featureDescriptions[item.name] || ''); features.appendChild(row); } } container.appendChild(features);
-  }
 
   const sources = section('5-related-sources', 'sources'); sectionTitle(sources, 'sources', tl ? 'Mga nahanap na source' : 'Sources found'); textNode(sources, 'p', result.decision_source === 'verified_evidence' ? (tl ? 'Inihambing ang buong claim sa nababasang nilalaman ng mga artikulo.' : 'The complete claim was compared with readable article content.') : (tl ? 'Hindi patunay sa buong claim ang link o search preview. Sinusuri lang ang nababasang laman ng artikulo; ihambing ang mga detalye nito sa post.' : 'A link or search preview does not verify the full claim. Only readable article content is assessed; compare its details with the post.'));
   const renderSourceState = () => {

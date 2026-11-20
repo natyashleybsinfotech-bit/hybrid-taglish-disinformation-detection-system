@@ -1,5 +1,7 @@
 # Primary Gemini local trial — 2026-11-16
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 ## Active behavior
 The local API is running in SCREENING_MODE=gemini with gemini-3.5-flash-lite. /ready reports MariaDB available and hybrid_classifier_active=false. This readiness check verifies configuration and database connectivity, not provider availability or factual accuracy.
 

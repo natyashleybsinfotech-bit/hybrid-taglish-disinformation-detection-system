@@ -1,5 +1,7 @@
 # SuriPH Gemini evidence reader — 16 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 Implemented and enabled locally using `gemini-3.5-flash-lite`. The key is stored only in the backend's ignored `.env.local`; it is not bundled in the extension. The original classifier remains profile `20261011T235112Z`, threshold 0.65, SHA-256 `72d87971ee2af7fca1f6f0a9b94bbe92618bd92ce8c5e48e35b80882e1321c7c`. No training was performed.
 
 ## Behavior

@@ -1,6 +1,10 @@
 # Documentation index
 
-**Current local status:** [14 November source-preview and score clarification](SOURCE-PREVIEW-AND-SCORE-20261114.md), [13 November video mismatch review](VIDEO-MISMATCH-REVIEW-20261113.md), [12 November extraction repair](EXTRACTION-REPAIR-20261112.md), [10 November defense rehearsal](DEFENSE-REHEARSAL-20261110.md), [revised 45-item questionnaire acceptance record](research/QUESTIONNAIRE-ACCEPTANCE-20261110.md), and [rehearsal build manifest](REHEARSAL-BUILD-20261110.json). Earlier dated readiness and survey drafts are historical where they differ.
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
+**Latest implementation:** [20 November local NLI/Whisper migration](CURRENT-SOURCE-20261120.md), [removal and verification record](GEMINI-REMOVAL-20261120.md), [NLI calibration](LOCAL-NLI-CALIBRATION-20261120.md), and [short-text repair plan](SHORT-TEXT-RETRAIN-PLAN-20261120.md).
+
+**Historical local status:** [14 November source-preview and score clarification](SOURCE-PREVIEW-AND-SCORE-20261114.md), [13 November video mismatch review](VIDEO-MISMATCH-REVIEW-20261113.md), [12 November extraction repair](EXTRACTION-REPAIR-20261112.md), [10 November defense rehearsal](DEFENSE-REHEARSAL-20261110.md), [revised 45-item questionnaire acceptance record](research/QUESTIONNAIRE-ACCEPTANCE-20261110.md), and [rehearsal build manifest](REHEARSAL-BUILD-20261110.json). Earlier dated readiness and survey drafts are historical where they differ.
 
 | Need | Start here |
 | --- | --- |
@@ -28,7 +32,7 @@ The full-cleaned candidate run is stored separately under the ignored
 `backend-api/models/local-trials/full-cleaned-20261023T022416Z/` directory. Its
 classifier and raw records are also local-only and unchanged.
 
-Historical documents describe earlier designs. The October 29 readiness handoff
+Historical documents describe earlier designs. The latest dated current-source record
 takes precedence for current local operation. Existing research
 papers and prototype instructions have not been rewritten.
 

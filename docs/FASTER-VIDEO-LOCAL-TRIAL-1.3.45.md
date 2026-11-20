@@ -1,5 +1,7 @@
 # Faster video local trial — SuriPH 1.3.45, 16 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 ## Active changes
 The user approved trying Google Gemini audio transcription, and later explicitly approved sending up to 17 existing FilSwitch reference audio clips for a comparison. The actual frozen sample contains 16 audio clips (309 raw reference words), the same existing selection used by the prior local-ASR benchmark. Reference answers stayed local and were not included in the provider request. The first broader-dataset egress attempt was rejected by automatic approval review; it was retried only after the user's specific approval, not through a workaround.
 

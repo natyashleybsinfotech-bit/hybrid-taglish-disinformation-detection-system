@@ -1,9 +1,10 @@
 $ErrorActionPreference = 'Stop'
+$env:SURI_SPEECH_PROVIDER = 'local'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $surveyVersion = (Get-Content -LiteralPath (Join-Path $projectRoot 'chrome-extension\manifest.json') -Raw | ConvertFrom-Json).version
 & (Join-Path $PSScriptRoot 'start-mariadb.ps1')
 try { $surveyReady = Invoke-RestMethod 'http://127.0.0.1:8000/ready' -TimeoutSec 3 } catch { $surveyReady = $null }
-if ($surveyReady -and $surveyReady.ready -and $surveyReady.model.profile -eq 'suriph-finetune-6a35c6d4a2a0' -and $surveyReady.screening_policy.evidence_assistance_enabled -and -not $surveyReady.screening_policy.model_authoritative) {
+if ($surveyReady -and $surveyReady.ready -and $surveyReady.model.profile -eq 'suriph-finetune-6a35c6d4a2a0' -and $surveyReady.screening_policy.evidence_assistance_enabled -and -not $surveyReady.screening_policy.model_authoritative -and $surveyReady.evidence_reader.provider -eq 'local_nli') {
     Write-Output ('SuriPH local API and MariaDB are running with optional evidence assistance. Reload extension {0} and refresh Facebook before a new check.' -f $surveyVersion)
     exit 0
 }

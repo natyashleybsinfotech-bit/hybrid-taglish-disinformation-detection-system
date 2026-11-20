@@ -64,11 +64,10 @@ export function isValidScreeningResult(result) {
   const label = labels[result.internal_label];
   return Boolean(label) && result.public_label === label
     && (!Object.hasOwn(result, 'final_label') || result.final_label === label)
-    && (['evidence_only', 'gemini'].includes(result.screening_mode)
-      ? result.model_score === null && (result.screening_mode !== 'gemini' || ['gemini_classifier', 'verified_evidence'].includes(result.decision_source))
-      : typeof result.model_score === 'number' && Number.isFinite(result.model_score)
-        && result.model_score >= 0 && result.model_score <= 1)
-    && Boolean(normalize(result.analyzed_text));
+    && (result.screening_mode === 'evidence_only'
+      ? result.model_score === null
+      : ['model', undefined].includes(result.screening_mode) && Number.isFinite(result.model_score) && result.model_score >= 0 && result.model_score <= 1);
+
 }
 
 export function requireScreeningResult(result) {
@@ -119,14 +118,4 @@ export function matchesSubmittedPost(result, { text, mediaChoice, pageUrl, pageT
   }
 
   return result.input_type === 'text' && analyzed === caption;
-}
-
-// This is the classifier's own uncalibrated score, bound to its original label.
-export function aiReportedScore(result) {
-  const value = result?.ai_reported_score;
-  const label = result?.ai_reported_label;
-  return result?.screening_mode === 'gemini' && result?.ai_score_kind === 'self_reported_uncalibrated'
-    && Number.isInteger(value) && value >= 0 && value <= 100
-    && ['Potentially Misleading', 'No Misleading Information Detected'].includes(label)
-    ? {value, label} : null;
 }

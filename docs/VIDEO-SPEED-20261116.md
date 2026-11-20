@@ -1,5 +1,7 @@
 # Video extraction speed update — 16 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 ## Applied and running
 - Per-stage backend extraction timings: audio decode, frame sampling, speech-engine lookup/load, language detection, transcription, frame OCR and extraction total. Review responses and confirmed video results expose these as diagnostic metadata; the result UI is unchanged.
 - Startup warm-up in scripts/start-gemini-trial.ps1 loads the existing configured speech and OCR engines in the SAME API worker before accepting checks. Latest measured warm-up: 8.665 s (speech 4.064 s; OCR 4.601 s). This moves first-use loading into preparation; it does not eliminate processing time or load engines in a disposable separate process.

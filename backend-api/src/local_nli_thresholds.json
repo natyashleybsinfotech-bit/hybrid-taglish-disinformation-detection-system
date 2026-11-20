@@ -1,0 +1,10 @@
+{
+  "model_revision": "8adb042d524ecd5c26d3e3ba0e3fbcf7e2d0864c",
+  "entailment": 0.998,
+  "contradiction": 0.999,
+  "status": "small_synthetic_calibration_not_representative",
+  "fixture_sha256": "3f6eeca31b859e1d05276c2f9a96759b9cb3b260d75856253890aaa66a73b4e6",
+  "calibration_rows": 72,
+  "audit_rows": 36,
+  "selection": "Zero wrong accepted calibration relations, then maximize correct accepted coverage. Audit excluded from selection."
+}

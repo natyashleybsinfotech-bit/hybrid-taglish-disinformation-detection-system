@@ -1,5 +1,7 @@
 # Video processing update — 20 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 The installed implementation keeps one transcription request for the complete
 decoded audio. While that cloud request runs, a separate worker reads the same
 sampled video frames. Frame relevance filtering still uses the completed speech

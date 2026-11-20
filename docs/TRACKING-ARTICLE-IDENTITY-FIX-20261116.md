@@ -1,5 +1,7 @@
 # Tracking-parameter article identity fix — 16 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 The screenshot's GMA article was downloaded and inspected directly. Before the fix, both clean and tracked URLs returned HTTP 200 with the same 336,479-byte article HTML. The clean URL was readable, but a URL with `fbclid` was incorrectly marked inaccessible: the structured-article same-page identity check compared the tracking query against the publisher's clean metadata URL.
 
 The reader now removes only known attribution parameters (`fbclid`, `utm_*`, `gclid`, `dclid`, `msclkid`, `igshid`, `mc_cid`, `mc_eid`) before fetching and identity comparison. Meaningful query keys, raw encoded values, article IDs and same-publisher redirect restrictions are preserved. Source URLs passed to Gemini also omit these attribution parameters; public source binding remains attached to the original requested URL. This is a generic URL handling fix, not a rice-post-specific label override.

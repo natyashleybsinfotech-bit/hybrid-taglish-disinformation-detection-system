@@ -29,6 +29,10 @@ from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 import config
+try:
+    from . import local_nli
+except ImportError:
+    import local_nli
 request_logger = logging.getLogger("suriph.requests")
 if not request_logger.handlers:
     request_logger.addHandler(logging.StreamHandler())
@@ -37,9 +41,7 @@ request_logger.propagate = False
 try:
     from . import database
     from .evidence_decision import apply_evidence
-    from .gemini_classifier_trial import classify_claim
     from .feature_display import describe
-    from .text_features import measure_text_features
     from .fact_check import search_fact_checks
     from .media_processing import SpeechServiceError, SpeechQualityError, MediaProcessingError, extract_image_text, process_video, service_health, warm_media_engines
     from .model_runtime import (
@@ -51,9 +53,7 @@ try:
 except ImportError:  # Supports the legacy test runner that adds src/ to sys.path.
     import database
     from evidence_decision import apply_evidence
-    from gemini_classifier_trial import classify_claim
     from feature_display import describe
-    from text_features import measure_text_features
     from fact_check import search_fact_checks
     from media_processing import SpeechServiceError, SpeechQualityError, MediaProcessingError, extract_image_text, process_video, service_health, warm_media_engines
     from model_runtime import (
@@ -241,11 +241,6 @@ async def lifespan(_app: FastAPI):
     if config.MEDIA_WARMUP:
         warmup = await run_in_threadpool(warm_media_engines)
         logging.warning("Media engines prepared: %s", json.dumps(warmup))
-        if config.SCREENING_MODE == "gemini":
-            try:
-                await run_in_threadpool(measure_text_features, "Isang halimbawa. A short example.")
-            except Exception as exc:
-                logging.warning("Text measurements could not be prepared (%s).", type(exc).__name__)
     yield
 
 
@@ -350,8 +345,6 @@ def _context_explanation(
         "freshness": _derived_recency(details.get("published_at"), details.get("published_text")),
         "recency_explanation": "An exact timestamp gives a calculated age; a relative Facebook label gives only an approximate age.",
         "assessment_scope": (
-            "SuriPH analyzed the confirmed text; readable sources were compared when requested."
-            if config.SCREENING_MODE == "gemini" else
             "Classifier disabled. The complete supplied text was compared with retrieved source evidence."
             if config.SCREENING_MODE == "evidence_only"
             else "DistilBERT supplies the prediction. Individual claims were not fact-checked by the model; requested source evidence is assessed separately and may change the displayed label only after validation."
@@ -453,15 +446,10 @@ def _screen(
     # would assign it a high score. Short complete claims remain supported.
     if details.get("caption_complete") is False and details.get("extraction_scope", "").lower().find("caption") >= 0:
         raise HTTPException(status_code=422, detail="The Facebook caption appears incomplete. Expand the full caption or select the complete media before screening.")
-    llm_mode = config.SCREENING_MODE == "gemini"
     prototype_mode = config.SCREENING_MODE == "evidence_only"
     if prototype_mode and capture_candidate:
         raise HTTPException(status_code=409, detail="Candidate submission is disabled while classifier-based labels are off.")
-    if llm_mode:
-        prediction = {'internal_label':None,'public_label':None,'predicted_class':None,
-                      'confidence':None,'model_score':None,'model_status':'pending',
-                      'model_name':'Google Gemini','model_version':config.GEMINI_MODEL,'linguistic_indicators':{}}
-    elif prototype_mode:
+    if prototype_mode:
         prediction = {
             "internal_label": "Misleading",
             "public_label": "Potentially Misleading",
@@ -498,30 +486,10 @@ def _screen(
     else:
         retrieval = {"retrieval_status": "not_requested", "related_sources": []}
         fact_checks = {"status": "not_requested", "matches": [], "signal": None}
-    primary = None
-    if llm_mode:
-        primary_started = time.perf_counter()
-        primary = classify_claim(analyzed_text, retrieval['related_sources'], grounding=retrieve_sources and config.GEMINI_SEARCH_GROUNDING)
-        inference_ms += (time.perf_counter() - primary_started) * 1000
-        if primary.get('status') != 'classified':
-            code = 422 if primary.get('status') == 'input_too_long' else 429 if primary.get('status') in {'busy','rate_limited'} else 503
-            raise HTTPException(status_code=code, detail='Analysis could not complete ('+primary.get('status','unavailable')+'). No prediction was produced. Please retry.')
-        label = primary['label']
-        prediction.update({'internal_label':label,'public_label':'Potentially Misleading' if label=='Misleading' else 'No Misleading Information Detected',
-                           'predicted_class':1 if label=='Misleading' else 0,'model_status':'ready'})
     features_started = time.perf_counter()
     feature_status = "not_available"
-    if llm_mode:
-        try:
-            linguistic_indicators = describe(measure_text_features(analyzed_text))
-            feature_status = "available"
-        except Exception as exc:
-            logging.warning("Linguistic measurements unavailable (%s).", type(exc).__name__)
-            linguistic_indicators = []
-            feature_status = "unavailable"
-    else:
-        linguistic_indicators = describe(prediction["linguistic_indicators"]) if not prototype_mode else []
-        feature_status = "available" if linguistic_indicators else "not_available"
+    linguistic_indicators = describe(prediction["linguistic_indicators"]) if not prototype_mode else []
+    feature_status = "available" if linguistic_indicators else "not_available"
     inference_ms += (time.perf_counter()-features_started)*1000
     prediction["linguistic_indicators"] = linguistic_indicators
     model_identity = ({
@@ -534,9 +502,6 @@ def _screen(
         "model_predicted_class": None,
     })
     decision = apply_evidence(
-        prediction, retrieval['related_sources'], [], analyzed_text,
-        reader_result={'status':'assessed','provider':'google_gemini','model':config.GEMINI_MODEL,'assessments':primary['assessments']}
-    ) if llm_mode else apply_evidence(
         prediction, retrieval["related_sources"], fact_checks["matches"], analyzed_text
     ) if retrieve_sources and not config.MODEL_AUTHORITATIVE else {
         "internal_label": prediction["internal_label"],
@@ -548,9 +513,6 @@ def _screen(
         "strong_fact_check_matches": [],
         "evidence_assessments": [], "evidence_urls": [], "evidence_adjusted": False,
     }
-    if llm_mode and decision['decision_source'] != 'verified_evidence':
-        decision['decision_source'] = 'gemini_classifier'
-        decision['decision_basis'] = primary['reason_en']
     prediction.update(model_identity)
     prediction["model_confidence"] = prediction["confidence"] if not prototype_mode else None
     prediction["internal_label"] = decision["internal_label"]
@@ -569,7 +531,7 @@ def _screen(
     prediction["final_confidence"] = None
     prediction["score_description"] = (
         "Selected hybrid model score for its Misleading class; not calibrated certainty or proof."
-        if not prototype_mode and not llm_mode else "Gemini primary classification; no calibrated confidence score." if llm_mode else "Classifier disabled in evidence-only prototype mode."
+        if not prototype_mode else "Classifier disabled in evidence-only prototype mode."
     )
     if decision["decision_source"] == "verified_evidence":
         prediction["confidence"] = None
@@ -626,13 +588,7 @@ def _screen(
         "fact_check_matches": decision["strong_fact_check_matches"],
         "decision_source": decision["decision_source"],
         "verification_status": "evidence_assessed" if decision["decision_source"] == "verified_evidence" else "not_verified",
-        "screening_mode": "gemini" if llm_mode else "evidence_only" if prototype_mode else "model",
-        "ai_reported_score": primary.get("self_reported_score") if llm_mode else None,
-        "ai_reported_label": model_identity["model_public_label"] if llm_mode else None,
-        "ai_score_kind": "self_reported_uncalibrated" if llm_mode else None,
-        "classifier_reason_en": primary["reason_en"] if llm_mode else None,
-        "classifier_reason_tl": primary["reason_tl"] if llm_mode else None,
-        "search_grounding": primary["grounding"] if llm_mode else None,
+        "screening_mode": "evidence_only" if prototype_mode else "model",
         "decision_basis": decision["decision_basis"],
         "evidence_reader": decision.get("evidence_reader", {"status": "not_requested"}),
         "evidence_policy": config.EVIDENCE_POLICY,
@@ -653,7 +609,7 @@ def _screen(
         "candidate_sample_id": candidate_id,
         "topic_suggestion": topic_suggestion.to_dict(),
         "evidence_status": "missing" if capture_candidate else "not_captured",
-        "model_scope_notice": "Automated screening can make mistakes; review the exact text and supporting source passages." if llm_mode else config.MODEL_SCOPE_NOTICE,
+        "model_scope_notice": config.MODEL_SCOPE_NOTICE,
         "disclaimer": config.DISCLAIMER,
     }
     try:
@@ -708,10 +664,6 @@ async def _read_upload(file: UploadFile, expected_prefix: str) -> bytes:
 
 
 def _classifier_health():
-    if config.SCREENING_MODE == 'gemini':
-        available=bool(config.GEMINI_ENABLED and config.GEMINI_API_KEY)
-        return {'status':'ready' if available else 'unavailable','mode':'gemini','ready':available,
-                'name':config.GEMINI_MODEL,'hybrid_classifier_active':False,'local_trial':True}
     return {'status':'disabled','mode':'evidence_only'} if config.SCREENING_MODE != 'model' else model_health()
 
 
@@ -724,7 +676,7 @@ def health() -> dict[str, Any]:
         "services": {
             **service_health(),
             "serper": "configured" if config.SERPER_API_KEY else "not_configured",
-            "gemini_evidence": {"enabled": config.GEMINI_ENABLED, "configured": bool(config.GEMINI_API_KEY), "model": config.GEMINI_MODEL, "evidence_policy": config.EVIDENCE_POLICY, "local_trial": config.EVIDENCE_POLICY != "strict"},
+            "local_nli": local_nli.health(),
             "google_fact_check": "configured" if config.GOOGLE_FACT_CHECK_API_KEY else "not_configured",
         },
         "model": model,
@@ -745,7 +697,7 @@ def readiness(response: Response) -> dict[str, Any]:
         response.status_code = 503
     return {"ready": ready, "database": database_status, "model": model,
             "screening_policy": {"model_authoritative": config.MODEL_AUTHORITATIVE,
-                                 "evidence_assistance_enabled": config.SCREENING_MODE == "model" and not config.MODEL_AUTHORITATIVE}}
+                                 "evidence_assistance_enabled": config.SCREENING_MODE == "model" and not config.MODEL_AUTHORITATIVE}, "evidence_reader": local_nli.health()}
 
 
 @app.post("/analyze")
@@ -1075,7 +1027,7 @@ async def analyze_video(
     if not isinstance(post_context, dict):
         post_context = {}
     readable_post_text = normalize_text(post_text or "")
-    if extraction.get("speech_frame_agreement") == "review_required" or extraction.get("transcript_source") == "external_audio":
+    if extraction.get("speech_frame_agreement") == "review_required":
         return _create_video_review_response(
             extraction,
             readable_post_text=readable_post_text,

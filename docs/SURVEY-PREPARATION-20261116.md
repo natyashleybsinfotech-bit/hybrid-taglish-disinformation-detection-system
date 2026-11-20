@@ -1,5 +1,7 @@
 # Survey preparation — 16 November 2026, SuriPH 1.3.43
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 ## Completed
 - Result cards preserve the SuriPH banner, two English labels, short explanation, post context, expandable analysis details, sources, exact text, reminder and check-again flow. Provider branding was removed from result copy; actual Google Gemini / Serper processing remains disclosed in an expandable privacy notice before checking. Internal provider metadata stays truthful for debugging; no claim of a custom trained classifier was substituted.
 - No fabricated model confidence or linguistic measurements were added. Existing model-mode details are unchanged. Unverified predictions remain clearly identified; source availability does not automatically prove a claim.

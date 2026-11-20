@@ -7,7 +7,6 @@ import hashlib
 import json
 import time
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import io
 import math
@@ -21,10 +20,6 @@ from pathlib import Path
 from threading import Lock, Timer
 
 import config
-try:
-    from .gemini_audio import transcribe_audio
-except ImportError:
-    from gemini_audio import transcribe_audio
 
 
 class MediaProcessingError(RuntimeError):
@@ -32,10 +27,10 @@ class MediaProcessingError(RuntimeError):
 
 
 class SpeechServiceError(MediaProcessingError):
-    """A failed provider request is not bad speech and must not become a prediction."""
+    """A speech-engine failure is not bad speech and must not become a prediction."""
     def __init__(self, status):
         self.status = status
-        super().__init__("The audio transcription service could not complete. Please retry.")
+        super().__init__("Local audio transcription could not complete. Please retry after service recovery.")
 
 
 class SpeechQualityError(MediaProcessingError):
@@ -75,7 +70,7 @@ def warm_media_engines():
     started = time.perf_counter()
     state = {}
     loaders = [("image_text", _get_ocr_reader)]
-    if config.SPEECH_PROVIDER == "local": loaders.insert(0, ("speech", _get_whisper_model))
+    loaders.insert(0, ("speech", _get_whisper_model))
     for name, loader in loaders:
         stage = time.perf_counter()
         try:
@@ -91,7 +86,7 @@ def _video_cache_key(video_bytes, suffix, caption_fallback_allowed=False):
                 if name.startswith(("TRANSCRIPT_", "WHISPER_", "OCR_")) and name != "WHISPER_API_KEY"}
     settings.update({"max_frames":config.VIDEO_MAX_FRAMES, "frame_interval":config.VIDEO_FRAME_INTERVAL_SECONDS,
                      "max_seconds":config.VIDEO_MAX_SECONDS, "model_dir":str(config.MEDIA_MODEL_DIR), "suffix":suffix,
-                     "pipeline_revision":"video-extraction-v5-parallel-frame-read", "speech_provider":config.SPEECH_PROVIDER, "gemini_model":config.GEMINI_MODEL, "caption_fallback_allowed":caption_fallback_allowed})
+                     "pipeline_revision":"video-extraction-v6-local-speech", "speech_provider":"local", "caption_fallback_allowed":caption_fallback_allowed})
     digest = hashlib.sha256(json.dumps(settings, sort_keys=True, default=str).encode())
     digest.update(video_bytes)
     return digest.hexdigest()
@@ -376,6 +371,7 @@ def _get_ocr_reader():
                     list(config.OCR_LANGUAGES),
                     gpu=config.OCR_GPU,
                     model_storage_directory=str(config.MEDIA_MODEL_DIR / "easyocr"),
+                    download_enabled=False,
                     verbose=False,
                 )
             except Exception as exc:
@@ -400,6 +396,55 @@ def _prepare_whisper_import() -> None:
         sys.modules["numba"] = module
 
 
+def _transcribe_local(audio, *, caption_fallback_allowed, timings):
+    """One complete local audio path; preserves language/quality/retry gates."""
+    stage = time.perf_counter()
+    model = _get_whisper_model()
+    timings["speech_model_load"] = round((time.perf_counter()-stage)*1000,3)
+    stage = time.perf_counter()
+    language_choice, speech_language_mode = _transcription_language(model, audio)
+    timings["language_detection"] = round((time.perf_counter()-stage)*1000,3)
+    stage = time.perf_counter()
+    options = dict(
+        fp16=False, task="transcribe",
+        condition_on_previous_text=config.WHISPER_ENGINE == "faster-whisper",
+        temperature=0.0,
+        word_timestamps=True, hallucination_silence_threshold=2.0,
+        no_speech_threshold=config.TRANSCRIPT_MAX_NO_SPEECH_PROB,
+        logprob_threshold=config.TRANSCRIPT_MIN_AVG_LOGPROB,
+        compression_ratio_threshold=config.TRANSCRIPT_MAX_COMPRESSION_RATIO,
+    )
+    transcription = model.transcribe(
+        audio, language=language_choice,
+        **options,
+    )
+    if transcription.get("language") not in {"tl", "en", "ceb"}:
+        raise SpeechQualityError(
+            "The video's speech language could not be identified as Filipino or English reliably. "
+            "No prediction was made from this transcript."
+        )
+    try:
+        segments = _speech_segments(transcription)
+    except MediaProcessingError as original_error:
+        # English speech can produce repeated words under a
+        # Filipino hint. Retry once, preserving the actual audio.
+        # Accept only a clean English result; Filipino failures
+        # still return an extraction error.
+        if caption_fallback_allowed:
+            raise
+        if config.WHISPER_ENGINE != "faster-whisper" or language_choice != "tl":
+            raise
+        candidate = model.transcribe(audio, language=None, **options)
+        if candidate.get("language") != "en":
+            raise original_error
+        segments = _speech_segments(candidate)
+        transcription = candidate
+        speech_language_mode = "auto_retry_after_quality_failure"
+    timings["speech_transcription"] = round((time.perf_counter()-stage)*1000,3)
+    speech_language = transcription.get("language")
+    return segments, speech_language, speech_language_mode
+
+
 def _get_whisper_model():
     global _whisper_model
     if _whisper_model is not None:
@@ -412,14 +457,14 @@ def _get_whisper_model():
                     from faster_whisper import WhisperModel
                     _whisper_model = _FasterWhisperAdapter(WhisperModel(
                         config.WHISPER_MODEL_NAME, device="cpu", compute_type="int8",
-                        download_root=str(config.MEDIA_MODEL_DIR / "faster-whisper"),
+                        download_root=str(config.MEDIA_MODEL_DIR / "faster-whisper"), local_files_only=True,
                     ))
                 elif config.WHISPER_ENGINE == "openai-whisper":
                     _prepare_whisper_import()
                     import whisper
                     _whisper_model = whisper.load_model(
-                        config.WHISPER_MODEL_NAME,
-                        download_root=str(config.MEDIA_MODEL_DIR / "whisper"),
+                        str(config.MEDIA_MODEL_DIR / "whisper" / ({'turbo': 'large-v3-turbo', 'large': 'large-v3'}.get(config.WHISPER_MODEL_NAME, config.WHISPER_MODEL_NAME) + ".pt")),
+                        device="cpu",
                     )
                 else:
                     raise ValueError("Unsupported local speech-recognition engine")
@@ -449,7 +494,7 @@ def service_health() -> dict:
         ) else "unavailable",
         "ffmpeg": "available" if ffmpeg_available else "unavailable",
         "speech_provider": config.SPEECH_PROVIDER,
-        "remote_speech_configured": config.SPEECH_PROVIDER == "gemini" and bool(config.GEMINI_ENABLED and config.GEMINI_API_KEY),
+        "remote_speech_configured": False,
         "speech_engine_loaded": _whisper_model is not None,
         "ocr_engine_loaded": _ocr_reader is not None,
         "video_extraction_cache_enabled": config.VIDEO_EXTRACTION_CACHE_ENABLED,
@@ -572,14 +617,6 @@ def _process_video_uncached(video_bytes: bytes, suffix: str = ".mp4", caption_fa
             sample_times[frame.name] = second
         timings["frame_sampling"] = round((time.perf_counter()-stage)*1000,3)
         frames = sorted(temp_dir.glob("frame-*.jpg"))
-        ocr_pool = None
-        ocr_task = None
-        # Remote speech waits on network I/O. Read the same sampled frames in
-        # that interval, while retaining one complete audio transcription.
-        # Local Whisper shares CPU resources with OCR, so keep it sequential.
-        if config.SPEECH_PROVIDER == "gemini":
-            ocr_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="suriph-frame-ocr")
-            ocr_task = ocr_pool.submit(_read_video_frames, frames)
         try:
             import numpy as np
             silent = not len(audio) or float(np.max(np.abs(audio))) <= 0.0001
@@ -587,62 +624,8 @@ def _process_video_uncached(video_bytes: bytes, suffix: str = ".mp4", caption_fa
             speech_language = None
             speech_language_mode = "none"
             if not silent:
-                if config.SPEECH_PROVIDER == "gemini":
-                    stage = time.perf_counter()
-                    response = transcribe_audio(audio_path.read_bytes(), duration)
-                    timings["speech_transcription"] = round((time.perf_counter()-stage)*1000,3)
-                    if response.get("status") in {"unclear", "no_speech"}:
-                        raise SpeechQualityError("The audio could not be transcribed clearly. Compare the original video or use its complete caption.")
-                    if response.get("status") != "transcribed":
-                        raise SpeechServiceError(response.get("status", "unavailable"))
-                    segments = response["segments"]
-                    speech_language = response["language"]
-                    speech_language_mode = "external_audio_chunks"
-                else:
-                    stage = time.perf_counter()
-                    model = _get_whisper_model()
-                    timings["speech_model_load"] = round((time.perf_counter()-stage)*1000,3)
-                    stage = time.perf_counter()
-                    language_choice, speech_language_mode = _transcription_language(model, audio)
-                    timings["language_detection"] = round((time.perf_counter()-stage)*1000,3)
-                    stage = time.perf_counter()
-                    options = dict(
-                        fp16=False, task="transcribe",
-                        condition_on_previous_text=config.WHISPER_ENGINE == "faster-whisper",
-                        temperature=0.0,
-                        word_timestamps=True, hallucination_silence_threshold=2.0,
-                        no_speech_threshold=config.TRANSCRIPT_MAX_NO_SPEECH_PROB,
-                        logprob_threshold=config.TRANSCRIPT_MIN_AVG_LOGPROB,
-                        compression_ratio_threshold=config.TRANSCRIPT_MAX_COMPRESSION_RATIO,
-                    )
-                    transcription = model.transcribe(
-                        audio, language=language_choice,
-                        **options,
-                    )
-                    if transcription.get("language") not in {"tl", "en", "ceb"}:
-                        raise SpeechQualityError(
-                            "The video's speech language could not be identified as Filipino or English reliably. "
-                            "No prediction was made from this transcript."
-                        )
-                    try:
-                        segments = _speech_segments(transcription)
-                    except MediaProcessingError as original_error:
-                        # English speech can produce repeated words under a
-                        # Filipino hint. Retry once, preserving the actual audio.
-                        # Accept only a clean English result; Filipino failures
-                        # still return an extraction error.
-                        if caption_fallback_allowed:
-                            raise
-                        if config.WHISPER_ENGINE != "faster-whisper" or language_choice != "tl":
-                            raise
-                        candidate = model.transcribe(audio, language=None, **options)
-                        if candidate.get("language") != "en":
-                            raise original_error
-                        segments = _speech_segments(candidate)
-                        transcription = candidate
-                        speech_language_mode = "auto_retry_after_quality_failure"
-                    timings["speech_transcription"] = round((time.perf_counter()-stage)*1000,3)
-                    speech_language = transcription.get("language")
+                segments, speech_language, speech_language_mode = _transcribe_local(
+                    audio, caption_fallback_allowed=caption_fallback_allowed, timings=timings)
             transcript_parts = _normalize_parts([segment["text"] for segment in segments])
             if not silent and not transcript_parts:
                 raise SpeechQualityError("No reliable speech was extracted from the video's audible track. No prediction was made from frame text alone.")
@@ -650,14 +633,7 @@ def _process_video_uncached(video_bytes: bytes, suffix: str = ".mp4", caption_fa
             raise
         except Exception as exc:
             raise MediaProcessingError("Whisper could not transcribe the video audio.") from exc
-        finally:
-            if ocr_pool:
-                wait_started = time.perf_counter()
-                # Join before temporary files are removed, including errors.
-                ocr_pool.shutdown(wait=True, cancel_futures=True)
-                timings["frame_ocr_wait_after_speech"] = round((time.perf_counter()-wait_started)*1000,3)
-
-        readings, ocr_ms = ocr_task.result() if ocr_task else _read_video_frames(frames)
+        readings, ocr_ms = _read_video_frames(frames)
         stage = time.perf_counter()
         frame_parts: list[str] = []
         frame_regions: list[dict] = []
@@ -711,8 +687,8 @@ def _process_video_uncached(video_bytes: bytes, suffix: str = ".mp4", caption_fa
             "transcript_status": "completed" if transcript_parts else "no_reliable_speech",
             "speech_language": speech_language,
             "speech_language_mode": speech_language_mode,
-            "transcript_source": "external_audio" if config.SPEECH_PROVIDER == "gemini" else "local_whisper",
-            "timestamp_basis": "server_audio_chunks" if config.SPEECH_PROVIDER == "gemini" else "decoder_segments",
+            "transcript_source": "local_whisper",
+            "timestamp_basis": "decoder_segments",
             "speech_frame_agreement": "word_overlap" if frame_agreement else "review_required",
             "frame_ocr_included": frame_ocr_included,
             "discarded_ocr_detections": discarded_ocr,

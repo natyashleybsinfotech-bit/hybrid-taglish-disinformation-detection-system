@@ -1,5 +1,7 @@
 # General evidence-gate audit — 16 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 Status: **not a claim of survey/deployment readiness**. The current Mariah Deborah Facebook failure has not been reproduced because the exact submitted text and returned quotation were not available in the attachments. The screenshot proves that the deterministic post-LLM guard rejected an assessment, but does not reveal which material anchor was rejected. No Mariah-specific label override was added.
 
 The user's concern is valid: a successful replay of one post does not establish reliability on subsequent posts. The previous ASEAN replay remains a single integration case.

@@ -1,5 +1,7 @@
 # Local semantic trial activation — 16 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 The comparison candidate is now enabled **locally** as `SURI_EVIDENCE_POLICY=semantic_single_source_trial`. It is blocked by production configuration validation. The deployment/survey is not certified ready by this trial.
 
 The default policy in code remains `strict`; the local private setting selects the trial. Two public labels remain. A server-validated full-claim supporting or contradicting trusted source can determine the result if there is no eligible credible conflict. Missing, unavailable, invalid or insufficient evidence retains the original model as unverified, as previously requested by the user. A related article alone cannot change the result.

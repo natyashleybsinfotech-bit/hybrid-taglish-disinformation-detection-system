@@ -5,9 +5,9 @@ import re
 from urllib.parse import urlparse
 import config
 try:
-    from .gemini_evidence import assess_claim
+    from . import local_nli
 except ImportError:
-    from gemini_evidence import assess_claim
+    import local_nli
 
 
 try:
@@ -198,6 +198,23 @@ def _material_locations(value: str) -> set[str]:
     return {aliases.get(match.casefold(), match.casefold()) for match in phrases}
 
 
+def _named_actor_anchors(value: str) -> set[str]:
+    """Preserve explicit multiword names even without a title such as Senator.
+
+    These are conservative text anchors, not a claim to perform complete NER.
+    An article about another person must not satisfy a semantic support check.
+    """
+    matches = re.findall(r"\b[A-Z][a-z]+(?:\s+(?:(?:de|del|dela|of|the)\s+)?[A-Z][a-z]+){1,4}\b", value)
+    anchors = set()
+    for match in matches:
+        words = _words(match)
+        while words and words[0] in {'the', 'ang', 'sa', 'si', 'ayon', 'look', 'president', 'senator', 'dr'}:
+            words.pop(0)
+        if len(words) >= 2:
+            anchors.add(' '.join(words))
+    return anchors
+
+
 def _material_support(claim: str, body: str) -> tuple[str, str]:
     """Find a bounded direct article assertion with matching material anchors.
 
@@ -282,7 +299,7 @@ def _material_support(claim: str, body: str) -> tuple[str, str]:
     return "related", "The readable article did not establish every material action, person, place, date, number and qualification in the claim."
 
 
-def _article_relation(claim: str, body: str) -> tuple[str, str]:
+def _article_relation(claim: str, body: str, *, allow_nli: bool = True) -> tuple[str, str]:
     """Require a direct prose assertion, including all numbers and qualifiers."""
     claim_words = _words(claim)
     if len(claim_words) < 5 or len(claim_words) > 90:
@@ -324,11 +341,14 @@ def _article_relation(claim: str, body: str) -> tuple[str, str]:
         if any(re.search(r"\b" + cue + r"\b", joined) for cue in ("false", "fake", "misleading", "untrue", "incorrect", "debunked", "mali", "peke", "huwad")):
             continue
         return "supports", sentence
-    return _material_support(claim, body)
+    relationship, passage = _material_support(claim, body)
+    if relationship == "supports" or not allow_nli:
+        return relationship, passage
+    return local_nli.assess_relation(claim, body)
 
 
 def _headline_has_body_corroboration(claim: str, title: str, body: str) -> bool:
-    headline_relation, _ = _article_relation(claim, title)
+    headline_relation, _ = _article_relation(claim, title, allow_nli=False)
     if headline_relation != "supports":
         return False
     claim_text = _without_post_metadata_dates(claim)
@@ -394,7 +414,7 @@ def _assess_readable_claim(claim: str, body: str) -> tuple[str, str]:
         observed = {relationship}
         # Do not let an early assertion hide an explicit correction later on.
         for sentence in _sentences(body):
-            sentence_relation, _ = _article_relation(part, sentence)
+            sentence_relation, _ = _article_relation(part, sentence, allow_nli=False)
             if sentence_relation in {"supports", "contradicts"}:
                 observed.add(sentence_relation)
         if relationship == 'supports' and re.search(
@@ -436,54 +456,49 @@ def _direct_photo_reports(assessments, sources, claim, reader):
     return matches
 
 
-def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_check_matches: list[dict], claim: str = "", *, reader_result=None) -> dict:
-    reader = reader_result if reader_result is not None else assess_claim(claim, related_sources) if config.GEMINI_ENABLED else {"status": "disabled", "assessments": []}
-    semantic = {item["url"]: item for item in reader["assessments"]}
+def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_check_matches: list[dict], claim: str = "") -> dict:
+    # Only article text supplied by the reader is eligible; no external inference.
+    reader = local_nli.health()
+    reader["model_status"] = reader["status"]
+    reader["status"] = "assessed" if any(s.get("content_status") == "readable" and s.get("article_text") for s in related_sources) else "no_readable_sources"
     assessments = []
     for source in related_sources:
         body = source.get("article_text", "") if source.get("content_status") == "readable" else ""
-        semantic_item = semantic.get(source.get("url"), {})
+        relationship, reason = _assess_readable_claim(claim, body) if body and claim else ("unverified", "The full article could not be assessed.")
+        excerpt = reason if relationship in {"supports", "contradicts"} else ""
+        # A locally supplied passage must be an actual article substring (or a
+        # concatenation of complete checked sentences), never invented text.
+        eligible = bool(excerpt) and all(" ".join(part.split()) in " ".join(body.split()) for part in excerpt.splitlines())
         validation_issues = []
-        reason_tl = semantic_item.get("reason_tl", "")
-        if config.GEMINI_ENABLED:
-            relationship = semantic_item.get("relationship", "unverified")
-            reason = semantic_item.get("reason", "This source could not be assessed and was not used to change the label.")
-            excerpt = semantic_item.get("evidence_excerpt", "")
-            eligible = bool(semantic_item.get("decision_eligible"))
-            if eligible:
-                # A source ID and literal quote are necessary but do not excuse
-                # obvious changed quantities, explicit dates, people or places.
-                clean_claim = _without_post_metadata_dates(claim)
-                # A delimited terminal newsroom credit is not an event actor.
-                clean_claim = re.sub(r"\s*\|\s*via\s+[A-Z][\w.-]*(?:\s+[A-Z][\w.-]*){0,3}(?:,\s*[A-Z][\w.& -]{1,60})?\s*$", "", clean_claim)
-                checks = [('person', _person_entity_anchors(clean_claim) <= _person_entity_anchors(excerpt))]
-                if relationship == 'supports':
-                    checks.extend([
-                        ('quantity', _material_numbers(clean_claim) <= _material_numbers(excerpt)),
-                        ('amount', _peso_amounts(clean_claim) <= _peso_amounts(excerpt)),
-                        ('event_date', _explicit_event_dates(clean_claim) <= _explicit_event_dates(excerpt)),
-                        ('event_year', _explicit_event_years(clean_claim) <= _explicit_event_years(excerpt)),
-                        ('location', _material_locations(clean_claim) <= _material_locations(excerpt)),
-                    ])
-                validation_issues = [name for name, matched in checks if not matched]
-                if validation_issues:
-                    eligible = False
-                    relationship = 'related'
-                    labels = {'person':('named people','mga pangalan'), 'quantity':('quantities','mga bilang'),
-                              'amount':('amounts','mga halaga'), 'event_date':('event dates','mga petsa ng pangyayari'),
-                              'event_year':('event years','mga taon ng pangyayari'), 'location':('locations','mga lugar')}
-                    reason = 'The quoted passage did not confirm all submitted ' + ', '.join(labels[key][0] for key in validation_issues) + '. It was not used to change the label.'
-                    reason_tl = 'Hindi nakumpirma ng sipi ang lahat ng ' + ', '.join(labels[key][1] for key in validation_issues) + ' sa teksto. Hindi ito ginamit para baguhin ang label.'
-        else:
-            relationship, reason = _assess_readable_claim(claim, body) if body and claim else ("unverified", "The full article could not be assessed.")
-            excerpt = reason if relationship in {"supports", "contradicts"} else ""
-            eligible = bool(excerpt)
+        reason_tl = ""
+        if eligible:
+            clean_claim = _without_post_metadata_dates(claim)
+            clean_claim = re.sub(r"\s*\|\s*via\s+[A-Z][\w.-]*(?:\s+[A-Z][\w.-]*){0,3}(?:,\s*[A-Z][\w.& -]{1,60})?\s*$", "", clean_claim)
+            checks = [('person', _person_entity_anchors(clean_claim) <= _person_entity_anchors(excerpt)
+                       and all(name in ' '.join(_words(excerpt)) for name in _named_actor_anchors(clean_claim)))]
+            if relationship == 'supports':
+                checks.extend([
+                    ('quantity', _material_numbers(clean_claim) <= _material_numbers(excerpt)),
+                    ('amount', _peso_amounts(clean_claim) <= _peso_amounts(excerpt)),
+                    ('event_date', _explicit_event_dates(clean_claim) <= _explicit_event_dates(excerpt)),
+                    ('event_year', _explicit_event_years(clean_claim) <= _explicit_event_years(excerpt)),
+                    ('location', _material_locations(clean_claim) <= _material_locations(excerpt)),
+                ])
+            else:
+                # Different events/dates alone are not a debunk of this event.
+                checks.extend([('event_date', _explicit_event_dates(clean_claim) <= _explicit_event_dates(excerpt)),
+                               ('event_year', _explicit_event_years(clean_claim) <= _explicit_event_years(excerpt))])
+            validation_issues = [key for key, ok in checks if not ok]
+            if validation_issues:
+                eligible = False
+                relationship = 'related'
+                reason = 'The passage did not preserve the material anchors: ' + ', '.join(validation_issues) + '.'
         # Relative dates need a resolved post-time comparison. Do not treat
         # "next week" in an undated/older article as the same real event.
         if re.search(r"\b(?:today|tomorrow|yesterday|tonight|(?:next|last|this|coming)\s+(?:week|month|year)|bukas|kahapon|ngayon|mamaya)\b", claim, re.I):
             eligible = False
             reason = "Relative event timing has not been aligned with the post date; this source cannot change the label."
-        if (not config.GEMINI_ENABLED and relationship == "related" and body and claim
+        if (relationship == "related" and body and claim
                 and _headline_has_body_corroboration(claim, source.get("title", ""), body)):
             relationship = "supports"
             reason = "The publisher headline states the complete claim, and the readable article body corroborates its material details."
@@ -493,6 +508,10 @@ def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_che
         assessments.append({"url": source.get("url"), "relationship": relationship, "reason": reason,
                             "evidence_excerpt": excerpt, "decision_eligible": eligible,
                             "reason_tl": reason_tl, "validation_issues": validation_issues})
+    # Loading may have occurred during fallback inference; report its final state.
+    current_reader = local_nli.health()
+    reader["model_status"] = current_reader["status"]
+    reader["loaded"] = current_reader["loaded"]
     supports = [item for item in assessments if item["relationship"] == "supports" and item["decision_eligible"]]
     contradicts = [item for item in assessments if item["relationship"] == "contradicts" and item["decision_eligible"]]
     independent_supports = _independent_trusted_sources(supports, related_sources)
@@ -549,8 +568,8 @@ def apply_evidence(model_prediction: dict, related_sources: list[dict], fact_che
         "decision_basis": basis, "evidence_relationship": relationship,
         "evidence_rule": evidence_rule, "evidence_policy": config.EVIDENCE_POLICY,
         "evidence_reader": {key: value for key, value in reader.items() if key != "assessments"},
-        "evidence_explanation_en": " ".join(dict.fromkeys(item["reason"] for item in chosen))[:1500] if config.GEMINI_ENABLED else "",
-        "evidence_explanation_tl": " ".join(dict.fromkeys(item.get("reason_tl", "") for item in chosen))[:1500] if config.GEMINI_ENABLED else "",
+        "evidence_explanation_en": " ".join(dict.fromkeys(item["reason"] for item in chosen))[:1500],
+        "evidence_explanation_tl": " ".join(dict.fromkeys(item.get("reason_tl", "") for item in chosen))[:1500],
         "supporting_source_count": len(credible_supports), "strong_fact_check_matches": [],
         "evidence_assessments": assessments,
         "evidence_urls": [item["url"] for item in chosen],

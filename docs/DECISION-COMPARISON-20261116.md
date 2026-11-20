@@ -1,5 +1,7 @@
 # SuriPH decision-flow comparison — 16 November 2026
 
+> Historical record: the later 20 November local-model migration supersedes any active Gemini/cloud-provider description and cloud timings below. See [current source](CURRENT-SOURCE-20261120.md) and [removal record](GEMINI-REMOVAL-20261120.md). Older results remain preserved as historical evidence.
+
 This is a nine-case diagnostic smoke comparison, not independent human-adjudicated real-world accuracy. Reference labels were fixed from public CDC, GMA and Manila Times pages. Three deliberately negated controls are constructed test claims, not claimed real Facebook posts. Only the ASEAN input is the exact caption supplied by the user. The Mariah inputs are source-backed paraphrases; the original failed caption is still unavailable.
 
 The existing 24-case human evaluation batch was audited: 0/24 cases had adjudicated evidence-backed labels. It was not represented as completed evaluation.

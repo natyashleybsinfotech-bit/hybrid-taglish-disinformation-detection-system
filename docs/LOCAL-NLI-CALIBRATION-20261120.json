@@ -1,0 +1,2538 @@
+{
+  "purpose": "Small authored synthetic calibration, not factual accuracy validation or a representative Taglish benchmark",
+  "model_revision": "8adb042d524ecd5c26d3e3ba0e3fbcf7e2d0864c",
+  "fixture_sha256": "3f6eeca31b859e1d05276c2f9a96759b9cb3b260d75856253890aaa66a73b4e6",
+  "selection_rule": "Maximize accepted correct calibration relations with zero wrong accepted relations; tie chooses higher threshold. Audit is never used for selection.",
+  "thresholds": {
+    "entailment": 0.998,
+    "contradiction": 0.999
+  },
+  "calibration": {
+    "n": 72,
+    "confusion": {
+      "supports": {
+        "supports": 12,
+        "contradicts": 0,
+        "related": 12
+      },
+      "contradicts": {
+        "supports": 0,
+        "contradicts": 8,
+        "related": 16
+      },
+      "related": {
+        "supports": 0,
+        "contradicts": 0,
+        "related": 24
+      }
+    },
+    "accuracy": 0.6111111111111112
+  },
+  "audit": {
+    "n": 36,
+    "confusion": {
+      "supports": {
+        "supports": 5,
+        "contradicts": 0,
+        "related": 7
+      },
+      "contradicts": {
+        "supports": 0,
+        "contradicts": 1,
+        "related": 11
+      },
+      "related": {
+        "supports": 0,
+        "contradicts": 0,
+        "related": 12
+      }
+    },
+    "accuracy": 0.5
+  },
+  "audit_by_language": {
+    "en": {
+      "n": 12,
+      "confusion": {
+        "supports": {
+          "supports": 0,
+          "contradicts": 0,
+          "related": 4
+        },
+        "contradicts": {
+          "supports": 0,
+          "contradicts": 1,
+          "related": 3
+        },
+        "related": {
+          "supports": 0,
+          "contradicts": 0,
+          "related": 4
+        }
+      },
+      "accuracy": 0.4166666666666667
+    },
+    "tl": {
+      "n": 12,
+      "confusion": {
+        "supports": {
+          "supports": 3,
+          "contradicts": 0,
+          "related": 1
+        },
+        "contradicts": {
+          "supports": 0,
+          "contradicts": 0,
+          "related": 4
+        },
+        "related": {
+          "supports": 0,
+          "contradicts": 0,
+          "related": 4
+        }
+      },
+      "accuracy": 0.5833333333333334
+    },
+    "taglish": {
+      "n": 12,
+      "confusion": {
+        "supports": {
+          "supports": 2,
+          "contradicts": 0,
+          "related": 2
+        },
+        "contradicts": {
+          "supports": 0,
+          "contradicts": 0,
+          "related": 4
+        },
+        "related": {
+          "supports": 0,
+          "contradicts": 0,
+          "related": 4
+        }
+      },
+      "accuracy": 0.5
+    }
+  },
+  "elapsed_seconds": 0.005,
+  "sweep": {
+    "entailment": [
+      {
+        "threshold": 0.7,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.705,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.71,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.715,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.72,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.725,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.73,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.735,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.74,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.745,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.75,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.755,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.76,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.765,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.77,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.775,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.78,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.785,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.79,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.795,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.8,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.805,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.81,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.815,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.82,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.825,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.83,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.835,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.84,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.845,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.85,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.855,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.86,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.865,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.87,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.875,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.88,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.885,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.89,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.895,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.9,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.905,
+        "tp": 23,
+        "fp": 6,
+        "precision": 0.7931034482758621
+      },
+      {
+        "threshold": 0.91,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.915,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.92,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.925,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.93,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.935,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.94,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.945,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.95,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.955,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.96,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.965,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.97,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.975,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.98,
+        "tp": 23,
+        "fp": 5,
+        "precision": 0.8214285714285714
+      },
+      {
+        "threshold": 0.985,
+        "tp": 22,
+        "fp": 5,
+        "precision": 0.8148148148148148
+      },
+      {
+        "threshold": 0.99,
+        "tp": 22,
+        "fp": 4,
+        "precision": 0.8461538461538461
+      },
+      {
+        "threshold": 0.995,
+        "tp": 17,
+        "fp": 4,
+        "precision": 0.8095238095238095
+      },
+      {
+        "threshold": 0.996,
+        "tp": 16,
+        "fp": 4,
+        "precision": 0.8
+      },
+      {
+        "threshold": 0.997,
+        "tp": 12,
+        "fp": 3,
+        "precision": 0.8
+      },
+      {
+        "threshold": 0.998,
+        "tp": 12,
+        "fp": 0,
+        "precision": 1.0
+      },
+      {
+        "threshold": 0.999,
+        "tp": 3,
+        "fp": 0,
+        "precision": 1.0
+      },
+      {
+        "threshold": 0.9995,
+        "tp": 0,
+        "fp": 0,
+        "precision": null
+      },
+      {
+        "threshold": 0.9999,
+        "tp": 0,
+        "fp": 0,
+        "precision": null
+      }
+    ],
+    "contradiction": [
+      {
+        "threshold": 0.7,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.705,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.71,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.715,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.72,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.725,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.73,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.735,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.74,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.745,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.75,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.755,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.76,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.765,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.77,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.775,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.78,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.785,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.79,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.795,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.8,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.805,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.81,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.815,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.82,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.825,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.83,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.835,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.84,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.845,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.85,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.855,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.86,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.865,
+        "tp": 18,
+        "fp": 12,
+        "precision": 0.6
+      },
+      {
+        "threshold": 0.87,
+        "tp": 18,
+        "fp": 11,
+        "precision": 0.6206896551724138
+      },
+      {
+        "threshold": 0.875,
+        "tp": 18,
+        "fp": 11,
+        "precision": 0.6206896551724138
+      },
+      {
+        "threshold": 0.88,
+        "tp": 18,
+        "fp": 11,
+        "precision": 0.6206896551724138
+      },
+      {
+        "threshold": 0.885,
+        "tp": 18,
+        "fp": 11,
+        "precision": 0.6206896551724138
+      },
+      {
+        "threshold": 0.89,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.895,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.9,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.905,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.91,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.915,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.92,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.925,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.93,
+        "tp": 18,
+        "fp": 10,
+        "precision": 0.6428571428571429
+      },
+      {
+        "threshold": 0.935,
+        "tp": 18,
+        "fp": 9,
+        "precision": 0.6666666666666666
+      },
+      {
+        "threshold": 0.94,
+        "tp": 18,
+        "fp": 9,
+        "precision": 0.6666666666666666
+      },
+      {
+        "threshold": 0.945,
+        "tp": 18,
+        "fp": 9,
+        "precision": 0.6666666666666666
+      },
+      {
+        "threshold": 0.95,
+        "tp": 18,
+        "fp": 9,
+        "precision": 0.6666666666666666
+      },
+      {
+        "threshold": 0.955,
+        "tp": 18,
+        "fp": 9,
+        "precision": 0.6666666666666666
+      },
+      {
+        "threshold": 0.96,
+        "tp": 18,
+        "fp": 8,
+        "precision": 0.6923076923076923
+      },
+      {
+        "threshold": 0.965,
+        "tp": 18,
+        "fp": 8,
+        "precision": 0.6923076923076923
+      },
+      {
+        "threshold": 0.97,
+        "tp": 18,
+        "fp": 6,
+        "precision": 0.75
+      },
+      {
+        "threshold": 0.975,
+        "tp": 18,
+        "fp": 5,
+        "precision": 0.782608695652174
+      },
+      {
+        "threshold": 0.98,
+        "tp": 17,
+        "fp": 4,
+        "precision": 0.8095238095238095
+      },
+      {
+        "threshold": 0.985,
+        "tp": 17,
+        "fp": 4,
+        "precision": 0.8095238095238095
+      },
+      {
+        "threshold": 0.99,
+        "tp": 16,
+        "fp": 4,
+        "precision": 0.8
+      },
+      {
+        "threshold": 0.995,
+        "tp": 16,
+        "fp": 3,
+        "precision": 0.8421052631578947
+      },
+      {
+        "threshold": 0.996,
+        "tp": 16,
+        "fp": 3,
+        "precision": 0.8421052631578947
+      },
+      {
+        "threshold": 0.997,
+        "tp": 15,
+        "fp": 2,
+        "precision": 0.8823529411764706
+      },
+      {
+        "threshold": 0.998,
+        "tp": 12,
+        "fp": 1,
+        "precision": 0.9230769230769231
+      },
+      {
+        "threshold": 0.999,
+        "tp": 8,
+        "fp": 0,
+        "precision": 1.0
+      },
+      {
+        "threshold": 0.9995,
+        "tp": 0,
+        "fp": 0,
+        "precision": null
+      },
+      {
+        "threshold": 0.9999,
+        "tp": 0,
+        "fp": 0,
+        "precision": null
+      }
+    ]
+  },
+  "rows": [
+    {
+      "id": "nli-01-supports",
+      "group": "scenario-01",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Mara and Paolo Reyes announced a pregnancy.",
+      "article_excerpt": "Mara and Paolo Reyes announced that they are expecting a child.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9823712110519409,
+        "neutral": 0.016172097995877266,
+        "contradiction": 0.0014567135367542505
+      }
+    },
+    {
+      "id": "nli-01-contradicts",
+      "group": "scenario-01",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Mara and Paolo Reyes announced a pregnancy.",
+      "article_excerpt": "Mara and Paolo Reyes announced that they are not expecting a child.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9899333119392395,
+        "neutral": 0.007028403226286173,
+        "entailment": 0.0030382818076759577
+      }
+    },
+    {
+      "id": "nli-01-related",
+      "group": "scenario-01",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Mara and Paolo Reyes announced a pregnancy.",
+      "article_excerpt": "Mara and Paolo Reyes attended a music festival.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9929237365722656,
+        "neutral": 0.006571718491613865,
+        "entailment": 0.000504597439430654
+      }
+    },
+    {
+      "id": "nli-02-supports",
+      "group": "scenario-02",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The city opened three schools in Manila.",
+      "article_excerpt": "Three new schools were opened by the city in Manila.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9981042146682739,
+        "neutral": 0.0017473192419856787,
+        "contradiction": 0.00014845111581962556
+      }
+    },
+    {
+      "id": "nli-02-contradicts",
+      "group": "scenario-02",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The city opened three schools in Manila.",
+      "article_excerpt": "The city did not open any schools in Manila.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9990160465240479,
+        "neutral": 0.000788827077485621,
+        "entailment": 0.00019514655286911875
+      }
+    },
+    {
+      "id": "nli-02-related",
+      "group": "scenario-02",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The city opened three schools in Manila.",
+      "article_excerpt": "The city opened a public library in Manila.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.934150218963623,
+        "neutral": 0.06424200534820557,
+        "entailment": 0.0016077563632279634
+      }
+    },
+    {
+      "id": "nli-03-supports",
+      "group": "scenario-03",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The airport opened on November 20, 2026.",
+      "article_excerpt": "The airport began operations on November 20, 2026.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9929326772689819,
+        "neutral": 0.006647791713476181,
+        "contradiction": 0.0004195190849713981
+      }
+    },
+    {
+      "id": "nli-03-contradicts",
+      "group": "scenario-03",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The airport opened on November 20, 2026.",
+      "article_excerpt": "The airport remained closed on November 20, 2026.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.997244119644165,
+        "entailment": 0.0015668298583477736,
+        "neutral": 0.0011890963651239872
+      }
+    },
+    {
+      "id": "nli-03-related",
+      "group": "scenario-03",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The airport opened on November 20, 2026.",
+      "article_excerpt": "A meeting about the airport was held on November 20, 2026.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.6056905388832092,
+        "neutral": 0.3422967493534088,
+        "entailment": 0.05201275274157524
+      }
+    },
+    {
+      "id": "nli-04-supports",
+      "group": "scenario-04",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The clinic offers free vaccination.",
+      "article_excerpt": "Patients can receive vaccinations at the clinic without paying.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9910983443260193,
+        "neutral": 0.00849689170718193,
+        "contradiction": 0.00040471742977388203
+      }
+    },
+    {
+      "id": "nli-04-contradicts",
+      "group": "scenario-04",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The clinic offers free vaccination.",
+      "article_excerpt": "The clinic does not offer vaccination.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9969906806945801,
+        "neutral": 0.002734723035246134,
+        "entailment": 0.0002745438541751355
+      }
+    },
+    {
+      "id": "nli-04-related",
+      "group": "scenario-04",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The clinic offers free vaccination.",
+      "article_excerpt": "The clinic offers free eye examinations.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9687404036521912,
+        "neutral": 0.029181329533457756,
+        "entailment": 0.002078309189528227
+      }
+    },
+    {
+      "id": "nli-05-supports",
+      "group": "scenario-05",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The city approved a salary increase.",
+      "article_excerpt": "The city formally approved higher salaries.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9966790676116943,
+        "neutral": 0.003154120407998562,
+        "contradiction": 0.00016682477144058794
+      }
+    },
+    {
+      "id": "nli-05-contradicts",
+      "group": "scenario-05",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The city approved a salary increase.",
+      "article_excerpt": "The city rejected the proposed salary increase.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9990319013595581,
+        "entailment": 0.0005167620838619769,
+        "neutral": 0.00045130448415875435
+      }
+    },
+    {
+      "id": "nli-05-related",
+      "group": "scenario-05",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The city approved a salary increase.",
+      "article_excerpt": "A group requested higher salaries from the city.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.9171203374862671,
+        "contradiction": 0.06779589504003525,
+        "entailment": 0.015083813108503819
+      }
+    },
+    {
+      "id": "nli-06-supports",
+      "group": "scenario-06",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The bridge is closed to traffic.",
+      "article_excerpt": "Vehicles cannot use the bridge because it is closed.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9937625527381897,
+        "neutral": 0.005977696739137173,
+        "contradiction": 0.0002598454593680799
+      }
+    },
+    {
+      "id": "nli-06-contradicts",
+      "group": "scenario-06",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The bridge is closed to traffic.",
+      "article_excerpt": "The bridge is open to traffic.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9992584586143494,
+        "entailment": 0.00042640938772819936,
+        "neutral": 0.00031511817360296845
+      }
+    },
+    {
+      "id": "nli-06-related",
+      "group": "scenario-06",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The bridge is closed to traffic.",
+      "article_excerpt": "The bridge has been painted blue.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.8934588432312012,
+        "contradiction": 0.09846549481153488,
+        "entailment": 0.008075646124780178
+      }
+    },
+    {
+      "id": "nli-07-supports",
+      "group": "scenario-07",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Manila is the capital of the Philippines.",
+      "article_excerpt": "The capital city of the Philippines is Manila.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9966901540756226,
+        "neutral": 0.0031241539400070906,
+        "contradiction": 0.00018568377709016204
+      }
+    },
+    {
+      "id": "nli-07-contradicts",
+      "group": "scenario-07",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Manila is the capital of the Philippines.",
+      "article_excerpt": "Manila is not the capital of the Philippines.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9987879395484924,
+        "neutral": 0.000710057036485523,
+        "entailment": 0.0005020140088163316
+      }
+    },
+    {
+      "id": "nli-07-related",
+      "group": "scenario-07",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Manila is the capital of the Philippines.",
+      "article_excerpt": "Manila is a city in the Philippines.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.9926759600639343,
+        "entailment": 0.006043456960469484,
+        "contradiction": 0.0012805795995518565
+      }
+    },
+    {
+      "id": "nli-08-supports",
+      "group": "scenario-08",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The museum admits visitors on Mondays.",
+      "article_excerpt": "Visitors are allowed to enter the museum every Monday.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9960000514984131,
+        "neutral": 0.003680524881929159,
+        "contradiction": 0.0003194627643097192
+      }
+    },
+    {
+      "id": "nli-08-contradicts",
+      "group": "scenario-08",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The museum admits visitors on Mondays.",
+      "article_excerpt": "The museum does not admit visitors on Mondays.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9972700476646423,
+        "entailment": 0.0015164950164034963,
+        "neutral": 0.0012134024873375893
+      }
+    },
+    {
+      "id": "nli-08-related",
+      "group": "scenario-08",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The museum admits visitors on Mondays.",
+      "article_excerpt": "The museum has a new exhibit about Mondays.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.6078569293022156,
+        "entailment": 0.3804093897342682,
+        "contradiction": 0.01173369400203228
+      }
+    },
+    {
+      "id": "nli-09-supports",
+      "group": "scenario-09",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Nagbukas ang lungsod ng bagong ospital.",
+      "article_excerpt": "Binuksan ng lungsod ang isang bagong ospital.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9991426467895508,
+        "neutral": 0.0006668377318419516,
+        "contradiction": 0.0001904464152175933
+      }
+    },
+    {
+      "id": "nli-09-contradicts",
+      "group": "scenario-09",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Nagbukas ang lungsod ng bagong ospital.",
+      "article_excerpt": "Hindi nagbukas ang lungsod ng bagong ospital.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9987207055091858,
+        "entailment": 0.0007060871575959027,
+        "neutral": 0.000573200115468353
+      }
+    },
+    {
+      "id": "nli-09-related",
+      "group": "scenario-09",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Nagbukas ang lungsod ng bagong ospital.",
+      "article_excerpt": "Nagpulong ang lungsod tungkol sa planong ospital.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9969018697738647,
+        "neutral": 0.0027673589065670967,
+        "contradiction": 0.00033083558082580566
+      }
+    },
+    {
+      "id": "nli-10-supports",
+      "group": "scenario-10",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Walang pasok sa paaralan sa Lunes.",
+      "article_excerpt": "Suspendido ang klase sa paaralan sa Lunes.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9991238713264465,
+        "neutral": 0.0006802209536544979,
+        "contradiction": 0.0001959494111360982
+      }
+    },
+    {
+      "id": "nli-10-contradicts",
+      "group": "scenario-10",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Walang pasok sa paaralan sa Lunes.",
+      "article_excerpt": "May pasok sa paaralan sa Lunes.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9994093179702759,
+        "neutral": 0.0003593888250179589,
+        "entailment": 0.0002313553268322721
+      }
+    },
+    {
+      "id": "nli-10-related",
+      "group": "scenario-10",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Walang pasok sa paaralan sa Lunes.",
+      "article_excerpt": "Nagkaroon ng pagpupulong sa paaralan noong Biyernes.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9788306355476379,
+        "neutral": 0.011806697584688663,
+        "entailment": 0.009362665005028248
+      }
+    },
+    {
+      "id": "nli-11-supports",
+      "group": "scenario-11",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Libre ang sakay sa bus.",
+      "article_excerpt": "Walang babayarang pamasahe ang sasakay sa bus.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9967490434646606,
+        "neutral": 0.002838730113580823,
+        "contradiction": 0.00041217912803404033
+      }
+    },
+    {
+      "id": "nli-11-contradicts",
+      "group": "scenario-11",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Libre ang sakay sa bus.",
+      "article_excerpt": "May bayad ang pagsakay sa bus.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9992290735244751,
+        "entailment": 0.0004916904726997018,
+        "neutral": 0.00027929432690143585
+      }
+    },
+    {
+      "id": "nli-11-related",
+      "group": "scenario-11",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Libre ang sakay sa bus.",
+      "article_excerpt": "Bago ang kulay ng bus.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9694395661354065,
+        "neutral": 0.021976009011268616,
+        "entailment": 0.008584418334066868
+      }
+    },
+    {
+      "id": "nli-12-supports",
+      "group": "scenario-12",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Nagbitiw sa tungkulin si Alina Reyes.",
+      "article_excerpt": "Iniwan na ni Alina Reyes ang kaniyang tungkulin sa pamamagitan ng pagbibitiw.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9984490871429443,
+        "neutral": 0.0011851511662825942,
+        "contradiction": 0.00036573939723894
+      }
+    },
+    {
+      "id": "nli-12-contradicts",
+      "group": "scenario-12",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Nagbitiw sa tungkulin si Alina Reyes.",
+      "article_excerpt": "Hindi nagbitiw sa tungkulin si Alina Reyes.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.99785977602005,
+        "neutral": 0.0016900289338082075,
+        "contradiction": 0.00045023448183201253
+      }
+    },
+    {
+      "id": "nli-12-related",
+      "group": "scenario-12",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Nagbitiw sa tungkulin si Alina Reyes.",
+      "article_excerpt": "Dumalo sa pagpupulong si Alina Reyes.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9975647926330566,
+        "neutral": 0.0012809319887310266,
+        "contradiction": 0.001154380152001977
+      }
+    },
+    {
+      "id": "nli-13-supports",
+      "group": "scenario-13",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Bukas ang palengke tuwing Linggo.",
+      "article_excerpt": "Maaaring mamili sa palengke kapag Linggo dahil bukas ito.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9989263415336609,
+        "neutral": 0.0008509740582667291,
+        "contradiction": 0.0002226395736215636
+      }
+    },
+    {
+      "id": "nli-13-contradicts",
+      "group": "scenario-13",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Bukas ang palengke tuwing Linggo.",
+      "article_excerpt": "Sarado ang palengke tuwing Linggo.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.5903131365776062,
+        "entailment": 0.39229491353034973,
+        "neutral": 0.017391936853528023
+      }
+    },
+    {
+      "id": "nli-13-related",
+      "group": "scenario-13",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Bukas ang palengke tuwing Linggo.",
+      "article_excerpt": "Nilinis ang palengke noong Sabado.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.6407306790351868,
+        "entailment": 0.2645684480667114,
+        "contradiction": 0.09470085799694061
+      }
+    },
+    {
+      "id": "nli-14-supports",
+      "group": "scenario-14",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Naaprubahan ang bagong batas.",
+      "article_excerpt": "Pinagtibay at inaprubahan ang bagong batas.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9990054965019226,
+        "neutral": 0.0007808020454831421,
+        "contradiction": 0.0002137095434591174
+      }
+    },
+    {
+      "id": "nli-14-contradicts",
+      "group": "scenario-14",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Naaprubahan ang bagong batas.",
+      "article_excerpt": "Hindi naaprubahan ang bagong batas.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.998636782169342,
+        "entailment": 0.0007793179247528315,
+        "neutral": 0.0005838758661411703
+      }
+    },
+    {
+      "id": "nli-14-related",
+      "group": "scenario-14",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Naaprubahan ang bagong batas.",
+      "article_excerpt": "Pinag-usapan pa lamang ang isang panukalang batas.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9066241383552551,
+        "contradiction": 0.09091432392597198,
+        "neutral": 0.0024614552967250347
+      }
+    },
+    {
+      "id": "nli-15-supports",
+      "group": "scenario-15",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Naaresto si Carlo Santos.",
+      "article_excerpt": "Inaresto ng mga pulis si Carlo Santos.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9988062381744385,
+        "neutral": 0.0009799074614420533,
+        "contradiction": 0.00021379960526246578
+      }
+    },
+    {
+      "id": "nli-15-contradicts",
+      "group": "scenario-15",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Naaresto si Carlo Santos.",
+      "article_excerpt": "Hindi naaresto si Carlo Santos.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9897922277450562,
+        "neutral": 0.008336221799254417,
+        "contradiction": 0.001871543820016086
+      }
+    },
+    {
+      "id": "nli-15-related",
+      "group": "scenario-15",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Naaresto si Carlo Santos.",
+      "article_excerpt": "Nagbigay ng pahayag si Carlo Santos.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9590506553649902,
+        "neutral": 0.03763483092188835,
+        "entailment": 0.003314524656161666
+      }
+    },
+    {
+      "id": "nli-16-supports",
+      "group": "scenario-16",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Umuulan sa Maynila.",
+      "article_excerpt": "May pag-ulan sa lungsod ng Maynila.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9986261129379272,
+        "neutral": 0.0012298354413360357,
+        "contradiction": 0.00014402487431652844
+      }
+    },
+    {
+      "id": "nli-16-contradicts",
+      "group": "scenario-16",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Umuulan sa Maynila.",
+      "article_excerpt": "Walang ulan sa Maynila.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9784548878669739,
+        "entailment": 0.018388187512755394,
+        "neutral": 0.003156872233375907
+      }
+    },
+    {
+      "id": "nli-16-related",
+      "group": "scenario-16",
+      "split": "calibration",
+      "language": "tl",
+      "claim": "Umuulan sa Maynila.",
+      "article_excerpt": "Mainit sa Cebu.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9973044395446777,
+        "entailment": 0.0015447029145434499,
+        "neutral": 0.0011508114403113723
+      }
+    },
+    {
+      "id": "nli-17-supports",
+      "group": "scenario-17",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "May free vaccination sa health center.",
+      "article_excerpt": "Nagbibigay ang health center ng vaccination na walang bayad.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9985730648040771,
+        "neutral": 0.0012973443372175097,
+        "contradiction": 0.00012966837675776333
+      }
+    },
+    {
+      "id": "nli-17-contradicts",
+      "group": "scenario-17",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "May free vaccination sa health center.",
+      "article_excerpt": "Walang vaccination service sa health center.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.6577730774879456,
+        "entailment": 0.18011876940727234,
+        "neutral": 0.16210809350013733
+      }
+    },
+    {
+      "id": "nli-17-related",
+      "group": "scenario-17",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "May free vaccination sa health center.",
+      "article_excerpt": "May bagong health center building.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.9988467693328857,
+        "contradiction": 0.0006484800251200795,
+        "entailment": 0.0005047762533649802
+      }
+    },
+    {
+      "id": "nli-18-supports",
+      "group": "scenario-18",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Closed ang park sa Sunday.",
+      "article_excerpt": "Sarado ang park kapag Linggo.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9912768602371216,
+        "neutral": 0.005015597678720951,
+        "contradiction": 0.0037076068110764027
+      }
+    },
+    {
+      "id": "nli-18-contradicts",
+      "group": "scenario-18",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Closed ang park sa Sunday.",
+      "article_excerpt": "Open ang park sa Sunday.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9993453621864319,
+        "entailment": 0.00037062462070025504,
+        "neutral": 0.00028403993928804994
+      }
+    },
+    {
+      "id": "nli-18-related",
+      "group": "scenario-18",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Closed ang park sa Sunday.",
+      "article_excerpt": "May picnic area ang park.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.866487979888916,
+        "neutral": 0.13317252695560455,
+        "entailment": 0.0003395084640942514
+      }
+    },
+    {
+      "id": "nli-19-supports",
+      "group": "scenario-19",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Nag-resign si Ana Cruz sa company.",
+      "article_excerpt": "Umalis sa company si Ana Cruz dahil nagbitiw siya sa trabaho.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9989721775054932,
+        "neutral": 0.0008157793781720102,
+        "contradiction": 0.00021208020916674286
+      }
+    },
+    {
+      "id": "nli-19-contradicts",
+      "group": "scenario-19",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Nag-resign si Ana Cruz sa company.",
+      "article_excerpt": "Hindi nag-resign si Ana Cruz sa company.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9971209168434143,
+        "neutral": 0.002369814785197377,
+        "contradiction": 0.0005092045175842941
+      }
+    },
+    {
+      "id": "nli-19-related",
+      "group": "scenario-19",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Nag-resign si Ana Cruz sa company.",
+      "article_excerpt": "Promoted si Luis Cruz sa company.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9989991784095764,
+        "neutral": 0.0007151418831199408,
+        "entailment": 0.0002856904757209122
+      }
+    },
+    {
+      "id": "nli-20-supports",
+      "group": "scenario-20",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Approved na ang school budget increase.",
+      "article_excerpt": "Naaprubahan na ang dagdag na school budget.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9989481568336487,
+        "neutral": 0.000945484614931047,
+        "contradiction": 0.00010633076453814283
+      }
+    },
+    {
+      "id": "nli-20-contradicts",
+      "group": "scenario-20",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Approved na ang school budget increase.",
+      "article_excerpt": "Rejected ang school budget increase.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9994681477546692,
+        "entailment": 0.0003023291355930269,
+        "neutral": 0.00022957102919463068
+      }
+    },
+    {
+      "id": "nli-20-related",
+      "group": "scenario-20",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Approved na ang school budget increase.",
+      "article_excerpt": "May proposal para sa school budget increase.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9734702110290527,
+        "neutral": 0.022517887875437737,
+        "entailment": 0.0040118517354130745
+      }
+    },
+    {
+      "id": "nli-21-supports",
+      "group": "scenario-21",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "May power outage sa barangay.",
+      "article_excerpt": "Walang kuryente ngayon sa barangay dahil sa outage.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.9172114729881287,
+        "entailment": 0.07622434198856354,
+        "contradiction": 0.006564194802194834
+      }
+    },
+    {
+      "id": "nli-21-contradicts",
+      "group": "scenario-21",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "May power outage sa barangay.",
+      "article_excerpt": "Walang power outage sa barangay at may kuryente.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.5369580388069153,
+        "entailment": 0.35908570885658264,
+        "neutral": 0.10395622253417969
+      }
+    },
+    {
+      "id": "nli-21-related",
+      "group": "scenario-21",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "May power outage sa barangay.",
+      "article_excerpt": "May bagong basketball court sa barangay.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9968113303184509,
+        "neutral": 0.0028085827361792326,
+        "entailment": 0.00038006919203326106
+      }
+    },
+    {
+      "id": "nli-22-supports",
+      "group": "scenario-22",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Libre ang ticket sa concert.",
+      "article_excerpt": "Walang bayad ang concert ticket.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9985313415527344,
+        "neutral": 0.0013080284697934985,
+        "contradiction": 0.00016060266352724284
+      }
+    },
+    {
+      "id": "nli-22-contradicts",
+      "group": "scenario-22",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Libre ang ticket sa concert.",
+      "article_excerpt": "May bayad ang ticket sa concert.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9993048906326294,
+        "entailment": 0.000416947208577767,
+        "neutral": 0.00027819498791359365
+      }
+    },
+    {
+      "id": "nli-22-related",
+      "group": "scenario-22",
+      "split": "calibration",
+      "language": "taglish",
+      "claim": "Libre ang ticket sa concert.",
+      "article_excerpt": "Online mabibili ang concert merchandise.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.8862640261650085,
+        "neutral": 0.08956288546323776,
+        "entailment": 0.02417309395968914
+      }
+    },
+    {
+      "id": "nli-23-supports",
+      "group": "scenario-23",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Rosa Lim won the election.",
+      "article_excerpt": "Rosa Lim was declared the winner of the election.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9952718615531921,
+        "neutral": 0.00441400334239006,
+        "contradiction": 0.000314115546643734
+      }
+    },
+    {
+      "id": "nli-23-contradicts",
+      "group": "scenario-23",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Rosa Lim won the election.",
+      "article_excerpt": "Rosa Lim lost the election.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.998770534992218,
+        "entailment": 0.0008140539866872132,
+        "neutral": 0.0004153480695094913
+      }
+    },
+    {
+      "id": "nli-23-related",
+      "group": "scenario-23",
+      "split": "calibration",
+      "language": "en",
+      "claim": "Rosa Lim won the election.",
+      "article_excerpt": "Rosa Lim participated in the election campaign.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.974876880645752,
+        "contradiction": 0.022867832332849503,
+        "entailment": 0.0022552995942533016
+      }
+    },
+    {
+      "id": "nli-24-supports",
+      "group": "scenario-24",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The library has reopened.",
+      "article_excerpt": "The library is open again after its closure.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9912645816802979,
+        "neutral": 0.007861719466745853,
+        "contradiction": 0.0008737198077142239
+      }
+    },
+    {
+      "id": "nli-24-contradicts",
+      "group": "scenario-24",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The library has reopened.",
+      "article_excerpt": "The library has not reopened and remains closed.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9977446794509888,
+        "neutral": 0.0012222331715747714,
+        "entailment": 0.0010330802761018276
+      }
+    },
+    {
+      "id": "nli-24-related",
+      "group": "scenario-24",
+      "split": "calibration",
+      "language": "en",
+      "claim": "The library has reopened.",
+      "article_excerpt": "The library is planning to buy new books.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.6629364490509033,
+        "contradiction": 0.19297122955322266,
+        "entailment": 0.14409230649471283
+      }
+    },
+    {
+      "id": "nli-25-supports",
+      "group": "scenario-25",
+      "split": "audit",
+      "language": "en",
+      "claim": "The ferry service was suspended.",
+      "article_excerpt": "Authorities halted operations of the ferry service.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9883203506469727,
+        "neutral": 0.010970370844006538,
+        "contradiction": 0.0007092200103215873
+      }
+    },
+    {
+      "id": "nli-25-contradicts",
+      "group": "scenario-25",
+      "split": "audit",
+      "language": "en",
+      "claim": "The ferry service was suspended.",
+      "article_excerpt": "The ferry service continues operating without suspension.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9947690367698669,
+        "entailment": 0.0032103988341987133,
+        "neutral": 0.002020531566813588
+      }
+    },
+    {
+      "id": "nli-25-related",
+      "group": "scenario-25",
+      "split": "audit",
+      "language": "en",
+      "claim": "The ferry service was suspended.",
+      "article_excerpt": "The ferry service added a blue logo.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9974790215492249,
+        "neutral": 0.002160150557756424,
+        "entailment": 0.0003607872349675745
+      }
+    },
+    {
+      "id": "nli-26-supports",
+      "group": "scenario-26",
+      "split": "audit",
+      "language": "en",
+      "claim": "Lina Ramos confirmed her retirement.",
+      "article_excerpt": "Lina Ramos announced she is retiring.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9948030114173889,
+        "neutral": 0.004706673789769411,
+        "contradiction": 0.0004902261425741017
+      }
+    },
+    {
+      "id": "nli-26-contradicts",
+      "group": "scenario-26",
+      "split": "audit",
+      "language": "en",
+      "claim": "Lina Ramos confirmed her retirement.",
+      "article_excerpt": "Lina Ramos denied she was retiring and confirmed she will continue working.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.7864260673522949,
+        "entailment": 0.1947762370109558,
+        "neutral": 0.01879768632352352
+      }
+    },
+    {
+      "id": "nli-26-related",
+      "group": "scenario-26",
+      "split": "audit",
+      "language": "en",
+      "claim": "Lina Ramos confirmed her retirement.",
+      "article_excerpt": "Lina Ramos attended a retirement party for a colleague.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.5376617312431335,
+        "entailment": 0.24739186465740204,
+        "contradiction": 0.2149464190006256
+      }
+    },
+    {
+      "id": "nli-27-supports",
+      "group": "scenario-27",
+      "split": "audit",
+      "language": "en",
+      "claim": "The council banned smoking in parks.",
+      "article_excerpt": "Smoking is prohibited in parks under the council decision.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9960034489631653,
+        "neutral": 0.0033273017033934593,
+        "contradiction": 0.0006692582392133772
+      }
+    },
+    {
+      "id": "nli-27-contradicts",
+      "group": "scenario-27",
+      "split": "audit",
+      "language": "en",
+      "claim": "The council banned smoking in parks.",
+      "article_excerpt": "The council explicitly allows smoking in parks.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9995119571685791,
+        "neutral": 0.00026956465444527566,
+        "entailment": 0.00021853216458112001
+      }
+    },
+    {
+      "id": "nli-27-related",
+      "group": "scenario-27",
+      "split": "audit",
+      "language": "en",
+      "claim": "The council banned smoking in parks.",
+      "article_excerpt": "The council discussed maintenance of parks.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.8486838936805725,
+        "contradiction": 0.14959852397441864,
+        "entailment": 0.0017176222754642367
+      }
+    },
+    {
+      "id": "nli-28-supports",
+      "group": "scenario-28",
+      "split": "audit",
+      "language": "en",
+      "claim": "The train fare is twenty pesos.",
+      "article_excerpt": "Passengers pay twenty pesos for the train ride.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9959465861320496,
+        "neutral": 0.003468019189313054,
+        "contradiction": 0.0005853921175003052
+      }
+    },
+    {
+      "id": "nli-28-contradicts",
+      "group": "scenario-28",
+      "split": "audit",
+      "language": "en",
+      "claim": "The train fare is twenty pesos.",
+      "article_excerpt": "The train ride is free and passengers pay nothing.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9925642609596252,
+        "neutral": 0.006340946536511183,
+        "entailment": 0.0010947863338515162
+      }
+    },
+    {
+      "id": "nli-28-related",
+      "group": "scenario-28",
+      "split": "audit",
+      "language": "en",
+      "claim": "The train fare is twenty pesos.",
+      "article_excerpt": "The train carries passengers to a station twenty kilometers away.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.997352123260498,
+        "contradiction": 0.001470418879762292,
+        "entailment": 0.0011773558799177408
+      }
+    },
+    {
+      "id": "nli-29-supports",
+      "group": "scenario-29",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Kinansela ang paligsahan.",
+      "article_excerpt": "Hindi na itutuloy ang paligsahan dahil kinansela ito.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9987605810165405,
+        "neutral": 0.001002548960968852,
+        "contradiction": 0.00023690683883614838
+      }
+    },
+    {
+      "id": "nli-29-contradicts",
+      "group": "scenario-29",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Kinansela ang paligsahan.",
+      "article_excerpt": "Itutuloy ang paligsahan at hindi ito kinansela.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9970812201499939,
+        "entailment": 0.0021593694109469652,
+        "neutral": 0.0007593452464789152
+      }
+    },
+    {
+      "id": "nli-29-related",
+      "group": "scenario-29",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Kinansela ang paligsahan.",
+      "article_excerpt": "Inanunsiyo ang pangalan ng mga kalahok sa paligsahan.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9893159866333008,
+        "contradiction": 0.005597673822194338,
+        "neutral": 0.005086324643343687
+      }
+    },
+    {
+      "id": "nli-30-supports",
+      "group": "scenario-30",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Nagtaas ng presyo ang tindahan.",
+      "article_excerpt": "Mas mataas na ngayon ang presyo ng mga paninda sa tindahan.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9989846348762512,
+        "neutral": 0.000878706166986376,
+        "contradiction": 0.00013656062947120517
+      }
+    },
+    {
+      "id": "nli-30-contradicts",
+      "group": "scenario-30",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Nagtaas ng presyo ang tindahan.",
+      "article_excerpt": "Hindi nagtaas ng presyo ang tindahan.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.998902440071106,
+        "entailment": 0.00061141571495682,
+        "neutral": 0.0004861723864451051
+      }
+    },
+    {
+      "id": "nli-30-related",
+      "group": "scenario-30",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Nagtaas ng presyo ang tindahan.",
+      "article_excerpt": "Nagpalit ng karatula ang tindahan.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9921426773071289,
+        "neutral": 0.00673676747828722,
+        "contradiction": 0.0011205680202692747
+      }
+    },
+    {
+      "id": "nli-31-supports",
+      "group": "scenario-31",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Bumalik sa trabaho si Mario Dela Cruz.",
+      "article_excerpt": "Muling nagtatrabaho si Mario Dela Cruz matapos ang kaniyang pagliban.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9990271329879761,
+        "neutral": 0.0007892887224443257,
+        "contradiction": 0.00018359589739702642
+      }
+    },
+    {
+      "id": "nli-31-contradicts",
+      "group": "scenario-31",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Bumalik sa trabaho si Mario Dela Cruz.",
+      "article_excerpt": "Hindi bumalik sa trabaho si Mario Dela Cruz.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9939080476760864,
+        "entailment": 0.004274463746696711,
+        "neutral": 0.001817478914745152
+      }
+    },
+    {
+      "id": "nli-31-related",
+      "group": "scenario-31",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Bumalik sa trabaho si Mario Dela Cruz.",
+      "article_excerpt": "Nagbakasyon si Mario Dela Cruz.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9912342429161072,
+        "neutral": 0.006802284624427557,
+        "contradiction": 0.001963550690561533
+      }
+    },
+    {
+      "id": "nli-32-supports",
+      "group": "scenario-32",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Sarado ang tanggapan sa Sabado.",
+      "article_excerpt": "Hindi bukas ang tanggapan tuwing Sabado.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9889026284217834,
+        "contradiction": 0.007501126732677221,
+        "neutral": 0.0035962306428700686
+      }
+    },
+    {
+      "id": "nli-32-contradicts",
+      "group": "scenario-32",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Sarado ang tanggapan sa Sabado.",
+      "article_excerpt": "Bukas ang tanggapan sa Sabado.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.8988152146339417,
+        "contradiction": 0.09420260787010193,
+        "neutral": 0.00698219146579504
+      }
+    },
+    {
+      "id": "nli-32-related",
+      "group": "scenario-32",
+      "split": "audit",
+      "language": "tl",
+      "claim": "Sarado ang tanggapan sa Sabado.",
+      "article_excerpt": "May bagong gusali ang tanggapan.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.9990737438201904,
+        "contradiction": 0.0005678239394910634,
+        "entailment": 0.00035837313043884933
+      }
+    },
+    {
+      "id": "nli-33-supports",
+      "group": "scenario-33",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "May free lunch sa school.",
+      "article_excerpt": "Nagbibigay ang school ng lunch na walang bayad.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9980350136756897,
+        "neutral": 0.0018204501830041409,
+        "contradiction": 0.0001445945235900581
+      }
+    },
+    {
+      "id": "nli-33-contradicts",
+      "group": "scenario-33",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "May free lunch sa school.",
+      "article_excerpt": "Walang free lunch sa school at may bayad lahat ng pagkain.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9965503215789795,
+        "entailment": 0.00244414946064353,
+        "neutral": 0.0010055077727884054
+      }
+    },
+    {
+      "id": "nli-33-related",
+      "group": "scenario-33",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "May free lunch sa school.",
+      "article_excerpt": "May bagong school uniform.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "neutral": 0.9984862804412842,
+        "contradiction": 0.0008762140059843659,
+        "entailment": 0.0006375686498358846
+      }
+    },
+    {
+      "id": "nli-34-supports",
+      "group": "scenario-34",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "Nag-open ang bagong clinic sa Cebu.",
+      "article_excerpt": "Binuksan ang isang bagong clinic sa Cebu.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9988359808921814,
+        "neutral": 0.0008090350311249495,
+        "contradiction": 0.00035495421616360545
+      }
+    },
+    {
+      "id": "nli-34-contradicts",
+      "group": "scenario-34",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "Nag-open ang bagong clinic sa Cebu.",
+      "article_excerpt": "Hindi nag-open ang bagong clinic sa Cebu.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9987072944641113,
+        "entailment": 0.0006525394273921847,
+        "neutral": 0.0006402197177521884
+      }
+    },
+    {
+      "id": "nli-34-related",
+      "group": "scenario-34",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "Nag-open ang bagong clinic sa Cebu.",
+      "article_excerpt": "May meeting tungkol sa clinic sa Cebu.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.7602989673614502,
+        "neutral": 0.23746639490127563,
+        "contradiction": 0.0022346926853060722
+      }
+    },
+    {
+      "id": "nli-35-supports",
+      "group": "scenario-35",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "Cancelled ang flight.",
+      "article_excerpt": "Hindi na tutuloy ang flight dahil kinansela ito.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9964118599891663,
+        "neutral": 0.0019918885082006454,
+        "contradiction": 0.0015963506884872913
+      }
+    },
+    {
+      "id": "nli-35-contradicts",
+      "group": "scenario-35",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "Cancelled ang flight.",
+      "article_excerpt": "Tuloy ang flight at hindi ito cancelled.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9862819314002991,
+        "entailment": 0.010802136734127998,
+        "neutral": 0.002915932796895504
+      }
+    },
+    {
+      "id": "nli-35-related",
+      "group": "scenario-35",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "Cancelled ang flight.",
+      "article_excerpt": "Delayed ang boarding announcement para sa ibang flight.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9958827495574951,
+        "neutral": 0.0023713214322924614,
+        "entailment": 0.0017459483351558447
+      }
+    },
+    {
+      "id": "nli-36-supports",
+      "group": "scenario-36",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "May water interruption sa district.",
+      "article_excerpt": "Walang supply ng tubig sa district dahil sa interruption.",
+      "relationship": "supports",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "entailment": 0.9966601133346558,
+        "neutral": 0.0018532942049205303,
+        "contradiction": 0.0014866088749840856
+      }
+    },
+    {
+      "id": "nli-36-contradicts",
+      "group": "scenario-36",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "May water interruption sa district.",
+      "article_excerpt": "Walang water interruption sa district at normal ang supply.",
+      "relationship": "contradicts",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9916470050811768,
+        "entailment": 0.005838237702846527,
+        "neutral": 0.002514714142307639
+      }
+    },
+    {
+      "id": "nli-36-related",
+      "group": "scenario-36",
+      "split": "audit",
+      "language": "taglish",
+      "claim": "May water interruption sa district.",
+      "article_excerpt": "May bagong water bill design ang district.",
+      "relationship": "related",
+      "provenance": "authored synthetic semantic fixture; not independently reviewed factual evidence",
+      "scores": {
+        "contradiction": 0.9730106592178345,
+        "entailment": 0.014044523239135742,
+        "neutral": 0.01294477004557848
+      }
+    }
+  ]
+}

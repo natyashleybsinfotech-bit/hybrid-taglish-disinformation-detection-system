@@ -74,15 +74,9 @@ TOPIC_CATEGORIES = (
     "Entertainment and Public Figures",
     "Other and General",
 )
-# Optional Gemini evidence reader. Never put the credential in extension code.
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_ENABLED = _env("SURI_GEMINI_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
-GEMINI_SEARCH_GROUNDING = _env("SURI_GEMINI_SEARCH_GROUNDING", "false").lower() in {"1", "true", "yes", "on"}
-GEMINI_MODEL = _env("SURI_GEMINI_MODEL", "gemini-3.5-flash-lite")
-GEMINI_TIMEOUT_SECONDS = min(30, max(3, _env_int("SURI_GEMINI_TIMEOUT_SECONDS", 20)))
-GEMINI_REQUESTS_PER_MINUTE = min(20, max(1, _env_int("SURI_GEMINI_REQUESTS_PER_MINUTE", 4)))
-GEMINI_REQUESTS_PER_DAY = min(1000, max(1, _env_int("SURI_GEMINI_REQUESTS_PER_DAY", 100)))
-GEMINI_BUDGET_PATH = BASE_DIR / "data" / "runtime-gemini" / "request-budget.json"
+# Evidence inference is local; model preparation is an explicit setup operation.
+LOCAL_NLI_ENABLED = _env("SURI_LOCAL_NLI_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+LOCAL_NLI_MODEL_DIR = Path(_env("SURI_LOCAL_NLI_MODEL_DIR", str(BASE_DIR / "data" / "runtime-models" / "local-nli" / "8adb042d524ecd5c26d3e3ba0e3fbcf7e2d0864c"))).resolve()
 
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "").strip()
 SERPER_ENABLED = _env("SERPER_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
@@ -99,9 +93,7 @@ OCR_LANGUAGES = tuple(
     if language.strip()
 )
 OCR_GPU = _env("SURI_OCR_GPU", "false").lower() in {"1", "true", "yes"}
-SPEECH_PROVIDER = _env("SURI_SPEECH_PROVIDER", "local").strip().lower()
-if SPEECH_PROVIDER not in {"local", "gemini"}:
-    raise RuntimeError("SURI_SPEECH_PROVIDER must be local or gemini")
+SPEECH_PROVIDER = "local"  # Remote speech providers are not supported.
 WHISPER_ENGINE = _env("SURI_WHISPER_ENGINE", "faster-whisper").strip().lower()
 WHISPER_MODEL_NAME = _env("SURI_WHISPER_MODEL", "turbo")
 # The screening product targets Filipino/Taglish speech. Whisper still emits
@@ -154,8 +146,8 @@ MODEL_DEVICE = _env("SURI_MODEL_DEVICE", "auto")
 MODEL_CPU_THREADS = _env_int("SURI_MODEL_CPU_THREADS", 4)
 SCREENING_MODE = _env("SURI_SCREENING_MODE", "model").lower()
 MODEL_AUTHORITATIVE = _env("SURI_MODEL_AUTHORITATIVE", "false").lower() in {"1", "true", "yes", "on"}
-if SCREENING_MODE not in {"model", "evidence_only", "gemini"}:
-    raise RuntimeError("SURI_SCREENING_MODE must be 'model', 'evidence_only', or 'gemini'.")
+if SCREENING_MODE not in {"model", "evidence_only"}:
+    raise RuntimeError("SURI_SCREENING_MODE must be 'model' or 'evidence_only'.")
 EVIDENCE_POLICY = _env('SURI_EVIDENCE_POLICY', 'strict')
 if EVIDENCE_POLICY not in {'strict', 'semantic_single_source_trial'}:
     raise RuntimeError('Unknown SURI_EVIDENCE_POLICY')
